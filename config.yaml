@@ -1,0 +1,9 @@
+workflow:
+    - setup
+    - import
+
+plugins:
+    - core.builtin.SetupPlugin
+    - core.builtin.InitStaticPlugin
+    - contrib.input.meteo.WRFPlugin
+    - contrib.input.meteo.EmisPlugin
