@@ -1,4 +1,5 @@
-from .config import cfg, rt_cfg
+from .config import cfg
+from .runtime import rt
 from .dispatch import run
 
-__all__ = ['cfg', 'rt_cfg', 'run']
+__all__ = ['cfg', 'rt', 'run']

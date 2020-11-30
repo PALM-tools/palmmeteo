@@ -1,5 +1,7 @@
 import core.plugins as plg
-from .config import load_config, cfg, rt_cfg
+import core.logging
+from .config import load_config, cfg
+from .runtime import rt, basic_init
 
 
 def build_exec_queue(event, from_plugins):
@@ -13,14 +15,16 @@ def build_exec_queue(event, from_plugins):
 
 
 def execute_event(event):
-    queue = build_exec_queue(event, rt_cfg.plugins)
+    queue = build_exec_queue(event, rt.plugins)
     for plugin in queue:
         getattr(plugin, plg.event_hooks[event]['method'])()
 
 
 def run(argv):
-    load_config(argv.config)
-    rt_cfg.plugins = [plg.plugin_factory(p, cfg=cfg, rt_cfg=rt_cfg)
+    load_config(argv)
+    basic_init(cfg)
+    core.logging.configure(cfg)
+    rt.plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
                       for p in cfg.plugins]
 
     for event in cfg.workflow:

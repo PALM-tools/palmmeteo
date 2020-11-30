@@ -57,8 +57,8 @@ class Plugin(metaclass=PluginMeta):
         if 'cfg' in kwargs:
             self.cfg = kwargs['cfg']
 
-        if 'rt_cfg' in kwargs:
-            self.rt_cfg = kwargs['rt_cfg']
+        if 'rt' in kwargs:
+            self.rt = kwargs['rt']
 
 
 class ImportPluginMixin(Plugin):
