@@ -1,0 +1,38 @@
+# This file is part of program code. It stores inital values for configuration
+# of core variables. It is not intended to be used as a user configuration file
+# or a template thereof.
+
+case: #case name (required)
+scenario: #optional scenario identification (multiple scenarios per case)
+dnum: 1 #1 for root domain, 2 for nested domain *_N02 etc.
+
+# Some paths may be relative as specified or absolute. They may contain
+# these references:
+# {case}: case name
+# {scenario}: scenario name (if provided) with leading dot
+# {domain}: domain number string: empty for dnum=1, '_N02' for dnum=2 etc.
+paths:
+    base: .
+    palm_input: '../JOBS/{case}{scenario}/INPUT' #relative to base
+    dynamic_driver: '{case}_dynamic{domain}' #relative to palm_input
+    static_driver: '{case}_static{domain}' #relative to palm_input
+    intermediate: '../JOBS/{case}{scenario}/METEO' #relative to base
+    wrf_output: '../JOBS/{case}{scenario}/WRF' #relative to base
+    wrf_file_mask: 'wrfout_*.e000'
+
+
+domain:
+    dz: #default=dx
+    nz: #required
+    dz_stretch_level: -1.0 #in metres
+    dz_stretch_factor: 1.0
+    dz_max: -1.0 #in metres
+    # minimal number of free surface canopy layers above top of terrain with
+    # building and plant canopy
+    nscl_free: 3
+    proj_palm: 'EPSG:32633' #reference coordinate system of PALM simulation
+    proj_wgs84: 'EPSG:4326' #projection lon-lat
+
+simulation:
+    origin_time: #default: read from static driver
+    length_hours: 24

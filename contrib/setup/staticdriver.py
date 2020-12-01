@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import numpy as np
 import netCDF4
 
@@ -13,7 +14,7 @@ class StaticDriverPlugin(SetupPluginMixin):
 
     def setup_model(self, *args, **kwargs):
         static_driver_file = os.path.join(rt.paths.palm_input,
-                cfg.paths.static_driver.format(scenario=cfg.scenario))
+                cfg.paths.static_driver.format(**rt.paths.expand))
         log('Loading domain info from static driver file {}...', static_driver_file)
 
         try:
@@ -30,8 +31,21 @@ class StaticDriverPlugin(SetupPluginMixin):
         rt.origin_y = ncs.getncattr('origin_y')
         rt.origin_z = ncs.getncattr('origin_z')
 
-        # origin_time may be provided in configuration or read from static driver
-        rt.origin_time = cfg.simulation.origin_time or ncs.getncattr('origin_time')
+        # start_time may be provided in configuration or read from static driver
+        if cfg.simulation.origin_time:
+            rt.start_time = cfg.simulation.origin_time
+        else:
+            dt = ncs.origin_time
+            dts = dt.split()
+            if len(dts) == 3:
+                # extra timezone string
+                if len(dts[2]) == 3:
+                    # need to add zeros for minutes, otherwise datetime refuses
+                    # to parse
+                    dt += '00'
+                rt.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S %z')
+            else:
+                rt.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
 
         # create vertical structure of the domain
         rt.dz = cfg.domain.dz

@@ -1,0 +1,36 @@
+# This file is part of program code. It stores inital values for configuration
+# of workflow and plugin related variables. It is not intended to be used as
+# a user configuration file or a template thereof.
+
+# One of the prepared operation modes which defines selected plugins (may also
+# define workflow future versions)
+mode:
+    wrf_nochem  # WRF inputs with no chemistry
+    #wrf_camx    # WRF inputs with chemistry from a coupled CAMx run
+    #cosmo       # COSMO inputs
+
+# Default workflow (currently no need to have separate workflows per mode)
+workflow:
+    - setup
+    - import
+    - hinterp
+    - vinterp
+    - write
+
+# Ordered list of selected plugins. Normally left blank and determined by mode.
+# Advanced users may overwrite these.
+plugins: !!null
+
+# Configuration presets for selectable operation modes
+operation_modes:
+    wrf_nochem:
+        plugins:
+            - contrib.setup.staticdriver.StaticDriverPlugin
+            - core.builtin.SetupPlugin
+            - contrib.input.meteo.WRFPlugin
+    wrf_camx:
+        plugins:
+            - contrib.setup.staticdriver.StaticDriverPlugin
+            - core.builtin.SetupPlugin
+            - contrib.input.meteo.WRFPlugin
+            - contrib.input.meteo.EmisPlugin

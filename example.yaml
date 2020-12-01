@@ -1,6 +1,7 @@
 # An example of a minimal config
 
-scenario: example #scenario name (required)
+case: example #case name (required)
 
 domain:
     nz: 30 #required
+

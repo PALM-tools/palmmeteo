@@ -1,4 +1,12 @@
-from core.plugins import Plugin, ImportPluginMixin
+import os
+import glob
+from datetime import datetime, timedelta
+import netCDF4
+
+from core.plugins import Plugin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from core.logging import die, warn, log, verbose
+from core.config import cfg
+from core.runtime import rt
 
 available_meteo_vars = {
     'tas':  {'desc': 'temperature at surface', 'units': 'K'},
@@ -44,9 +52,59 @@ class RequiresMeteoPluginMixin(Plugin):
                 'RequiresMeteoPluginMixin.'.format(self))
 
 
-class WRFPlugin(ImportPluginMixin):
+class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, *args, **kwargs):
-        print('Importing WRF data')
+        log('Importing WRF data...')
+        ######################################
+        # get time extent of the PALM simulation
+        #####################################
+        # get complete list of wrf files
+        wrf_file_list = glob.glob(os.path.join(cfg.paths.wrf_output,
+            cfg.paths.wrf_file_mask))
+        # get simulation origin and final time as datetime
+        rt.end_time = rt.start_time + timedelta(hours=cfg.simulation.length_hours)
+        rt.end_time_rad = rt.end_time
+        verbose('PALM simulation extent {} - {} ({} hours).', rt.start_time,
+                rt.end_time, cfg.simulation.length_hours)
+        if rt.nested_domain:
+            log('Nested domain - process only initialization. '
+                    'Set end_time = start_time')
+            rt.end_time = rt.start_time
+
+        # get wrf times and sort wrf files by time
+        print('Analyse WRF files dates:')
+        file_times = []
+        for wrf_file in wrf_file_list:
+            # get real time from wrf file
+            with netCDF4.Dataset(wrf_file, 'r') as nc_wrf:
+                ta = nc_wrf.variables['Times'][:]
+                t = ta.tobytes().decode("utf-8")
+                td = datetime.strptime(t, '%Y-%m-%d_%H:%M:%S')
+                verbose('{}: {}', os.path.basename(wrf_file), td)
+                if rt.start_time <= td <= rt.end_time:
+                    file_times.append((td, wrf_file))
+        if not file_times:
+            die('No suitable WRF files found!')
+
+        file_times.sort()
+        times, wrf_files = zip(*file_times) #unzip
+        rt.times = list(times)
+        rt.wrf_files = list(wrf_files)
+        verbose('PALM output times: {}', ', '.join(map(str, times)))
+
+        if times[0] != rt.start_time:
+            die('WRF files do not contain PALM origin_time timestep - cannot process!')
+        if times[-1] != rt.end_time:
+            die('WRF files do not contain PALM end_time timestep - cannot process!')
+
+        if not rt.nested_domain and len(times) != simulation_hours+1:
+            die('Number of WRF files does not aggre with number of simulation hours')
+
+    def interpolate_horiz(self, *args, **kwargs):
+        pass
+
+    def interpolate_vert(self, *args, **kwargs):
+        pass
 
     class Provides:
         meteo_vars = ['tas', 'pa']

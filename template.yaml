@@ -1,0 +1,9 @@
+# A template with all user-selectable configuration options
+
+# TODO: fill from config_init_*
+
+case: example #case name (required)
+
+domain:
+    nz: #required
+

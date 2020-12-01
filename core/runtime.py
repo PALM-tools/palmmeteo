@@ -12,11 +12,21 @@ def basic_init(cfg):
 
     # Paths
     rt.paths = RuntimeObj()
-    path_exp = dict(scenario=cfg.scenario)
-    rt.paths.base = cfg.paths.base.format(**path_exp)
-    rt.paths.palm_input = os.path.join(rt.paths.base, cfg.paths.palm_input.format(**path_exp))
+    rt.paths.expand = dict(
+            case=cfg.case,
+            scenario='.'+cfg.scenario if cfg.scenario else '',
+            domain='' if cfg.dnum==1 else '_N{:02d}'.format(cfg.dnum))
+
+    rt.paths.base = cfg.paths.base.format(**rt.paths.expand)
+    rt.paths.palm_input = os.path.join(rt.paths.base,
+            cfg.paths.palm_input.format(**rt.paths.expand))
+    rt.paths.dynamic_driver = os.path.join(rt.paths.palm_input,
+            cfg.paths.dynamic_driver.format(**rt.paths.expand))
+    rt.paths.intermediate = os.path.join(rt.paths.base,
+            cfg.paths.intermediate.format(**rt.paths.expand))
 
     # Domain
+    rt.nested_domain = (cfg.dnum > 1)
     rt.stretching = (cfg.domain.dz_stretch_factor != 1.0)
 
 rt = RuntimeObj()

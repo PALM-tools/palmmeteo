@@ -75,6 +75,34 @@ class ImportPluginMixin(Plugin):
         pass
 
 
+class HInterpPluginMixin(Plugin):
+    """
+    Base class mixin for plugins importing data.
+    Registers 'interpolate_horiz' method as a handler for event 'hinterp'.
+
+    Abstract methods required to be implemented by derived classes:
+        interpolate_horiz
+    """
+    @abstractmethod
+    @eventhandler('hinterp')
+    def interpolate_horiz(self, *args, **kwargs):
+        pass
+
+
+class VInterpPluginMixin(Plugin):
+    """
+    Base class mixin for plugins importing data.
+    Registers 'interpolate_vert' method as a handler for event 'vinterp'.
+
+    Abstract methods required to be implemented by derived classes:
+        interpolate_vert
+    """
+    @abstractmethod
+    @eventhandler('vinterp')
+    def interpolate_vert(self, *args, **kwargs):
+        pass
+
+
 class SetupPluginMixin(Plugin):
     """
     Base class mixin for setup plugins.
