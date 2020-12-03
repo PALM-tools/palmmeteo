@@ -117,6 +117,20 @@ class SetupPluginMixin(Plugin):
         pass
 
 
+class WritePluginMixin(Plugin):
+    """
+    Base class mixin for writer plugins.
+    Registers 'import_data' method as a handler for event 'write'.
+
+    Abstract methods required to be implemented by derived classes:
+        write_data
+    """
+    @abstractmethod
+    @eventhandler('write')
+    def write_data(self, *args, **kwargs):
+        pass
+
+
 def plugin_factory(plugin, *args, **kwargs):
     try:
         mod_name, cls_name = plugin.rsplit('.', 1)

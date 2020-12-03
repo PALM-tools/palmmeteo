@@ -109,9 +109,9 @@ class StaticDriverPlugin(SetupPluginMixin):
                     cfg.domain.dz_stretch_level, nscl, cfg.domain.nscl_free,
                     rt.dz)
         if 'soil_moisture_adjust' in ncs.variables.keys():
-            soil_moisture_adjust = ncs.variables['soil_moisture_adjust'][:]
+            rt.soil_moisture_adjust = ncs.variables['soil_moisture_adjust'][:]
         else:
-            soil_moisture_adjust = np.ones(shape=(rt.ny, rt.nx), dtype=float)
+            rt.soil_moisture_adjust = np.ones(shape=(rt.ny, rt.nx), dtype=float)
 
         # close static driver nc file
         ncs.close()

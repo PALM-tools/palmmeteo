@@ -1,13 +1,16 @@
 import os
 import glob
 from datetime import datetime, timedelta, timezone
+import numpy as np
+import scipy.ndimage as ndimage
 import netCDF4
+from metpy.interpolate import interpolate_1d
 
 from core.plugins import Plugin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
-from core.logging import die, warn, log, verbose
+from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg
 from core.runtime import rt
-from .palm_wrf_utils import WRFCoordTransform, BilinearRegridder
+from .palm_wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, calc_ph_sigma, barom_gp, g, wrf_t, barom_pres, wrf_base_temp, palm_wrf_gw
 
 available_meteo_vars = {
     'tas':  {'desc': 'temperature at surface', 'units': 'K'},
@@ -60,6 +63,19 @@ def hrdiff(td):
         raise ValueError('Not a whole hour!')
     return d
 
+def lpad(var):
+    """Pad variable in first dimension by repeating lowest layer twice"""
+    return np.r_[var[0:1], var]
+
+def log_dstat_on(desc, delta):
+    """Calculate and log delta statistics if enabled."""
+    log_output('{0} ({1:8g} ~ {2:8g}): bias = {3:8g}, MAE = {4:8g}\n'.format(
+        desc, delta.min(), delta.max(), delta.mean(), np.abs(delta).mean()))
+
+def log_dstat_off(desc, delta):
+    """Do nothing (log disabled)"""
+    pass
+
 class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, *args, **kwargs):
         log('Importing WRF data...')
@@ -68,11 +84,13 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         if rt.nested_domain:
             log('Nested domain - processing only initialization (1 timestep).')
             rt.nt = 1
+            rt.end_time = rt.start_time
         else:
             rt.nt = cfg.simulation.length_hours+1
+            rt.end_time = rt.start_time + timedelta(hours=cfg.simulation.length_hours)
 
+        rt.times_sec = np.arange(rt.nt) * 3600.
         rt.tindex = lambda dt: hrdiff(dt-rt.start_time)
-        rt.end_time = rt.start_time + timedelta(hours=cfg.simulation.length_hours)
         rt.end_time_rad = rt.end_time
         verbose('PALM simulation extent {} - {} ({} timesteps).', rt.start_time,
                 rt.end_time, rt.nt)
@@ -111,13 +129,14 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     # dimensions
                     if first:
                         fout.createDimension('Time', rt.nt)
+                        fout.createDimension('z', rt.nz) #final z-coord for UG, VG
                         for d in '''west_east west_east_stag south_north
                                 south_north_stag bottom_top bottom_top_stag
                                 soil_layers_stag'''.split():
                             fout.createDimension(d, len(fin.dimensions[d]))
 
                     # copied vars
-                    for varname in cfg.wrf.copy_vars + ['U', 'V', 'P_TOP']:
+                    for varname in cfg.wrf.interp_vars + ['U', 'V'] + cfg.wrf.vars_1d:
                         v_wrf = fin.variables[varname]
                         v_out = (fout.createVariable(varname, 'f4', v_wrf.dimensions)
                                 if first else fout.variables[varname])
@@ -136,6 +155,15 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         vdata += fin.variables[vname][0]
                     v_out[it] = vdata
                     del vdata
+
+                    # calculated geostrophic wind
+                    ug, vg = palm_wrf_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels)
+                    v_out = (fout.createVariable('UG', 'f4', ('Time', 'z')) if first
+                        else fout.variables['UG'])
+                    v_out[it, :] = ug
+                    v_out = (fout.createVariable('VG', 'f4', ('Time', 'z')) if first
+                        else fout.variables['VG'])
+                    v_out[it, :] = vg
 
                     # soil layers
                     if first:
@@ -165,13 +193,13 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         verbose('Preparing output file')
         with netCDF4.Dataset(rt.paths.imported) as fin:
             with netCDF4.Dataset(rt.paths.hinterp, 'w', format='NETCDF4') as fout:
-                for d in '''Time  bottom_top bottom_top_stag
+                for d in '''Time bottom_top bottom_top_stag z
                         soil_layers_stag'''.split():
                     fout.createDimension(d, len(fin.dimensions[d]))
                 fout.createDimension('west_east', rt.nx)
                 fout.createDimension('south_north', rt.ny)
 
-                for varname in cfg.wrf.copy_vars + ['SPECHUM', 'P_TOP']:
+                for varname in cfg.wrf.interp_vars + ['SPECHUM', 'UG', 'VG'] + cfg.wrf.vars_1d:
                     v_wrf = fin.variables[varname]
                     v_out = fout.createVariable(varname, 'f4', v_wrf.dimensions)
                 v_out = fout.createVariable('U', 'f4', ('Time', 'bottom_top', 'south_north', 'west_east'))
@@ -181,7 +209,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     verbose('Processing timestep {}', it)
 
                     # regular vars
-                    for varname in cfg.wrf.copy_vars + ['SPECHUM']:
+                    for varname in cfg.wrf.interp_vars + ['SPECHUM']:
                         v_wrf = fin.variables[varname]
                         v_out = fout.variables[varname]
                         v_out[it] = regridder.regrid(v_wrf[it,...,regridder.ys,regridder.xs])
@@ -193,32 +221,44 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                             fin.variables['V'][it,...,regridder_v.ys,regridder_v.xs])
 
                     # direct copy
-                    fout.variables['P_TOP'][it] = fin.variables['P_TOP'][it]
-
-
-def palm_wrf_vertical_interp(
-        origin_z, terrain, wrf_hybrid_levs, vinterp_terrain_smoothing):
+                    for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
+                        fout.variables[varname][it] = fin.variables[varname][it]
 
     def interpolate_vert(self, *args, **kwargs):
+        # TODO: move checks to separate event
+        if cfg.wrf.hybrid_levs not in [True, False]:
+            die('The setting "wrf:hybrid_levs" must be specified and match the '
+                    'WRF vertifal coordinate system!')
+        verbose_dstat = log_dstat_on if cfg.verbosity >= 2 else log_dstat_off
+
         log('Performing vertical interpolation')
 
         verbose('Preparing output file')
-        with netCDF4.Dataset(rt.paths.imported) as fin:
-            with netCDF4.Dataset(rt.paths.hinterp, 'w', format='NETCDF4') as fout:
+        with netCDF4.Dataset(rt.paths.hinterp) as fin:
+            with netCDF4.Dataset(rt.paths.vinterp, 'w', format='NETCDF4') as fout:
                 for dimname in ['Time', 'west_east', 'south_north', 'soil_layers_stag']:
                     fout.createDimension(dimname, len(fin.dimensions[dimname]))
                 fout.createDimension('z', rt.nz)
                 fout.createDimension('zw', rt.nz-1)
                 fout.createDimension('zsoil', rt.nz_soil)
 
+                fout.createVariable('init_atmosphere_qv', 'f4', ('Time', 'z', 'south_north', 'west_east'))
+                fout.createVariable('init_atmosphere_pt', 'f4', ('Time', 'z', 'south_north', 'west_east'))
+                fout.createVariable('init_atmosphere_u', 'f4', ('Time', 'z', 'south_north', 'west_east'))
+                fout.createVariable('init_atmosphere_v', 'f4', ('Time', 'z', 'south_north', 'west_east'))
+                fout.createVariable('init_atmosphere_w', 'f4', ('Time', 'zw', 'south_north', 'west_east'))
+                fout.createVariable('surface_forcing_surface_pressure', 'f4', ('Time', 'south_north', 'west_east'))
+                fout.createVariable('init_soil_t', 'f4', ('Time', 'zsoil', 'south_north', 'west_east'))
+                fout.createVariable('init_soil_m', 'f4', ('Time', 'zsoil', 'south_north', 'west_east'))
+                fout.createVariable('ls_forcing_ug', 'f4', ('Time', 'z'))
+                fout.createVariable('ls_forcing_vg', 'f4', ('Time', 'z'))
+                fout.createVariable('zsoil', 'f4', ('zsoil',))
+                fout.createVariable('z', 'f4', ('z',))
+                fout.createVariable('zw', 'f4', ('zw',))
 
-
-
-                for varname in cfg.wrf.copy_vars + ['SPECHUM']:
-                    v_wrf = fin.variables[varname]
-                    v_out = fout.createVariable(varname, 'f4', v_wrf.dimensions)
-                v_out = fout.createVariable('U', 'f4', ('Time', 'bottom_top', 'south_north', 'west_east'))
-                v_out = fout.createVariable('V', 'f4', ('Time', 'bottom_top', 'south_north', 'west_east'))
+                fout.variables['z'][:] = rt.z_levels
+                fout.variables['zw'][:] = rt.z_levels_stag
+                fout.variables['zsoil'][:] = rt.z_soil_levels #depths of centers of soil layers
 
                 for it in range(rt.nt):
                     verbose('Processing timestep {}', it)
@@ -228,15 +268,18 @@ def palm_wrf_vertical_interp(
                     gpf = fin.variables['PH'][it,:,:,:] + fin.variables['PHB'][it,:,:,:]
                     wrfterr = gpf[0]*(1./g)
 
-                    if vinterp_terrain_smoothing is None:
-                        target_terrain = terrain
+                    if cfg.vinterp.terrain_smoothing:
+                        verbose('Smoothing PALM terrain for the purpose of '
+                                'dynamic driver with sigma={0} grid '
+                                'points.', cfg.vinterp.terrain_smoothing)
+                        target_terrain = ndimage.gaussian_filter(rt.terrain,
+                                sigma=cfg.vinterp.terrain_smoothing, order=0)
                     else:
-                        print('Smoothing PALM terrain for the purpose of dynamic driver with sigma={0} grid points.'.format(
-                            vinterp_terrain_smoothing))
-                        target_terrain = ndimage.gaussian_filter(terrain, sigma=vinterp_terrain_smoothing, order=0)
-                    print('Morphing WRF terrain ({0} ~ {1}) to PALM terrain ({2} ~ {3})'.format(
-                        wrfterr.min(), wrfterr.max(), target_terrain.min(), target_terrain.max()))
-                    print_dstat('terrain shift', wrfterr - target_terrain[:,:])
+                        target_terrain = rt.terrain
+
+                    verbose('Morphing WRF terrain ({0} ~ {1}) to PALM terrain ({2} ~ {3})',
+                        wrfterr.min(), wrfterr.max(), target_terrain.min(), target_terrain.max())
+                    verbose_dstat('Terrain shift [m]', wrfterr - target_terrain[:,:])
 
                     # Load original dry air column pressure
                     mu = fin.variables['MUB'][it,:,:] + fin.variables['MU'][it,:,:]
@@ -247,26 +290,25 @@ def palm_wrf_vertical_interp(
                     mu2 = barom_pres(mu+pht, target_terrain*g, gpf[0,:,:], t[0,:,:])-pht
 
                     # Calculate original and shifted 3D dry air pressure
-                    if wrf_hybrid_levs:
-                        phf, phh = calc_ph_hybrid(nc_wrf, mu)
-                        phf2, phh2 = calc_ph_hybrid(nc_wrf, mu2)
+                    if cfg.wrf.hybrid_levs:
+                        phf, phh = calc_ph_hybrid(fin, mu)
+                        phf2, phh2 = calc_ph_hybrid(fin, mu2)
                     else:
-                        phf, phh = calc_ph_sigma(nc_wrf, mu)
-                        phf2, phh2 = calc_ph_sigma(nc_wrf, mu2)
+                        phf, phh = calc_ph_sigma(fin, mu)
+                        phf2, phh2 = calc_ph_sigma(fin, mu2)
 
                     # Shift 3D geopotential according to delta dry air pressure
                     tf = np.concatenate((t, t[-1:,:,:]), axis=0) # repeat highest layer
                     gpf2 = barom_gp(gpf, phf2, phf, tf)
                     # For half-levs, originate from gp full levs rather than less accurate gp halving
                     gph2 = barom_gp(gpf[:-1,:,:], phh2, phf[:-1,:,:], t)
-                    zf = gpf2 * (1./g) - origin_z
-                    zh = gph2 * (1./g) - origin_z
+                    zf = gpf2 * (1./g) - rt.origin_z
+                    zh = gph2 * (1./g) - rt.origin_z
 
                     # Report
                     gpdelta = gpf2 - gpf
-                    print('GP deltas by level:')
                     for k in range(gpf.shape[0]):
-                        print_dstat(k, gpdelta[k])
+                        verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
 
                     # Because we require levels below the lowest level from WRF, we will always
                     # add one layer at zero level with repeated values from the lowest level.
@@ -278,82 +320,35 @@ def palm_wrf_vertical_interp(
                     heightw[0,:,:] = -999. #always below terrain
                     heightw[1:,:,:] = zf
 
-                    # ======================== SPECIFIC HUMIDITY ==============================
-                    qv_raw = nc_infile.variables['SPECHUM'][it]
-                    qv_raw = np.r_[qv_raw[0:1], qv_raw]
-                    
-                    # Vertical interpolation to grid height levels (specified in km!)
-                    # Levels start at 50m (below that the interpolation looks very sketchy)
-                    init_atmosphere_qv = interpolate_1d(z_levels, height, qv_raw)
-                    vdata = nc_outfile.createVariable('init_atmosphere_qv', "f4", ("Time", "z","south_north","west_east"))
-                    vdata[it,:,:,:] = init_atmosphere_qv
-                    
-                    # ======================= POTENTIAL TEMPERATURE ==========================
-                    pt_raw = nc_infile.variables['T'][it] + 300.   # from perturbation pt to standard
-                    pt_raw = np.r_[pt_raw[0:1], pt_raw]
-                    
-                    #plt.figure(); plt.contourf(pt[0]) ; plt.colorbar() ; plt.show()
-                    vdata = nc_outfile.createVariable('init_atmosphere_pt', "f4", ("Time", "z","south_north","west_east"))
-                    vdata[it,:,:,:] = init_atmosphere_pt
-                    
-                    # ======================= Wind ==========================================
-                    u_raw = nc_infile.variables['U'][it]
-                    u_raw = np.r_[u_raw[0:1], u_raw]
-                    init_atmosphere_u = interpolate_1d(z_levels, height, u_raw)
-                    
-                    vdata = nc_outfile.createVariable('init_atmosphere_u', "f4", ("Time", "z","south_north","west_east"))
-                    vdata[it,:,:,:] = init_atmosphere_u
+                    var = lpad(fin.variables['SPECHUM'][it])
+                    fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                    v_raw = nc_infile.variables['V'][it]
-                    v_raw = np.r_[v_raw[0:1], v_raw]
-                    init_atmosphere_v = interpolate_1d(z_levels, height, v_raw)
-                    
-                    vdata = nc_outfile.createVariable('init_atmosphere_v', "f4", ("Time", "z","south_north","west_east"))
-                    #vdata.coordinates = "XLONG_V XLAT_V XTIME"
-                    vdata[it,:,:,:] = init_atmosphere_v
-                    
-                    w_raw = nc_infile.variables['W'][it]
-                    w_raw = np.r_[w_raw[0:1], w_raw]
-                    init_atmosphere_w = interpolate_1d(z_levels_stag, heightw, w_raw)
-                    
-                    vdata = nc_outfile.createVariable('init_atmosphere_w', "f4", ("Time", "zw","south_north","west_east"))
-                    #vdata.coordinates = "XLONG XLAT XTIME"
-                    vdata[it,:,:,:] = init_atmosphere_w
+                    var = lpad(fin.variables['T'][it] + wrf_base_temp) #from perturbation pt to standard
+                    fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                    # ===================== SURFACE PRESSURE ==================================
-                    surface_forcing_surface_pressure = nc_infile.variables['PSFC']
-                    vdata = nc_outfile.createVariable('surface_forcing_surface_pressure', "f4", ("Time", "south_north","west_east"))
-                    vdata[it,:,:] = surface_forcing_surface_pressure[it,:,:]
-                    
-                    # ======================== SOIL VARIABLES (without vertical interpolation) =============
-                    # soil temperature
-                    init_soil_t = nc_infile.variables['TSLB']
-                    vdata = nc_outfile.createVariable('init_soil_t', "f4", ("Time", "zsoil","south_north","west_east"))
-                    vdata[it,:,:,:] = init_soil_t[it,:,:,:]
+                    var = lpad(fin.variables['U'][it])
+                    fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                    # soil moisture
-                    init_soil_m = nc_infile.variables['SMOIS']
-                    vdata = nc_outfile.createVariable('init_soil_m', "f4", ("Time","zsoil","south_north","west_east"))
-                    vdata[it,:,:,:] = init_soil_m[it,:,:,:]
+                    var = lpad(fin.variables['V'][it])
+                    fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
 
-                    # zsoil
-                    zsoil = nc_wrf.variables['ZS']    #ZS:description = "DEPTHS OF CENTERS OF SOIL LAYERS" ;
-                    vdata = nc_outfile.createVariable('zsoil', "f4", ("zsoil"))
-                    vdata[:] = zsoil[it,:]
+                    var = lpad(fin.variables['W'][it]) #z staggered!
+                    fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
 
-                    # coordinates z, zw
-                    vdata = nc_outfile.createVariable('z', "f4", ("z"))
-                    vdata[:] = list(z_levels)
+                    var = fin.variables['PSFC'][it]
+                    fout.variables['surface_forcing_surface_pressure'][it,:,:] = var
 
-                    vdata = nc_outfile.createVariable('zw', "f4", ("zw"))
-                    vdata[:] = list (z_levels_stag) 
+                    var = fin.variables['TSLB'][it] #soil temperature
+                    fout.variables['init_soil_t'][it,:,:,:] = var
 
-                    # zsoil is taken from wrf - not need to define it
+                    var = fin.variables['SMOIS'][it] #soil moisture
+                    fout.variables['init_soil_m'][it,:,:,:] = var
 
-                    nc_infile.close()
-                    nc_wrf.close()
-                    nc_outfile.close()
+                    var = fin.variables['UG'][it]
+                    fout.variables['ls_forcing_ug'][it,:] = var
 
+                    var = fin.variables['VG'][it]
+                    fout.variables['ls_forcing_vg'][it,:] = var
 
     class Provides:
         meteo_vars = ['tas', 'pa']

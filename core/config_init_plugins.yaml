@@ -2,8 +2,17 @@
 # of variables that are used by various plugins internally. It is not intended
 # to be used as a user configuration file or a template thereof.
 
+vinterp:
+    # Smoothing of PALM terrain for WRF vertical interpolation to avoid sharp
+    # horizontal gradients. Sigma value in grid points.
+    terrain_smoothing: off
+
 wrf:
-    copy_vars: #variables copied as-is, just interpolated
+    # Are WRF files using hybrid vertical coordinates? Has to be checked and
+    # specified by the user!
+    hybrid_levs:
+
+    interp_vars: #interpolated variables (apart from U+V)
         - PH
         - PHB
         - HGT
@@ -16,6 +25,7 @@ wrf:
         - P
         - PB
         - PSFC
+
     spechum_vars: #variables that compose specific humidity as a sum
         - QVAPOR
         - QCLOUD
@@ -23,3 +33,12 @@ wrf:
         - QICE
         - QSNOW
         - QGRAUP
+
+    vars_1d: #1-d variables, direct copy
+        - P_TOP
+        - C3F
+        - C4F
+        - C3H
+        - C4H
+        - ZNW
+        - ZNU

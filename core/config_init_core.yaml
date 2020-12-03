@@ -23,6 +23,12 @@ paths:
     wrf_output: '../JOBS/{case}{scenario}/WRF' #relative to base
     wrf_file_mask: 'wrfout_*.e000' #relative to wrf_output
 
+output:
+    # Overwrite existing output files? Otherwise create a new file with
+    # numerical suffix
+    overwrite: false
+
+    check_mass_balance: false #re-verify final mass balance after balancing
 
 domain:
     dz: #default=dx

@@ -34,7 +34,7 @@ import scipy.ndimage as ndimage
 import netCDF4
 
 import metpy.calc as mpcalc
-from metpy.interpolate import interpolate_1d, log_interpolate_1d
+from metpy.interpolate import log_interpolate_1d
 from metpy.units import units
 
 # Constants directly equivalent to WRF code
@@ -43,6 +43,14 @@ g = 9.81 #m/s2
 rd = 287. #dry air gas constant (J/kg/K)
 rd_cp = 2./7. #from WRF v4 technote (R_d / c_p)
 wrf_base_temp = 300. #NOT wrfout T00
+
+# User-selectable values FIXME: move to config
+
+# Settings for geostrophic wind
+gw_gfs_margin_deg = 5. #smoothing area in degrees lat/lon
+gw_wrf_margin_km = 10. #smoothing area in km
+#gw_alpha = .143 #GW vertical interpolation by power law
+gw_alpha = 1. #ignore wind power law, interpolate linearly
 
 _ax = np.newaxis
 
@@ -255,10 +263,6 @@ class BilinearRegridder(object):
 
         w = selection * self.weights[wslice]
         return w.sum(axis=0)
-
-def print_dstat(desc, delta):
-    print('Delta stats for {0} ({1:8g} ~ {2:8g}): bias = {3:8g}, MAE = {4:8g}, RMSE = {5:8g}'.format(
-        desc, delta.min(), delta.max(), delta.mean(), np.abs(delta).mean(), np.sqrt((delta**2).mean())))
 
 def barom_pres(p0, gp, gp0, t0):
     barom = 1. / (rd * t0)

@@ -23,6 +23,7 @@ workflow:
 plugins:
     - contrib.setup.staticdriver.StaticDriverPlugin
     - core.builtin.SetupPlugin
+    - core.builtin.WritePlugin
 
 # Configuration items for selected tasks
 task_config:
