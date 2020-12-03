@@ -2,14 +2,16 @@
 # of workflow and plugin related variables. It is not intended to be used as
 # a user configuration file or a template thereof.
 
-# One of the prepared operation modes which defines selected plugins (may also
-# define workflow future versions)
-mode:
-    wrf_nochem  # WRF inputs with no chemistry
-    #wrf_camx    # WRF inputs with chemistry from a coupled CAMx run
-    #cosmo       # COSMO inputs
+# One or more tasks selected by the user will add required plugins and set
+# necessary options. Tasks typically select input meteo and/or chemistry data
+# sources.
+tasks:
+    - wrf     # WRF meteo inputs
+    #- camx    # CAMx chemistry inputs
+    #- cosmo   # COSMO meteoinputs
 
-# Default workflow (currently no need to have separate workflows per mode)
+# Default workflow. Currently no need to have separate workflows per task.
+# Advnanced users may skip some steps in special cases.
 workflow:
     - setup
     - import
@@ -17,20 +19,29 @@ workflow:
     - vinterp
     - write
 
-# Ordered list of selected plugins. Normally left blank and determined by mode.
-# Advanced users may overwrite these.
-plugins: !!null
+# Ordered list of selected plugins. Typically extended by selected tasks.
+plugins:
+    - contrib.setup.staticdriver.StaticDriverPlugin
+    - core.builtin.SetupPlugin
 
-# Configuration presets for selectable operation modes
-operation_modes:
-    wrf_nochem:
-        plugins:
-            - contrib.setup.staticdriver.StaticDriverPlugin
-            - core.builtin.SetupPlugin
-            - contrib.input.meteo.WRFPlugin
-    wrf_camx:
-        plugins:
-            - contrib.setup.staticdriver.StaticDriverPlugin
-            - core.builtin.SetupPlugin
-            - contrib.input.meteo.WRFPlugin
-            - contrib.input.meteo.EmisPlugin
+# Configuration items for selected tasks
+task_config:
+    wrf:
+        # Configuration items to be set (if unset by user)
+        set:
+
+        # Configuration items to be extended (added) to existing lists (or new
+        # lists are created).
+        extend:
+            plugins:
+                - contrib.input.meteo.WRFPlugin
+
+    camx:
+        set:
+        extend:
+            plugins:
+                - contrib.input.meteo.EmisPlugin
+
+    cosmo:
+        set:
+        extend:

@@ -17,8 +17,11 @@ paths:
     dynamic_driver: '{case}_dynamic{domain}' #relative to palm_input
     static_driver: '{case}_static{domain}' #relative to palm_input
     intermediate: '../JOBS/{case}{scenario}/METEO' #relative to base
+    imported: 'import.nc' #relative to intermediate
+    hinterp: 'hinterp.nc' #relative to intermediate
+    vinterp: 'vinterp.nc' #relative to intermediate
     wrf_output: '../JOBS/{case}{scenario}/WRF' #relative to base
-    wrf_file_mask: 'wrfout_*.e000'
+    wrf_file_mask: 'wrfout_*.e000' #relative to wrf_output
 
 
 domain:
@@ -36,3 +39,5 @@ domain:
 simulation:
     origin_time: #default: read from static driver
     length_hours: 24
+
+verbosity: 1 #can be overwritten by command-line switches -v or -s

@@ -24,6 +24,12 @@ def basic_init(cfg):
             cfg.paths.dynamic_driver.format(**rt.paths.expand))
     rt.paths.intermediate = os.path.join(rt.paths.base,
             cfg.paths.intermediate.format(**rt.paths.expand))
+    rt.paths.imported = os.path.join(rt.paths.intermediate,
+            cfg.paths.imported.format(**rt.paths.expand))
+    rt.paths.hinterp = os.path.join(rt.paths.intermediate,
+            cfg.paths.hinterp.format(**rt.paths.expand))
+    rt.paths.vinterp = os.path.join(rt.paths.intermediate,
+            cfg.paths.vinterp.format(**rt.paths.expand))
 
     # Domain
     rt.nested_domain = (cfg.dnum > 1)

@@ -45,12 +45,5 @@ verbose = log_off
 def configure(cfg):
     global log, verbose
 
-    if cfg.silent:
-        log = log_off
-    else:
-        log = log_on
-
-    if cfg.verbose:
-        verbose = log_on
-    else:
-        verbose = log_off
+    log = log_on if cfg.verbosity >= 1 else log_off
+    verbose = log_on if cfg.verbosity >= 2 else log_off

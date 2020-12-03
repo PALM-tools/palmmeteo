@@ -1,0 +1,25 @@
+# This file is part of program code. It stores inital values for configuration
+# of variables that are used by various plugins internally. It is not intended
+# to be used as a user configuration file or a template thereof.
+
+wrf:
+    copy_vars: #variables copied as-is, just interpolated
+        - PH
+        - PHB
+        - HGT
+        - T
+        - W
+        - TSLB
+        - SMOIS
+        - MU
+        - MUB
+        - P
+        - PB
+        - PSFC
+    spechum_vars: #variables that compose specific humidity as a sum
+        - QVAPOR
+        - QCLOUD
+        - QRAIN
+        - QICE
+        - QSNOW
+        - QGRAUP

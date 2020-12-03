@@ -33,8 +33,9 @@ class SetupPlugin(SetupPluginMixin):
         # prepare target grid
         irange = rt.origin_x + rt.dx * (np.arange(rt.nx, dtype='f8') + .5)
         jrange = rt.origin_y + rt.dy * (np.arange(rt.ny, dtype='f8') + .5)
-        palm_grid_y, palm_grid_x = np.meshgrid(jrange, irange, indexing='ij')
-        palm_grid_lon, palm_grid_lat = transform(inproj, lonlatproj, palm_grid_x, palm_grid_y)
+        rt.palm_grid_y, rt.palm_grid_x = np.meshgrid(jrange, irange, indexing='ij')
+        rt.palm_grid_lon, rt.palm_grid_lat = transform(inproj, lonlatproj,
+                rt.palm_grid_x, rt.palm_grid_y)
 
         ######################################
         # build structure of vertical layers
