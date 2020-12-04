@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import timedelta
 import numpy as np
 import netCDF4
 from pyproj import Proj, transform
@@ -38,6 +39,13 @@ def find_free_fname(fpath):
     return newpath
 
 
+td0 = timedelta(hours=0)
+def tstep(td, step):
+    d, m = divmod(td, step)
+    if m != td0:
+        raise ValueError('Not a whole timestep!')
+    return d
+
 class SetupPlugin(SetupPluginMixin):
     def setup_model(self, *args, **kwargs):
         log('Setting up model domain...')
@@ -56,16 +64,17 @@ class SetupPlugin(SetupPluginMixin):
         rt.xcent = rt.origin_x + rt.nx * rt.dx / 2.0
         rt.ycent = rt.origin_y + rt.ny * rt.dy / 2.0
         # WGS84 projection for transformation to lat-lon
-        inproj = Proj('+init='+cfg.domain.proj_palm)
-        lonlatproj = Proj('+init='+cfg.domain.proj_wgs84)
-        rt.cent_lon, rt.cent_lat = transform(inproj, lonlatproj, rt.xcent, rt.ycent)
+        rt.inproj = Proj('+init='+cfg.domain.proj_palm)
+        rt.lonlatproj = Proj('+init='+cfg.domain.proj_wgs84)
+        rt.cent_lon, rt.cent_lat = transform(rt.inproj, rt.lonlatproj,
+                rt.xcent, rt.ycent)
         verbose('xcent={}, ycent={}', rt.xcent, rt.ycent)
         verbose('cent_lon={}, cent_lat={}', rt.cent_lon, rt.cent_lat)
         # prepare target grid
         irange = rt.origin_x + rt.dx * (np.arange(rt.nx, dtype='f8') + .5)
         jrange = rt.origin_y + rt.dy * (np.arange(rt.ny, dtype='f8') + .5)
         rt.palm_grid_y, rt.palm_grid_x = np.meshgrid(jrange, irange, indexing='ij')
-        rt.palm_grid_lon, rt.palm_grid_lat = transform(inproj, lonlatproj,
+        rt.palm_grid_lon, rt.palm_grid_lat = transform(rt.inproj, rt.lonlatproj,
                 rt.palm_grid_x, rt.palm_grid_y)
 
         ######################################
@@ -77,9 +86,11 @@ class SetupPlugin(SetupPluginMixin):
         #####################################
         if rt.stretching:
             if cfg.domain.dz_stretch_level < 0:
-                die('domain:dz_stretch_level has to be set for stretching.', cfg.domain.dz_max, rt.dz)
+                raise ConfigError('Stretch level has to be specified for '
+                    'stretching', cfg.domain, 'dz_stretch_level')
             if cfg.domain.dz_max < rt.dz:
-                die('domain:dz_max (={}) has to be >= than dz (={}).', cfg.domain.dz_max, rt.dz)
+                raise ConfigError('dz_max has to be higher or equal than than '
+                        'dz (={})'.format(rt.dz), cfg.domain, 'dz_max')
         # fill out z_levels
         rt.z_levels = np.zeros(rt.nz, dtype=float)
         rt.z_levels_stag = np.zeros(rt.nz-1, dtype=float)
@@ -93,6 +104,22 @@ class SetupPlugin(SetupPluginMixin):
         rt.ztop = rt.z_levels[-1] + dzs / 2.
         verbose('z: {}', rt.z_levels)
         verbose('zw: {}', rt.z_levels_stag)
+
+        # configure times
+        rt.simulation.end_time_rad = rt.simulation.start_time + rt.simulation.length
+        rt.tindex = lambda dt: tstep(dt-rt.simulation.start_time, rt.simulation.timestep)
+        if rt.nested_domain:
+            log('Nested domain - preparing only initialization (1 timestep).')
+            rt.nt = 1
+            rt.simulation.duration = td0
+            rt.simulation.end_time = rt.simulation.start_time
+        else:
+            rt.simulation.end_time = rt.simulation.end_time_rad
+            rt.nt = rt.tindex(rt.simulation.end_time) + 1
+
+        rt.times_sec = np.arange(rt.nt) * rt.simulation.timestep.total_seconds()
+        verbose('PALM meteo data extent {} - {} ({} timesteps).',
+                rt.simulation.start_time, rt.simulation.end_time, rt.nt)
 
 
 class WritePlugin(WritePluginMixin):
@@ -307,24 +334,26 @@ class WritePlugin(WritePluginMixin):
                 ###     finally:
                 ###         f_camx.close()
 
-            ### if len(rad_times_proc) > 0:
-            ###     # process radiation inputs
-            ###     # radiation time dimension and variable
-            ###     fout.createDimension('time_rad', len(rad_times_proc))
-            ###     _val_times =  fout.createVariable('time_rad',"f4", ("time_rad"))
-            ###     _val_times[:] = rad_times_proc[:]
-            ###     # radiation variables
-            ###     var = fout.createVariable('rad_sw_in', "f4", ("time_rad"), )
-            ###     var.setncattr('lod', 1)
-            ###     var.units = 'W/m2'
-            ###     var[:] = rad_values_proc[0][:]
-            ###     var = fout.createVariable('rad_lw_in', "f4", ("time_rad"), )
-            ###     var.setncattr('lod', 1)
-            ###     var.units = 'W/m2'
-            ###     var[:] = rad_values_proc[1][:]
-            ###     var = fout.createVariable('rad_sw_in_dif', "f4", ("time_rad"), )
-            ###     var.setncattr('lod', 1)
-            ###     var.units = 'W/m2'
-            ###     var[:] = rad_values_proc[2][:]
+            if cfg.radiation:
+                # Separate time dimension for radiation
+                fout.createDimension('time_rad', rt.nt_rad)
+                var = fout.createVariable('time_rad', 'f4', ('time_rad',))
+                var[:] = rt.times_rad_sec
+
+                # radiation variables
+                var = fout.createVariable('rad_sw_in', 'f4', ('time_rad',))
+                var.lod = 1
+                var.units = 'W/m2'
+                var[:] = rt.rad_swdown
+
+                var = fout.createVariable('rad_lw_in', 'f4', ('time_rad',))
+                var.lod = 1
+                var.units = 'W/m2'
+                var[:] = rt.rad_lwdown
+
+                var = fout.createVariable('rad_sw_in_dif', 'f4', ('time_rad',))
+                var.lod = 1
+                var.units = 'W/m2'
+                var[:] = rt.rad_swdiff
 
         log('Dynamic driver written successfully.')

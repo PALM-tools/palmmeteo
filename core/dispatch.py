@@ -22,7 +22,7 @@ def execute_event(event):
 
 def run(argv):
     load_config(argv)
-    basic_init(cfg)
+    basic_init(rt)
     core.logging.configure(cfg)
     rt.plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
                       for p in cfg.plugins]

@@ -11,17 +11,18 @@ dnum: 1 #1 for root domain, 2 for nested domain *_N02 etc.
 # {case}: case name
 # {scenario}: scenario name (if provided) with leading dot
 # {domain}: domain number string: empty for dnum=1, '_N02' for dnum=2 etc.
-paths:
-    base: .
-    palm_input: '../JOBS/{case}{scenario}/INPUT' #relative to base
-    dynamic_driver: '{case}_dynamic{domain}' #relative to palm_input
-    static_driver: '{case}_static{domain}' #relative to palm_input
-    intermediate: '../JOBS/{case}{scenario}/METEO' #relative to base
-    imported: 'import.nc' #relative to intermediate
-    hinterp: 'hinterp.nc' #relative to intermediate
-    vinterp: 'vinterp.nc' #relative to intermediate
-    wrf_output: '../JOBS/{case}{scenario}/WRF' #relative to base
-    wrf_file_mask: 'wrfout_*.e000' #relative to wrf_output
+paths:                                              #RELATIVE TO:
+    base: .                                         #------------
+    palm_input: '../JOBS/{case}{scenario}/INPUT'    #base
+    dynamic_driver: '{case}_dynamic{domain}'        #palm_input
+    static_driver: '{case}_static{domain}'          #palm_input
+    intermediate: '../JOBS/{case}{scenario}/METEO'  #base
+    imported: 'import.nc'                           #intermediate
+    hinterp: 'hinterp.nc'                           #intermediate
+    vinterp: 'vinterp.nc'                           #intermediate
+    wrf_output: '../JOBS/{case}{scenario}/WRF'      #base
+    wrf_file_mask: 'wrfout_*.e000'                  #wrf_output
+    wrf_rad_file_mask: 'auxhist6_*'                 #wrf_output
 
 output:
     # Overwrite existing output files? Otherwise create a new file with
@@ -44,6 +45,9 @@ domain:
 
 simulation:
     origin_time: #default: read from static driver
-    length_hours: 24
+    timestep: 1 h
+    length: 1 d
 
-verbosity: 1 #can be overwritten by command-line switches -v or -s
+radiation: #empty = off by default, switched on by tasks or manually
+
+verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)

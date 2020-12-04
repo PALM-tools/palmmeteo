@@ -3,7 +3,7 @@ from datetime import datetime
 import numpy as np
 import netCDF4
 
-from core.config import cfg
+from core.config import cfg, ConfigError
 from core.runtime import rt
 from core.plugins import SetupPluginMixin
 from core.logging import die, warn, log, verbose
@@ -33,7 +33,7 @@ class StaticDriverPlugin(SetupPluginMixin):
 
         # start_time may be provided in configuration or read from static driver
         if cfg.simulation.origin_time:
-            rt.start_time = cfg.simulation.origin_time
+            rt.simulation.start_time = cfg.simulation.origin_time
         else:
             dt = ncs.origin_time
             dts = dt.split()
@@ -43,9 +43,9 @@ class StaticDriverPlugin(SetupPluginMixin):
                     # need to add zeros for minutes, otherwise datetime refuses
                     # to parse
                     dt += '00'
-                rt.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S %z')
+                rt.simulation.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S %z')
             else:
-                rt.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+                rt.simulation.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
 
         # create vertical structure of the domain
         rt.dz = cfg.domain.dz
@@ -54,7 +54,7 @@ class StaticDriverPlugin(SetupPluginMixin):
             rt.dz = rt.dx
         rt.nz = cfg.domain.nz
         if not rt.nz:
-            die('domain:nz > 0 needs to be set in config')
+            raise ConfigError('nz > 0 needs to be specified', cfg.domain, 'nz')
 
         # read terrain height (relative to origin_z) and
         # calculate and check the height of the surface canopy layer

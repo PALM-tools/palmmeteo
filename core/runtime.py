@@ -1,4 +1,5 @@
 import os
+from .config import cfg, parse_duration
 
 class RuntimeObj(object):
     """An object for holding runtime-related values.
@@ -7,8 +8,13 @@ class RuntimeObj(object):
     """
     pass
 
-def basic_init(cfg):
+def basic_init(rt):
     """Performs initializaiton of basic values from config."""
+
+    # Times
+    rt.simulation = RuntimeObj()
+    rt.simulation.timestep = parse_duration(cfg.simulation, 'timestep')
+    rt.simulation.length = parse_duration(cfg.simulation, 'length')
 
     # Paths
     rt.paths = RuntimeObj()

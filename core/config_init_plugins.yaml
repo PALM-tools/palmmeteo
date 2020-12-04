@@ -12,6 +12,8 @@ wrf:
     # specified by the user!
     hybrid_levs:
 
+    radiation_smoothing_distance: 10000.0
+
     interp_vars: #interpolated variables (apart from U+V)
         - PH
         - PHB

@@ -7,12 +7,14 @@
 # sources.
 tasks:
     - wrf     # WRF meteo inputs
+    #- wrf_rad # WRF radiation inputs
     #- camx    # CAMx chemistry inputs
     #- cosmo   # COSMO meteoinputs
 
 # Default workflow. Currently no need to have separate workflows per task.
 # Advnanced users may skip some steps in special cases.
 workflow:
+    - check_config
     - setup
     - import
     - hinterp
@@ -35,7 +37,14 @@ task_config:
         # lists are created).
         extend:
             plugins:
-                - contrib.input.meteo.WRFPlugin
+                - contrib.input.wrf.WRFPlugin
+
+    wrf_rad:
+        set:
+            radiation: on
+        extend:
+            plugins:
+                - contrib.input.wrf.WRFRadPlugin
 
     camx:
         set:

@@ -60,6 +60,16 @@ class Plugin(metaclass=PluginMeta):
         if 'rt' in kwargs:
             self.rt = kwargs['rt']
 
+    @eventhandler('check_config')
+    def check_config(self, *args, **kwargs):
+        """Validate plugin-related configuration.
+
+        Any plugin can optinally implement the check_config method for
+        validating configuration. It is not required, so the method is not
+        abstract.
+        """
+        pass
+
 
 class ImportPluginMixin(Plugin):
     """
