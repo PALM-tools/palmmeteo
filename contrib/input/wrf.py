@@ -7,11 +7,11 @@ import netCDF4
 from pyproj import transform
 from metpy.interpolate import interpolate_1d
 
-from core.plugins import Plugin, ImportPluginMixin, HInterpPluginMixin, \
-    VInterpPluginMixin, eventhandler
+from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg, ConfigError
 from core.runtime import rt
+from core.utils import ensure_dimension
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, barom_gp, g, wrf_t, barom_pres, wrf_base_temp, palm_wrf_gw
 
@@ -36,88 +36,126 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     'specified and match the WRF vertifal coordinate system',
                     cfg.wrf, 'hybrid_levs')
 
-    def import_data(self, *args, **kwargs):
+    def import_data(self, fout, *args, **kwargs):
         log('Importing WRF data...')
-        with netCDF4.Dataset(rt.paths.imported, 'w', format='NETCDF4') as fout:
-            # Process input files
-            wrfglob = os.path.join(rt.paths.base,
-                    cfg.paths.wrf_output.format(**rt.paths.expand),
-                    cfg.paths.wrf_file_mask)
-            verbose('Parsing WRF files from {}', wrfglob)
-            rt.times = [None] * rt.nt
-            first = True
-            for fn in glob.glob(wrfglob):
-                verbose('Parsing WRF file {}', fn)
-                with netCDF4.Dataset(fn) as fin:
-                    # Decode time and locate timestep
-                    ts = fin.variables['Times'][:].tobytes().decode('utf-8')
-                    t = datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S')
-                    t = t.replace(tzinfo=timezone.utc)
-                    try:
-                        it = rt.tindex(t)
-                    except ValueError:
-                        verbose('Time {} is not within timestep intervals - skipping', t)
-                        continue
-                    if not (0 <= it < rt.nt):
-                        verbose('Time {} is out of range - skipping', t)
-                        continue
-                    if rt.times[it] is not None:
-                        die('Time {} has been already loaded!', t)
-                    rt.times[it] = t
-                    verbose('Importing time {}, timestep {}', t, it)
 
+        # Process input files
+        wrfglob = os.path.join(rt.paths.base,
+                cfg.paths.wrf_output.format(**rt.paths.expand),
+                cfg.paths.wrf_file_mask)
+        verbose('Parsing WRF files from {}', wrfglob)
+        rt.times = [None] * rt.nt
+        first = True
+        for fn in glob.glob(wrfglob):
+            verbose('Parsing WRF file {}', fn)
+            with netCDF4.Dataset(fn) as fin:
+                # Decode time and locate timestep
+                ts = fin.variables['Times'][:].tobytes().decode('utf-8')
+                t = datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S')
+                t = t.replace(tzinfo=timezone.utc)
+                try:
+                    it = rt.tindex(t)
+                except ValueError:
+                    verbose('Time {} is not within timestep intervals - skipping', t)
+                    continue
+                if not (0 <= it < rt.nt):
+                    verbose('Time {} is out of range - skipping', t)
+                    continue
+                if rt.times[it] is not None:
+                    die('Time {} has been already loaded!', t)
+                rt.times[it] = t
+                verbose('Importing time {}, timestep {}', t, it)
+
+                if first:
                     # coordinate projection
+                    verbose('Loading projection and preparing regridder')
                     rt.trans_wrf = WRFCoordTransform(fin)
+                    palm_in_wrf_y, palm_in_wrf_x = rt.trans_wrf.latlon_to_ji(
+                                                    rt.palm_grid_lat, rt.palm_grid_lon)
+                    rt.regrid_wrf = BilinearRegridder(palm_in_wrf_x, palm_in_wrf_y, preloaded=True)
+                    rt.regrid_wrf_u = BilinearRegridder(palm_in_wrf_x+.5, palm_in_wrf_y, preloaded=True)
+                    rt.regrid_wrf_v = BilinearRegridder(palm_in_wrf_x, palm_in_wrf_y+.5, preloaded=True)
+                    del palm_in_wrf_y, palm_in_wrf_x
 
                     # dimensions
-                    if first:
-                        fout.createDimension('Time', rt.nt)
-                        fout.createDimension('z', rt.nz) #final z-coord for UG, VG
-                        for d in '''west_east west_east_stag south_north
-                                south_north_stag bottom_top bottom_top_stag
-                                soil_layers_stag'''.split():
-                            fout.createDimension(d, len(fin.dimensions[d]))
-
-                    # copied vars
-                    for varname in cfg.wrf.interp_vars + ['U', 'V'] + cfg.wrf.vars_1d:
-                        v_wrf = fin.variables[varname]
-                        v_out = (fout.createVariable(varname, 'f4', v_wrf.dimensions)
-                                if first else fout.variables[varname])
-                        v_out[it] = v_wrf[0]
-
-                    # calculated SPECHUM
-                    if first:
-                        shvars = sorted(set(cfg.wrf.spechum_vars
-                            ).intersection(fin.variables.keys()))
-                        verbose('Hydro variables in wrf files: {}', ', '.join(shvars))
-                    v_out = (fout.createVariable('SPECHUM', 'f4', ('Time',
-                        'bottom_top', 'south_north', 'west_east')) if first
-                        else fout.variables['SPECHUM'])
-                    vdata = fin.variables[shvars[0]][0]
-                    for vname in shvars[1:]:
-                        vdata += fin.variables[vname][0]
-                    v_out[it] = vdata
-                    del vdata
-
-                    # calculated geostrophic wind
-                    ug, vg = palm_wrf_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels)
-                    v_out = (fout.createVariable('UG', 'f4', ('Time', 'z')) if first
-                        else fout.variables['UG'])
-                    v_out[it, :] = ug
-                    v_out = (fout.createVariable('VG', 'f4', ('Time', 'z')) if first
-                        else fout.variables['VG'])
-                    v_out[it, :] = vg
-
-                    # soil layers
-                    if first:
-                        if 'ZS' in fin.variables.keys():
-                            rt.z_soil_levels = fin.variables['ZS'][0].data.tolist()
+                    ensure_dimension(fout, 'time', rt.nt)
+                    ensure_dimension(fout, 'z', rt.nz) #final z-coord for UG, VG
+                    for orig_dim, new_dim in cfg.wrf.dimensions:
+                        if new_dim == 'time':
+                            pass
+                        elif new_dim == 'x_meteo':
+                            ensure_dimension(fout, new_dim, rt.regrid_wrf.xlen)
+                        elif new_dim == 'xu_meteo':
+                            ensure_dimension(fout, new_dim, rt.regrid_wrf_u.xlen)
+                        elif new_dim == 'y_meteo':
+                            ensure_dimension(fout, new_dim, rt.regrid_wrf.ylen)
+                        elif new_dim == 'yv_meteo':
+                            ensure_dimension(fout, new_dim, rt.regrid_wrf_v.ylen)
                         else:
-                            rt.z_soil_levels = []
-                        rt.nz_soil = len(rt.z_soil_levels)
-                        verbose('Z soil levels: {}', rt.z_soil_levels)
+                            ensure_dimension(fout, new_dim,
+                                    len(fin.dimensions[orig_dim]))
 
-                    first = False
+                # 1D vars are copied as-is
+                for varname in cfg.wrf.vars_1d:
+                    v_wrf = fin.variables[varname]
+                    v_out = (fout.createVariable(varname, 'f4', 
+                                [cfg.wrf.dimensions[d] for d in v_wrf.dimensions])
+                            if first else fout.variables[varname])
+                    v_out[it] = v_wrf[0]
+
+                # for hinterp vars, only the requested region is copied
+                for varname in cfg.wrf.hinterp_vars:
+                    v_wrf = fin.variables[varname]
+                    v_out = (fout.createVariable(varname, 'f4', 
+                                [cfg.wrf.dimensions[d] for d in v_wrf.dimensions])
+                            if first else fout.variables[varname])
+                    v_out[it] = v_wrf[0,...,rt.regrid_wrf.ys,rt.regrid_wrf.xs]
+
+                # U and V (staggered coords)
+                v_wrf = fin.variables['U']
+                v_out = (fout.createVariable('U', 'f4', 
+                            [cfg.wrf.dimensions[d] for d in v_wrf.dimensions])
+                        if first else fout.variables['U'])
+                v_out[it] = v_wrf[0,...,rt.regrid_wrf_u.ys,rt.regrid_wrf_u.xs]
+                v_wrf = fin.variables['V']
+                v_out = (fout.createVariable('V', 'f4', 
+                            [cfg.wrf.dimensions[d] for d in v_wrf.dimensions])
+                        if first else fout.variables['V'])
+                v_out[it] = v_wrf[0,...,rt.regrid_wrf_v.ys,rt.regrid_wrf_v.xs]
+
+                # calculated SPECHUM
+                if first:
+                    shvars = sorted(set(cfg.wrf.spechum_vars
+                        ).intersection(fin.variables.keys()))
+                    verbose('Hydro variables in wrf files: {}', ', '.join(shvars))
+                v_out = (fout.createVariable('SPECHUM', 'f4',
+                                ('time', 'z_meteo', 'y_meteo', 'x_meteo'))
+                            if first else fout.variables['SPECHUM'])
+                vdata = fin.variables[shvars[0]][0,...,rt.regrid_wrf.ys,rt.regrid_wrf.xs]
+                for vname in shvars[1:]:
+                    vdata += fin.variables[vname][0,...,rt.regrid_wrf.ys,rt.regrid_wrf.xs]
+                v_out[it] = vdata
+                del vdata
+
+                # calculated geostrophic wind
+                ug, vg = palm_wrf_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels, 0)
+                v_out = (fout.createVariable('UG', 'f4', ('time', 'z')) if first
+                    else fout.variables['UG'])
+                v_out[it] = ug
+                v_out = (fout.createVariable('VG', 'f4', ('time', 'z')) if first
+                    else fout.variables['VG'])
+                v_out[it] = vg
+
+                # soil layers
+                if first:
+                    if 'ZS' in fin.variables.keys():
+                        rt.z_soil_levels = fin.variables['ZS'][0].data.tolist()
+                    else:
+                        rt.z_soil_levels = []
+                    rt.nz_soil = len(rt.z_soil_levels)
+                    verbose('Z soil levels: {}', rt.z_soil_levels)
+
+                first = False
 
         if not all(rt.times):
             die('Some times are missing: {}', rt.times)
@@ -126,42 +164,44 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def interpolate_horiz(self, *args, **kwargs):
         log('Performing horizontal interpolation')
 
-        verbose('Preparing regridder indices and weights')
-        palm_in_wrf_y, palm_in_wrf_x = rt.trans_wrf.latlon_to_ji(
-                                        rt.palm_grid_lat, rt.palm_grid_lon)
-        regridder = BilinearRegridder(palm_in_wrf_x, palm_in_wrf_y, preloaded=True)
-        regridder_u = BilinearRegridder(palm_in_wrf_x+.5, palm_in_wrf_y, preloaded=True)
-        regridder_v = BilinearRegridder(palm_in_wrf_x, palm_in_wrf_y+.5, preloaded=True)
-
         verbose('Preparing output file')
         with netCDF4.Dataset(rt.paths.imported) as fin:
             with netCDF4.Dataset(rt.paths.hinterp, 'w', format='NETCDF4') as fout:
-                for d in '''Time bottom_top bottom_top_stag z
-                        soil_layers_stag'''.split():
+                # Create dimensions
+                for d in ['time', 'z_meteo', 'zw_meteo', 'z', 'zsoil_meteo']:
                     fout.createDimension(d, len(fin.dimensions[d]))
-                fout.createDimension('west_east', rt.nx)
-                fout.createDimension('south_north', rt.ny)
+                fout.createDimension('x', rt.nx)
+                fout.createDimension('y', rt.ny)
 
-                for varname in cfg.wrf.interp_vars + ['SPECHUM', 'UG', 'VG'] + cfg.wrf.vars_1d:
+                # Create variables
+                for varname in cfg.wrf.hinterp_vars + ['SPECHUM']:
                     v_wrf = fin.variables[varname]
-                    v_out = fout.createVariable(varname, 'f4', v_wrf.dimensions)
-                v_out = fout.createVariable('U', 'f4', ('Time', 'bottom_top', 'south_north', 'west_east'))
-                v_out = fout.createVariable('V', 'f4', ('Time', 'bottom_top', 'south_north', 'west_east'))
+                    if v_wrf.dimensions[-2:] != ('y_meteo', 'x_meteo'):
+                        raise RuntimeError('Unexpected dimensions for '
+                                'variable {}: {}!'.format(varname,
+                                    v_wrf.dimensions))
+                    fout.createVariable(varname, 'f4', v_wrf.dimensions[:-2]
+                            + ('y', 'x'))
+                fout.createVariable('U', 'f4', ('time', 'z_meteo', 'y', 'x'))
+                fout.createVariable('V', 'f4', ('time', 'z_meteo', 'y', 'x'))
+                for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
+                    v_wrf = fin.variables[varname]
+                    fout.createVariable(varname, 'f4', v_wrf.dimensions)
 
                 for it in range(rt.nt):
                     verbose('Processing timestep {}', it)
 
                     # regular vars
-                    for varname in cfg.wrf.interp_vars + ['SPECHUM']:
+                    for varname in cfg.wrf.hinterp_vars + ['SPECHUM']:
                         v_wrf = fin.variables[varname]
                         v_out = fout.variables[varname]
-                        v_out[it] = regridder.regrid(v_wrf[it,...,regridder.ys,regridder.xs])
+                        v_out[it] = rt.regrid_wrf.regrid(v_wrf[it])
 
                     # U and V have special treatment (unstaggering)
-                    fout.variables['U'][it] = regridder_u.regrid(
-                            fin.variables['U'][it,...,regridder_u.ys,regridder_u.xs])
-                    fout.variables['V'][it] = regridder_v.regrid(
-                            fin.variables['V'][it,...,regridder_v.ys,regridder_v.xs])
+                    fout.variables['U'][it] = rt.regrid_wrf_u.regrid(
+                            fin.variables['U'][it])
+                    fout.variables['V'][it] = rt.regrid_wrf_v.regrid(
+                            fin.variables['V'][it])
 
                     # direct copy
                     for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
@@ -175,22 +215,22 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         verbose('Preparing output file')
         with netCDF4.Dataset(rt.paths.hinterp) as fin:
             with netCDF4.Dataset(rt.paths.vinterp, 'w', format='NETCDF4') as fout:
-                for dimname in ['Time', 'west_east', 'south_north', 'soil_layers_stag']:
+                for dimname in ['time', 'y', 'x', 'zsoil_meteo']:
                     fout.createDimension(dimname, len(fin.dimensions[dimname]))
                 fout.createDimension('z', rt.nz)
                 fout.createDimension('zw', rt.nz-1)
                 fout.createDimension('zsoil', rt.nz_soil)
 
-                fout.createVariable('init_atmosphere_qv', 'f4', ('Time', 'z', 'south_north', 'west_east'))
-                fout.createVariable('init_atmosphere_pt', 'f4', ('Time', 'z', 'south_north', 'west_east'))
-                fout.createVariable('init_atmosphere_u', 'f4', ('Time', 'z', 'south_north', 'west_east'))
-                fout.createVariable('init_atmosphere_v', 'f4', ('Time', 'z', 'south_north', 'west_east'))
-                fout.createVariable('init_atmosphere_w', 'f4', ('Time', 'zw', 'south_north', 'west_east'))
-                fout.createVariable('surface_forcing_surface_pressure', 'f4', ('Time', 'south_north', 'west_east'))
-                fout.createVariable('init_soil_t', 'f4', ('Time', 'zsoil', 'south_north', 'west_east'))
-                fout.createVariable('init_soil_m', 'f4', ('Time', 'zsoil', 'south_north', 'west_east'))
-                fout.createVariable('ls_forcing_ug', 'f4', ('Time', 'z'))
-                fout.createVariable('ls_forcing_vg', 'f4', ('Time', 'z'))
+                fout.createVariable('init_atmosphere_qv', 'f4', ('time', 'z', 'y', 'x'))
+                fout.createVariable('init_atmosphere_pt', 'f4', ('time', 'z', 'y', 'x'))
+                fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
+                fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
+                fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
+                fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
+                fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
+                fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
+                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
+                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
                 fout.createVariable('zsoil', 'f4', ('zsoil',))
                 fout.createVariable('z', 'f4', ('z',))
                 fout.createVariable('zw', 'f4', ('zw',))
@@ -225,16 +265,16 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     pht = fin.variables['P_TOP'][it]
 
                     # Shift column pressure so that it matches PALM terrain
-                    t = wrf_t(fin)
+                    t = wrf_t(fin, it)
                     mu2 = barom_pres(mu+pht, target_terrain*g, gpf[0,:,:], t[0,:,:])-pht
 
                     # Calculate original and shifted 3D dry air pressure
                     if cfg.wrf.hybrid_levs:
-                        phf, phh = calc_ph_hybrid(fin, mu)
-                        phf2, phh2 = calc_ph_hybrid(fin, mu2)
+                        phf, phh = calc_ph_hybrid(fin, it, mu)
+                        phf2, phh2 = calc_ph_hybrid(fin, it, mu2)
                     else:
-                        phf, phh = calc_ph_sigma(fin, mu)
-                        phf2, phh2 = calc_ph_sigma(fin, mu2)
+                        phf, phh = calc_ph_sigma(fin, it, mu)
+                        phf2, phh2 = calc_ph_sigma(fin, it, mu2)
 
                     # Shift 3D geopotential according to delta dry air pressure
                     tf = np.concatenate((t, t[-1:,:,:]), axis=0) # repeat highest layer

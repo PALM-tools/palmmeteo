@@ -13,9 +13,9 @@ class ConfigError(Exception):
         # Build message
         s = ['Configuration error: ', desc]
         if section:
-            s.extend([', item: ', ':'.join(section.get_path()+[key])])
+            s.extend([', item: ', ':'.join(section._get_path()+[key])])
             try:
-                v = section.d[key]
+                v = section._settings[key]
             except KeyError:
                 s.append(', missing value')
             else:
@@ -27,48 +27,70 @@ class ConfigError(Exception):
         return self.msg
 
 class ConfigObj(object):
+    """A recursive object within a hierarchical configuration, representing
+    a (sub)section as a dictionary from the YAML configuration file. Child
+    nodes may be accessed both by the dot notation (section.setting) and the
+    item notation (section['setting']).
+    """
+    # We use __slots__ because we intend to hardly limit (and control) instance
+    # members, so that we do not break many potential names of actual settings
+    # that are accessed using the dot notation. For the same reason, member and
+    # method names (mostly used internally anyway) start with an underscore.
+    __slots__ = ['_parent', '_name', '_settings']
+
     def __init__(self, parent=None, name=None):
-        self.parent = parent
-        self.name = name
-        self.d = {}
+        self._parent = parent
+        self._name = name
+        self._settings = {}
 
     def __getattr__(self, name):
         try:
-            return self.d[name]
+            return self._settings[name]
         except KeyError:
             raise AttributeError('Attribute {} not found. Possibly a missing '
                     'configuration setting in section {}.'.format(name,
-                        ':'.join(self.get_path())))
+                        ':'.join(self._get_path())))
 
-    def ingest_dict(self, d, overwrite=True, extend=False, check_exist=False):
+    def __getitem__(self, key):
+        try:
+            return self._settings[key]
+        except KeyError:
+            raise KeyError('Key {} not found. Possibly a missing configuration '
+                    'setting in section {}.'.format(key,
+                        ':'.join(self._get_path())))
+
+    def __iter__(self):
+        return iter(self._settings.items())
+
+    def _ingest_dict(self, d, overwrite=True, extend=False, check_exist=False):
         for k, v in d.items():
             if isinstance(v, ConfigObj):
                 # we are actually ingesting a subtree - replace by its dict
-                v = v.d
+                v = v._settings
 
             if isinstance(v, dict):
                 # For a dictionary (top-level or with only dictionaries above,
                 # i.e. a subsection), we recurse
                 try:
-                    vl = self.d[k]
+                    vl = self._settings[k]
                 except KeyError:
                     # not yet present: create a new empty child node
                     vl = ConfigObj(self, k)
-                    self.d[k] = vl
+                    self._settings[k] = vl
                 try:
-                    vl.ingest_dict(v, overwrite, extend, check_exist)
+                    vl._ingest_dict(v, overwrite, extend, check_exist)
                 except AttributeError:
                     raise ConfigError('Trying to replace a non-dictionary '
                             'setting with a dictionary', self, k)
             elif extend and isinstance(v, list):
                 # We extend lists if requested
-                vl = self.d.setdefault(k, [])
+                vl = self._settings.setdefault(k, [])
                 try:
                     vl.extend(v)
                 except AttributeError:
                     raise ConfigError('Trying to extend a non-list setting with '
                             'a list', self, k)
-            elif v is None and isinstance(self.d.get(k), ConfigObj):
+            elif v is None and isinstance(self._settings.get(k), ConfigObj):
                 # This is a special case: we are replacing an existing section
                 # with None. That most probably means that the user has
                 # presented an empty section (possibly with all values
@@ -83,19 +105,19 @@ class ConfigObj(object):
                 # present). Non-null values are overwritten only if
                 # overwrite=True.
                 if overwrite:
-                    if check_exist and k not in self.d:
+                    if check_exist and k not in self._settings:
                         warn('WARNING: ignoring an unknown setting {}={}.',
-                                ':'.join(self.get_path()+[k]), v)
-                    self.d[k] = v
+                                ':'.join(self._get_path()+[k]), v)
+                    self._settings[k] = v
                 else:
-                    if self.d.get(k, None) is None:
-                        self.d[k] = v
+                    if self._settings.get(k, None) is None:
+                        self._settings[k] = v
 
-    def get_path(self):
-        if self.parent is None:
+    def _get_path(self):
+        if self._parent is None:
             return []
-        path = self.parent.get_path()
-        path.append(self.name)
+        path = self._parent._get_path()
+        path.append(self._name)
         return path
 
 
@@ -113,7 +135,7 @@ def parse_duration(section, item):
                 'm, s. Example: "1 m 3.2 s".', section, item)
 
     try:
-        s = section.d[item]
+        s = section[item]
     except KeyError:
         err()
 
@@ -157,37 +179,34 @@ def load_config(argv):
         cfg_segment_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                 'config_init_{}.yaml'.format(segment))
         with open(cfg_segment_path, 'r') as f:
-            cfg.ingest_dict(yaml.load(f))
+            cfg._ingest_dict(yaml.load(f))
 
     # load settings from selected configfile (if available)
     if argv.config:
         with open(argv.config, 'r') as config_file:
-            cfg.ingest_dict(yaml.load(config_file), check_exist=True)
+            cfg._ingest_dict(yaml.load(config_file), check_exist=True)
 
     # apply settings for selected tasks
     for task in cfg.tasks:
         try:
-            task_set = cfg.task_config.d[task]
+            task_set = cfg.task_config._settings[task]
         except KeyError:
             die('Unknown task: "{}". Available tasks are: {}', task,
-                    ', '.join(cfg.task_config.d.keys()))
+                    ', '.join(cfg.task_config._settings.keys()))
 
         if task_set.set:
-            cfg.ingest_dict(task_set.set.d, overwrite=False, extend=False)
+            cfg._ingest_dict(task_set.set._settings, overwrite=False, extend=False)
         if task_set.extend:
-            cfg.ingest_dict(task_set.extend.d, overwrite=False, extend=True)
+            cfg._ingest_dict(task_set.extend._settings, overwrite=False, extend=True)
 
     # load extra settings from commandline
-    cfg.ingest_dict(vars(argv))
+    cfg._ingest_dict(vars(argv))
     if argv.verbosity_arg is not None:
         cfg.verbosity = argv.verbosity_arg
 
     # Basic verification
     if not cfg.case:
         raise ConfigError('Case name must be specified', cfg, 'case')
-    if cfg.simulation.origin_time.tzinfo is None:
-        cfg.simulation.origin_time = cfg.simulation.origin_time.replace(
-                tzinfo=datetime.timezone.utc)
 
 
 cfg = ConfigObj()
