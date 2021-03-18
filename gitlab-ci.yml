@@ -1,0 +1,14 @@
+image: ubuntu:20.04
+
+before_script:
+  - apt-get update
+  - apt-get install -y python3-pip
+  - python3 --version
+  - python3 -m pip install virtualenv
+  - virtualenv palm_env
+  - source palm_env/bin/activate
+  - python3 -m pip install requirements.txt
+
+test:
+  script:
+    - python3 tests/palm_meteo_test.py

@@ -1,0 +1,5 @@
+netCDF4
+numpy
+metpy 
+pyproj
+scipy
