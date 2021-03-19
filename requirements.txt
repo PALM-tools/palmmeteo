@@ -1,5 +1,5 @@
+metpy>=1.0
 netCDF4
 numpy
-metpy 
-pyproj
+pyproj<3.0,>=2.3.0
 scipy
