@@ -1,5 +1,13 @@
 image: ubuntu:20.04
 
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - palm_env
+
 before_script:
   - apt-get update
   - apt-get install -y python3-pip
