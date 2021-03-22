@@ -2,4 +2,5 @@ metpy>=1.0
 netCDF4
 numpy
 pyproj<3.0,>=2.3.0
+pytest
 scipy
