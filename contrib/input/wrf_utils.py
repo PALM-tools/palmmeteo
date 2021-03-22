@@ -222,14 +222,14 @@ class BilinearRegridder(object):
 
             ybase = self.y0.min()
             ytop = self.y0.max()+2
-            assert 0 <= ybase <= ytop <= self.shape[-2]
+            assert 0 <= ybase <= ytop, (0, ybase, ytop)
             self.ys = slice(ybase, ytop)
             self.y0 -= ybase
             self.ylen = ytop - ybase
 
             xbase = self.x0.min()
             xtop = self.x0.max()+2
-            assert 0 <= xbase <= xtop <= self.shape[-1]
+            assert 0 <= xbase <= xtop, (0, xbase, xtop)
             self.xs = slice(xbase, xtop)
             self.x0 -= xbase
             self.xlen = xtop - xbase

@@ -365,8 +365,8 @@ class WRFRadPlugin(ImportPluginMixin):
 
                     # Detect bounding box of the mask, prepare slices for
                     # faster loading
-                    xmask = np.logical_or.reduce(mask, axis=1)
-                    ymask = np.logical_or.reduce(mask, axis=0)
+                    xmask = np.logical_or.reduce(mask, axis=0)
+                    ymask = np.logical_or.reduce(mask, axis=1)
                     xfrom = np.argmax(xmask)
                     yfrom = np.argmax(ymask)
                     xto = len(xmask) - np.argmax(xmask[::-1])

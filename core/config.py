@@ -202,7 +202,7 @@ def load_config(argv):
     # load extra settings from commandline
     cfg._ingest_dict(vars(argv))
     if argv.verbosity_arg is not None:
-        cfg.verbosity = argv.verbosity_arg
+        cfg._settings['verbosity'] = argv.verbosity_arg
 
     # Basic verification
     if not cfg.case:
