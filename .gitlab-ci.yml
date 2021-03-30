@@ -1,5 +1,9 @@
 image: ubuntu:20.04
 
+stages:
+  - unit_tests
+  - integration_tests
+
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
@@ -21,7 +25,17 @@ before_script:
   - python3 -m pip install -r requirements.txt
   - echo -e "\e[0Ksection_end:`date +%s`:pip_section\r\e[0K"
 
-integration_test:
+unit_tests:
+  stage: unit_tests
+  tags:
+    - cpus1
+  script:
+    - echo -e "\e[0Ksection_start:`date +%s`:unit_test_section[collapsed=false]\r\e[0KExecuting unit tests"
+    - pytest -v tests/unit_tests
+    - echo -e "\e[0Ksection_end:`date +%s`:unit_test_section\r\e[0K"
+
+integration_tests:
+  stage: integration_tests
   tags:
     - cpus1
   script:
@@ -29,8 +43,3 @@ integration_test:
     - python3 tests/integration_tests/palm_meteo_test.py
     - echo -e "\e[0Ksection_end:`date +%s`:integration_test_section\r\e[0K"
 
-unit_tests:
-  script:
-    - echo -e "\e[0Ksection_start:`date +%s`:unit_test_section[collapsed=false]\r\e[0KExecuting unit tests"
-    - pytest -v tests/unit_tests
-    - echo -e "\e[0Ksection_end:`date +%s`:unit_test_section\r\e[0K"
