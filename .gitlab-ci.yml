@@ -9,20 +9,28 @@ cache:
     - palm_env
 
 before_script:
+  - echo -e "\e[0Ksection_start:`date +%s`:apt_section[collapsed=true]\r\e[0KInstalling apt dependencies"
   - apt-get update
   - apt-get install -y python3-pip
+  - echo -e "\e[0Ksection_end:`date +%s`:apt_section\r\e[0K"
+  - echo -e "\e[0Ksection_start:`date +%s`:pip_section[collapsed=true]\r\e[0KInstalling pip dependencies"
   - python3 --version
   - python3 -m pip install virtualenv
   - virtualenv palm_env
   - source palm_env/bin/activate
   - python3 -m pip install -r requirements.txt
+  - echo -e "\e[0Ksection_end:`date +%s`:pip_section\r\e[0K"
 
 integration_test:
   tags:
     - cpus1
   script:
+    - echo -e "\e[0Ksection_start:`date +%s`:integration_test_section[collapsed=false]\r\e[0KExecuting palm_meteo_test"
     - python3 tests/integration_tests/palm_meteo_test.py
+    - echo -e "\e[0Ksection_end:`date +%s`:integration_test_section\r\e[0K"
 
 unit_tests:
   script:
+    - echo -e "\e[0Ksection_start:`date +%s`:unit_test_section[collapsed=false]\r\e[0KExecuting unit tests"
     - pytest -v tests/unit_tests
+    - echo -e "\e[0Ksection_end:`date +%s`:unit_test_section\r\e[0K"
