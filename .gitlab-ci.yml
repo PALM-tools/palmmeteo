@@ -19,8 +19,8 @@ before_script:
 
 integration_test:
   script:
-    - python3 tests/palm_meteo_test.py
+    - python3 tests/integration_tests/palm_meteo_test.py
 
 unit_tests:
   script:
-    - pytest -v tests/
+    - pytest -v tests/unit_tests

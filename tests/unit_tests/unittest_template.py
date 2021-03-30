@@ -1,7 +1,7 @@
 import unittest
 
 
-class TestCore(unittest.TestCase):
+class ATestCase(unittest.TestCase):
     def setUp(self):
         pass
 
