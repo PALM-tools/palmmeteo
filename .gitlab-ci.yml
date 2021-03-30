@@ -18,6 +18,8 @@ before_script:
   - python3 -m pip install -r requirements.txt
 
 integration_test:
+  tags:
+    - cpus1
   script:
     - python3 tests/integration_tests/palm_meteo_test.py
 
