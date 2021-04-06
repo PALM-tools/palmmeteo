@@ -3,4 +3,5 @@ netCDF4
 numpy
 pyproj<3.0,>=2.3.0
 pytest
+pyyaml
 scipy
