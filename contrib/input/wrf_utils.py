@@ -33,6 +33,8 @@ import pyproj
 import scipy.ndimage as ndimage
 import netCDF4
 
+import metpy
+metpy_version_master = int(metpy.__version__.split('.', 1)[0])
 import metpy.calc as mpcalc
 from metpy.interpolate import log_interpolate_1d
 from metpy.units import units
@@ -380,15 +382,20 @@ def calcgw_wrf(f, lat, lon, levels, tidx=0):
     # interpolate wrf into pressure levels
     phgt = log_interpolate_1d(plevels, pres, hgtu, axis=0)
 
-    # Set up some constants based on our projection, including the Coriolis parameter and
-    # grid spacing, converting lon/lat spacing to Cartesian
-    coriol = mpcalc.coriolis_parameter(np.deg2rad(xlat[area])).to('1/s')
-
     # lat_lon_grid_deltas doesn't work under py2, but for WRF grid it is still
     # not very accurate, better use direct values.
     #dx, dy = mpcalc.lat_lon_grid_deltas(xlong[area], xlat[area])
     dx = f.DX * units.m
     dy = f.DY * units.m
+
+    if metpy_version_master >= 1:
+        mylat = np.deg2rad(xlat[area])
+        my_geostrophic_wind = lambda sh: mpcalc.geostrophic_wind(sh, dx=dx,
+                dy=dy, latitude=mylat)
+    else:
+        coriol = mpcalc.coriolis_parameter(np.deg2rad(xlat[area])).to('1/s')
+        my_geostrophic_wind = lambda sh: mpcalc.geostrophic_wind(sh, coriol,
+                dx, dy)
 
     # Smooth height data. Sigma=1.5 for gfs 0.5deg
     res_km = f.DX / 1000.
@@ -397,7 +404,7 @@ def calcgw_wrf(f, lat, lon, levels, tidx=0):
     vg = np.zeros(plevels.shape, 'f8')
     for i in range(len(plevels)):
         sh = ndimage.gaussian_filter(phgt[i,:,:], sigma=1.5*50/res_km, order=0)
-        ugl, vgl = mpcalc.geostrophic_wind(sh * units.m, coriol, dx, dy)
+        ugl, vgl = my_geostrophic_wind(sh * units.m)
         ug[i] = ugl[iby, ibx].magnitude
         vg[i] = vgl[iby, ibx].magnitude
 
@@ -418,19 +425,25 @@ def calcgw_gfs(v, lat, lon):
         j = j+1
     #print('level', v.level, 'height', height[i,j], lats[i,j], lons[i,j])
 
-    # Set up some constants based on our projection, including the Coriolis parameter and
-    # grid spacing, converting lon/lat spacing to Cartesian
-    f = mpcalc.coriolis_parameter(np.deg2rad(lats)).to('1/s')
+    # Set up some constants based on our projection, including the Coriolis
+    # parameter and grid spacing, converting lon/lat spacing to Cartesian
     dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats)
     res_km = (dx[i,j]+dy[i,j]).magnitude / 2000.
 
     # Smooth height data. Sigma=1.5 for gfs 0.5deg
     height = ndimage.gaussian_filter(height, sigma=1.5*50/res_km, order=0)
 
-    # In MetPy 0.5, geostrophic_wind() assumes the order of the dimensions is (X, Y),
-    # so we need to transpose from the input data, which are ordered lat (y), lon (x).
-    # Once we get the components,transpose again so they match our original data.
-    geo_wind_u, geo_wind_v = mpcalc.geostrophic_wind(height * units.m, f, dx, dy)
+    if metpy_version_master >= 1:
+        geo_wind_u, geo_wind_v = mpcalc.geostrophic_wind(height * units.m,
+                dx=dx, dy=dy, latitude=np.deg2rad(lats))
+    else:
+        f = mpcalc.coriolis_parameter(np.deg2rad(lats)).to('1/s')
+
+        # In MetPy 0.5, geostrophic_wind() assumes the order of the dimensions
+        # is (X, Y), so we need to transpose from the input data, which are
+        # ordered lat (y), lon (x).  Once we get the components,transpose again
+        # so they match our original data.
+        geo_wind_u, geo_wind_v = mpcalc.geostrophic_wind(height * units.m, f, dx, dy)
 
     return height[i,j], geo_wind_u[i,j], geo_wind_v[i,j]
 
