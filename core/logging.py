@@ -1,6 +1,6 @@
 import sys
 
-__all__ = ['die', 'warn', 'log', 'verbose', 'configure']
+__all__ = ['die', 'warn', 'log', 'verbose', 'configure_log']
 
 
 def die(s, *args, **kwargs):
@@ -42,7 +42,7 @@ error_output = sys.stderr.write
 log = log_on
 verbose = log_off
 
-def configure(cfg):
+def configure_log(cfg):
     global log, verbose
 
     log = log_on if cfg.verbosity >= 1 else log_off

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 import netCDF4
 
@@ -46,6 +46,9 @@ class StaticDriverPlugin(SetupPluginMixin):
                 rt.simulation.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S %z')
             else:
                 rt.simulation.start_time = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        if rt.simulation.start_time.tzinfo is None:
+            rt.simulation.start_time = rt.simulation.start_time.replace(
+                    tzinfo=timezone.utc)
 
         # create vertical structure of the domain
         rt.dz = cfg.domain.dz
@@ -102,8 +105,8 @@ class StaticDriverPlugin(SetupPluginMixin):
                     'scl={}, nscl_free={}', nscl + cfg.domain.nscl_free, rt.nz,
                     rt.dz,  nscl, cfg.domain.nscl_free)
         if (rt.stretching and cfg.domain.dz_stretch_level
-                <= (nscl + cfg.domain.nscl_free) * rt.dz):
-            die('stretching has to start in higher level than '
+                < (nscl + cfg.domain.nscl_free) * rt.dz):
+            die('stretching has to start in level above '
                     '{}.\ndz_stretch_level={}, nscl={}, nscl_free={}, dz={}',
                     (nscl + cfg.domain.nscl_free) * rt.dz,
                     cfg.domain.dz_stretch_level, nscl, cfg.domain.nscl_free,

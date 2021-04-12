@@ -222,15 +222,17 @@ class BilinearRegridder(object):
 
             ybase = self.y0.min()
             ytop = self.y0.max()+2
-            assert 0 <= ybase <= ytop <= self.shape[-2]
+            assert 0 <= ybase <= ytop, (0, ybase, ytop)
             self.ys = slice(ybase, ytop)
             self.y0 -= ybase
+            self.ylen = ytop - ybase
 
             xbase = self.x0.min()
             xtop = self.x0.max()+2
-            assert 0 <= xbase <= xtop <= self.shape[-1]
+            assert 0 <= xbase <= xtop, (0, xbase, xtop)
             self.xs = slice(xbase, xtop)
             self.x0 -= xbase
+            self.xlen = xtop - xbase
 
         self.y1 = self.y0 + 1
         self.x1 = self.x0 + 1
@@ -272,31 +274,31 @@ def barom_gp(gp0, p, p0, t0):
     baromi = rd * t0
     return gp0 - np.log(p/p0) * baromi
 
-def calc_ph_hybrid(f, mu):
-    pht = f.variables['P_TOP'][0]
-    c3f = f.variables['C3F'][0]
-    c4f = f.variables['C4F'][0]
-    c3h = f.variables['C3H'][0]
-    c4h = f.variables['C4H'][0]
+def calc_ph_hybrid(f, it, mu):
+    pht = f.variables['P_TOP'][it]
+    c3f = f.variables['C3F'][it]
+    c4f = f.variables['C4F'][it]
+    c3h = f.variables['C3H'][it]
+    c4h = f.variables['C4H'][it]
     return (c3f[:,_ax,_ax]*mu[_ax,:,:] + (c4f[:,_ax,_ax] + pht),
             c3h[:,_ax,_ax]*mu[_ax,:,:] + (c4h[:,_ax,_ax] + pht))
 
-def calc_ph_sigma(f, mu):
-    pht = f.variables['P_TOP'][0]
-    eta_f = f.variables['ZNW'][0]
-    eta_h = f.variables['ZNU'][0]
+def calc_ph_sigma(f, it, mu):
+    pht = f.variables['P_TOP'][it]
+    eta_f = f.variables['ZNW'][it]
+    eta_h = f.variables['ZNU'][it]
     return (eta_f[:,_ax,_ax]*mu[_ax,:,:] + pht,
             eta_h[:,_ax,_ax]*mu[_ax,:,:] + pht)
 
-def wrf_t(f):
-    p = f.variables['P'][0,:,:,:] + f.variables['PB'][0,:,:,:]
-    return (f.variables['T'][0,:,:,:] + wrf_base_temp) * np.power(0.00001*p, rd_cp)
+def wrf_t(f, it):
+    p = f.variables['P'][it,:,:,:] + f.variables['PB'][it,:,:,:]
+    return (f.variables['T'][it,:,:,:] + wrf_base_temp) * np.power(0.00001*p, rd_cp)
 
-def calc_gp(f, ph):
-    terr = f.variables['HGT'][0,:,:]
+def calc_gp(f, it, ph):
+    terr = f.variables['HGT'][it,:,:]
     gp0 = terr * g
     gp = [gp0]
-    t = wrf_t(f)
+    t = wrf_t(f, it)
     for lev in range(1, ph.shape[0]):
         gp.append(barom_gp(gp[-1], ph[lev,:,:], ph[lev-1,:,:], t[lev-1,:,:]))
     return np.array(gp)
@@ -468,15 +470,15 @@ if __name__ == '__main__':
         gp = f.variables['PH'][0,:,:,:] + f.variables['PHB'][0,:,:,:]
 
         print('\nUsing sigma:')
-        phf, phh = calc_ph_sigma(f, mu)
-        gp_calc = calc_gp(f, phf)
+        phf, phh = calc_ph_sigma(f, 0, mu)
+        gp_calc = calc_gp(f, 0, phf)
         delta = gp_calc - gp
         for lev in range(delta.shape[0]):
             print_dstat(lev, delta[lev])
 
         print('\nUsing hybrid:')
-        phf, phh = calc_ph_hybrid(f, mu)
-        gp_calc = calc_gp(f, phf)
+        phf, phh = calc_ph_hybrid(f, 0, mu)
+        gp_calc = calc_gp(f, 0, phf)
         delta = gp_calc - gp
         for lev in range(delta.shape[0]):
             print_dstat(lev, delta[lev])

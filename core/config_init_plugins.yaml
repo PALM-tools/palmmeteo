@@ -14,33 +14,88 @@ wrf:
 
     radiation_smoothing_distance: 10000.0
 
-    interp_vars: #interpolated variables (apart from U+V)
-        - PH
-        - PHB
-        - HGT
-        - T
-        - W
-        - TSLB
-        - SMOIS
-        - MU
-        - MUB
-        - P
-        - PB
-        - PSFC
+    dimensions:
+        Time:               time
+        west_east:          x_meteo
+        west_east_stag:     xu_meteo
+        south_north:        y_meteo
+        south_north_stag:   yv_meteo
+        bottom_top:         z_meteo
+        bottom_top_stag:    zw_meteo
+        soil_layers_stag:   zsoil_meteo
 
-    spechum_vars: #variables that compose specific humidity as a sum
-        - QVAPOR
-        - QCLOUD
-        - QRAIN
-        - QICE
-        - QSNOW
-        - QGRAUP
+    # horizontally interpolated variables (apart from U+V)
+    hinterp_vars: [PH, PHB, HGT, T, W, TSLB, SMOIS, MU, MUB, P, PB, PSFC]
 
-    vars_1d: #1-d variables, direct copy
-        - P_TOP
-        - C3F
-        - C4F
-        - C3H
-        - C4H
-        - ZNW
-        - ZNU
+    # variables that compose specific humidity as a sum
+    spechum_vars: [QVAPOR, QCLOUD, QRAIN, QICE, QSNOW, QGRAUP]
+
+    # 1-d variables, direct copy
+    vars_1d: [P_TOP, C3F, C4F, C3H, C4H, ZNW, ZNU]
+
+# The CAMx configuration uses Python formulae, so it is obviously vulnerable to
+# malicious configuration files. We assume that the users know what they are
+# doing and they do not run arbitrary code from the internet.
+camx:
+    # Python-code checks on input file variables and attributes. May also be
+    # extended by individual output variables.
+    validations: []
+
+    # A list of variables loaded for processing. May also be extended by
+    # individual output variables.
+    loaded_vars: []
+
+    # An optional preprocessing Python code on loaded variables, as triggered
+    # by individual output variables.
+    preprocessors:
+        PM25: 'PM25 = PSO4+PNO3+PNH4+POA+PEC+FPRM+SOA1+SOA2+SOA3+SOA4+SOPA+SOPB'
+
+    # Output variable definitions with units and Python formulae on loaded
+    # variables, which may optionally trigger specific preprocessors and/or
+    # validations.
+    output_vars:
+        NO:
+            formula: 'NO'
+            unit: 'ppm'
+            loaded_vars: [NO]
+            validations:
+                - 'NO.units == "ppmv"'
+            preprocessors: []
+        NO2:
+            formula: 'NO2'
+            unit: 'ppm'
+            loaded_vars: [NO2]
+            validations:
+                - 'NO2.units == "ppmv"'
+            preprocessors: []
+        NOX:
+            formula: 'NO+NO2'
+            unit: 'ppm'
+            loaded_vars: [NO, NO2]
+            validations:
+                - 'NO.units == "ppmv"'
+                - 'NO2.units == "ppmv"'
+            preprocessors: []
+        O3:
+            formula: 'O3'
+            unit: 'ppm'
+            loaded_vars: [O3]
+            validations:
+                - 'O3.units == "ppmv"'
+            preprocessors: []
+        PM10:
+            formula: '(CPRM+PM25)*1e-9'
+            unit: 'kg/m3'
+            loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
+                SOA4, SOPA, SOPB, CPRM]
+            validations:
+                - 'PM10.units == "micrograms m-3"'
+            preprocessors: [PM25]
+        PM25:
+            formula: 'PM25*1e-9'
+            unit: 'kg/m3'
+            loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
+                SOA4, SOPA, SOPB]
+            validations:
+                - 'PM10.units == "micrograms m-3"'
+            preprocessors: [PM25]
