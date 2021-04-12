@@ -1,0 +1,25 @@
+case: simple
+
+tasks:
+    - wrf
+    - wrf_rad
+
+domain:
+    nz: 25
+
+paths:
+    base: simple_wrf
+    palm_input: .
+    intermediate: .
+    wrf_output: wrf
+
+simulation:
+    origin_time: 2018-07-19 10:00:00
+    length: 3 h
+
+output:
+    overwrite: true
+    check_mass_balance: true
+
+wrf:
+    hybrid_levs: true

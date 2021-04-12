@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 # This file is part of the PALM model system.
 #
@@ -39,9 +39,16 @@ DEBUGGING = 'on'
 EXIT_CODE_OK = 0
 EXIT_CODE_FAIL = 1
 
-ATTRIBUTES_TO_CHECK = set(['origin_lon', 'origin_lat', 'origin_z'])
-REFERENCE_FILENAME = 'id_dynamic_reference.nc'
-TEST_FILENAME = 'id_dynamic.nc'
+ATTRIBUTES_TO_CHECK = set()
+REFERENCE_FILENAME = 'simple_dynamic_reference'
+TEST_FILENAME = 'simple_dynamic'
+
+# We need to allow for slight differences due to library versions, compiler
+# & CPU FP differences etc.
+max_diff_allowed = {
+        #'varname': max_diff_value, #direct value of difference
+        }
+max_diff_allowed_default = 1e-6 #default: fraction of variable's max abs value
 
 
 def main(argv):
@@ -79,10 +86,7 @@ def main(argv):
 
     subprocess.run(['rm', '-f', path_to_test_file], cwd=test_dir)
 
-    # TODO replace reference file copy...
-    subprocess.run(['cp', path_to_reference_file, path_to_test_file], cwd=test_dir)
-    # TODO ...by palm_meteo call:
-    #subprocess.run(reference_call.split(' '), cwd=test_dir)
+    subprocess.run(reference_call.split(' '), cwd=test_dir)
 
     try:
 
@@ -187,9 +191,19 @@ def all_variables_match(file_a, file_b):
         if data_matches:
             print_debug(f'  {var}: data matches')
         else:
-            max_diff = numpy.max(file_a.variables[var][:] - file_b.variables[var][:])
-            print_debug(f'  {var}: max error = {max_diff}')
-            true_if_all_match = False
+            max_diff = numpy.abs(file_a.variables[var][:]
+                                 - file_b.variables[var][:]).max()
+            try:
+                allowed_diff = max_diff_allowed[var]
+            except KeyError:
+                allowed_diff = numpy.abs(file_a.variables[var][:]
+                                         ).max() * max_diff_allowed_default
+
+            if max_diff <= allowed_diff:
+                print_debug(f'  {var}: max error = {max_diff} <= {allowed_diff} (accepted)')
+            else:
+                print_debug(f'  {var}: max error = {max_diff} > {allowed_diff} (REFUSED)')
+                true_if_all_match = False
 
     return true_if_all_match
 
