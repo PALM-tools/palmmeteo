@@ -40,6 +40,6 @@ integration_tests:
     - cpus1
   script:
     - echo -e "\e[0Ksection_start:`date +%s`:integration_test_section[collapsed=false]\r\e[0KExecuting palm_meteo_test"
-    - python3 tests/integration_tests/palm_meteo_test.py tests/integration_tests/id_wrf/id.yml
+    - python3 tests/integration_tests/palm_meteo_test.py tests/integration_tests/simple_wrf/simple.yml
     - echo -e "\e[0Ksection_end:`date +%s`:integration_test_section\r\e[0K"
 
