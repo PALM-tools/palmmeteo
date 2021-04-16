@@ -152,7 +152,7 @@ def test_file_contains_reference_attributes(test_file):
 
 
 def all_attributes_match(reference_file, test_file):
-    for attribute in ATTRIBUTES_TO_CHECK:
+    for attribute in sorted(ATTRIBUTES_TO_CHECK):
         reference_value = float(reference_file.getncattr(attribute))
         test_value = float(test_file.getncattr(attribute))
 
@@ -186,7 +186,7 @@ def all_variables_match(file_a, file_b):
     shared_vars = vars_a.intersection(vars_b)
     true_if_all_match = True
 
-    for var in shared_vars:
+    for var in sorted(shared_vars):
         data_matches = (file_a.variables[var][:] == file_b.variables[var][:]).all()
         if data_matches:
             print_debug(f'  {var}: data matches')
