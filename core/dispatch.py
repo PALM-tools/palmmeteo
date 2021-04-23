@@ -1,5 +1,7 @@
+import netCDF4
+
 import core.plugins as plg
-import core.logging
+from .logging import die, warn, log, verbose, configure_log
 from .config import load_config, cfg
 from .runtime import rt, basic_init
 
@@ -16,14 +18,31 @@ def build_exec_queue(event, from_plugins):
 
 def execute_event(event):
     queue = build_exec_queue(event, rt.plugins)
-    for plugin in queue:
-        getattr(plugin, plg.event_hooks[event]['method'])()
+
+    kwargs = {}
+    common_files = []
+    try:
+        # Prepare common files or other common processing for specific events
+        if event == 'import':
+            f = netCDF4.Dataset(rt.paths.imported, 'w', format='NETCDF4')
+            common_files.append(f)
+            kwargs['fout'] = f
+
+        # Execute each plugin in a queue
+        for plugin in queue:
+            getattr(plugin, plg.event_hooks[event]['method'])(**kwargs)
+    finally:
+        for f in common_files:
+            try:
+                f.close()
+            except:
+                warn('Error closing file {}!', f)
 
 
 def run(argv):
     load_config(argv)
     basic_init(rt)
-    core.logging.configure(cfg)
+    configure_log(cfg)
     rt.plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
                       for p in cfg.plugins]
 
