@@ -8,9 +8,22 @@ vinterp:
     terrain_smoothing: off
 
 wrf:
-    # Are WRF files using hybrid vertical coordinates? Has to be checked and
-    # specified by the user!
-    hybrid_levs:
+    # Method of stretching vertical levels before vertical interpolation in
+    # order to match the target (high-resolution) terrain, while limiting the
+    # propagation of surface features to higher levels. May be one of:
+    # universal:    A universal method where levels above transition_level are
+    #               kept unmodified while the levels below are stretched
+    #               gradually
+    # hybrid:       Use the WRF hybrid vertical coordinate system from the
+    #               WRFOUT input files to stretch the levels. WARNING: the WRF
+    #               model must be configured to using hybrid levels, not sigma
+    #               leves, there is no check for this!
+    # sigma:        Use the WRF sigma levels system from the WRFOUT input
+    #               files to stretch the levels. WARNING: the WRF model must be
+    #               configured to using sigma levels, not hybrid leves, there
+    #               is no check for this!
+    vertical_stretching: universal
+    transition_level: 2000.0 #m above origin_z
 
     radiation_smoothing_distance: 10000.0
 

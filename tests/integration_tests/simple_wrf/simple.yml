@@ -22,4 +22,4 @@ output:
     check_mass_balance: true
 
 wrf:
-    hybrid_levs: true
+    vertical_stretching: hybrid

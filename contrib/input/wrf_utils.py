@@ -42,7 +42,6 @@ from metpy.units import units
 # Constants directly equivalent to WRF code
 radius = 6370000.0
 g = 9.81 #m/s2
-rd = 287. #dry air gas constant (J/kg/K)
 rd_cp = 2./7. #from WRF v4 technote (R_d / c_p)
 wrf_base_temp = 300. #NOT wrfout T00
 
@@ -267,14 +266,6 @@ class BilinearRegridder(object):
 
         w = selection * self.weights[wslice]
         return w.sum(axis=0)
-
-def barom_pres(p0, gp, gp0, t0):
-    barom = 1. / (rd * t0)
-    return p0 * np.exp((gp0-gp)*barom)
-
-def barom_gp(gp0, p, p0, t0):
-    baromi = rd * t0
-    return gp0 - np.log(p/p0) * baromi
 
 def calc_ph_hybrid(f, it, mu):
     pht = f.variables['P_TOP'][it]
