@@ -22,4 +22,6 @@ output:
     check_mass_balance: true
 
 wrf:
-    vertical_stretching: hybrid
+    vertical_stretching: universal
+
+verbosity: 2
