@@ -389,6 +389,7 @@ class WRFRadPlugin(ImportPluginMixin):
         verbose('Parsing WRF radiation files from {}', fglob)
 
         rad_data = []
+        first = True
         for fn in glob.glob(fglob):
             verbose('Parsing WRF radiation file {}', fn)
             with netCDF4.Dataset(fn) as fin:
@@ -430,16 +431,28 @@ class WRFRadPlugin(ImportPluginMixin):
                     mask = ~mask[yfrom:yto,xfrom:xto]
 
                 # load radiation
+                if first:
+                    if 'SWDDIF' in fin.variables:
+                        verbose('WRF file does contain SWDDIF variable, adding diffuse component.')
+                        rt.has_rad_diffuse = True
+                        rad_vars = ['SWDOWN', 'GLW', 'SWDDIF']
+                    else:
+                        verbose('WRF file does not contain SWDDIF variable, diffuse compoment will be estimated in PALM.')
+                        rt.has_rad_diffuse = False
+                        rad_vars = ['SWDOWN', 'GLW']
+
                 entry = [t]
-                for varname in ['SWDOWN', 'GLW', 'SWDDIF']:
+                for varname in rad_vars:
                     arr = fin.variables[varname][0,yfrom:yto,xfrom:xto]
                     arr.mask &= mask
                     entry.append(arr.mean())
                 rad_data.append(entry)
+            first = False
 
         verbose('Processing loaded radiation values')
         rad_data.sort()
-        rad_times, rad_swdown, rad_lwdown, rad_swdiff = zip(*rad_data) #unzip
+        rad_data_uz = zip(*rad_data) #unzip/transpose
+        rad_times = rad_data_uz[0]
 
         # Determine timestep and check consistency
         rt.times_rad = list(rad_times)
@@ -462,6 +475,7 @@ class WRFRadPlugin(ImportPluginMixin):
 
         # Store loaded data
         # TODO: move to netCDF (opened once among plugins)
-        rt.rad_swdown = list(rad_swdown)
-        rt.rad_lwdown = list(rad_lwdown)
-        rt.rad_swdiff = list(rad_swdiff)
+        rt.rad_swdown = list(rad_data_uz[1])
+        rt.rad_lwdown = list(rad_data_uz[2])
+        if rt.has_rad_diffuse:
+            rt.rad_swdiff = list(rad_data_uz[3])
