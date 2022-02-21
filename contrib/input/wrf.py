@@ -451,7 +451,7 @@ class WRFRadPlugin(ImportPluginMixin):
 
         verbose('Processing loaded radiation values')
         rad_data.sort()
-        rad_data_uz = zip(*rad_data) #unzip/transpose
+        rad_data_uz = list(zip(*rad_data)) #unzip/transpose
         rad_times = rad_data_uz[0]
 
         # Determine timestep and check consistency
