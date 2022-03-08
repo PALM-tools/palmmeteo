@@ -316,9 +316,10 @@ class WritePlugin(WritePluginMixin):
                 var.units = 'W/m2'
                 var[:] = rt.rad_lwdown
 
-                var = fout.createVariable('rad_sw_in_dif', 'f4', ('time_rad',))
-                var.lod = 1
-                var.units = 'W/m2'
-                var[:] = rt.rad_swdiff
+                if rt.has_rad_diffuse:
+                    var = fout.createVariable('rad_sw_in_dif', 'f4', ('time_rad',))
+                    var.lod = 1
+                    var.units = 'W/m2'
+                    var[:] = rt.rad_swdiff
 
         log('Dynamic driver written successfully.')
