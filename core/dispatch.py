@@ -27,6 +27,14 @@ def execute_event(event):
             f = netCDF4.Dataset(rt.paths.imported, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
+        elif event == 'hinterp':
+            f = netCDF4.Dataset(rt.paths.hinterp, 'w', format='NETCDF4')
+            common_files.append(f)
+            kwargs['fout'] = f
+        elif event == 'vinterp':
+            f = netCDF4.Dataset(rt.paths.vinterp, 'w', format='NETCDF4')
+            common_files.append(f)
+            kwargs['fout'] = f
 
         # Execute each plugin in a queue
         for plugin in queue:

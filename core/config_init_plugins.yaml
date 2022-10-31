@@ -72,29 +72,29 @@ camx:
             unit: 'ppm'
             loaded_vars: [NO]
             validations:
-                - 'NO.units == "ppmv"'
+                - '_units.NO == "ppmv"'
             preprocessors: []
         NO2:
             formula: 'NO2'
             unit: 'ppm'
             loaded_vars: [NO2]
             validations:
-                - 'NO2.units == "ppmv"'
+                - '_units.NO2 == "ppmv"'
             preprocessors: []
         NOX:
             formula: 'NO+NO2'
             unit: 'ppm'
             loaded_vars: [NO, NO2]
             validations:
-                - 'NO.units == "ppmv"'
-                - 'NO2.units == "ppmv"'
+                - '_units.NO == "ppmv"'
+                - '_units.NO2 == "ppmv"'
             preprocessors: []
         O3:
             formula: 'O3'
             unit: 'ppm'
             loaded_vars: [O3]
             validations:
-                - 'O3.units == "ppmv"'
+                - '_units.O3 == "ppmv"'
             preprocessors: []
         PM10:
             formula: '(CPRM+PM25)*1e-9'
@@ -102,7 +102,7 @@ camx:
             loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
                 SOA4, SOPA, SOPB, CPRM]
             validations:
-                - 'PM10.units == "micrograms m-3"'
+                - '_units.PM10 == "micrograms m-3"'
             preprocessors: [PM25]
         PM25:
             formula: 'PM25*1e-9'
@@ -110,5 +110,5 @@ camx:
             loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
                 SOA4, SOPA, SOPB]
             validations:
-                - 'PM10.units == "micrograms m-3"'
+                - '_units.PM10 == "micrograms m-3"'
             preprocessors: [PM25]

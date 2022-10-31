@@ -166,51 +166,50 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             die('Some times are missing: {}', rt.times)
         log('All WRF files imported.')
 
-    def interpolate_horiz(self, *args, **kwargs):
+    def interpolate_horiz(self, fout, *args, **kwargs):
         log('Performing horizontal interpolation')
 
-        verbose('Preparing output file')
         with netCDF4.Dataset(rt.paths.imported) as fin:
-            with netCDF4.Dataset(rt.paths.hinterp, 'w', format='NETCDF4') as fout:
-                # Create dimensions
-                for d in ['time', 'z_meteo', 'zw_meteo', 'z', 'zsoil_meteo']:
-                    fout.createDimension(d, len(fin.dimensions[d]))
-                fout.createDimension('x', rt.nx)
-                fout.createDimension('y', rt.ny)
+            verbose('Preparing output file')
+            # Create dimensions
+            for d in ['time', 'z_meteo', 'zw_meteo', 'z', 'zsoil_meteo']:
+                ensure_dimension(fout, d, len(fin.dimensions[d]))
+            ensure_dimension(fout, 'x', rt.nx)
+            ensure_dimension(fout, 'y', rt.ny)
 
-                # Create variables
+            # Create variables
+            for varname in cfg.wrf.hinterp_vars + ['SPECHUM']:
+                v_wrf = fin.variables[varname]
+                if v_wrf.dimensions[-2:] != ('y_meteo', 'x_meteo'):
+                    raise RuntimeError('Unexpected dimensions for '
+                            'variable {}: {}!'.format(varname,
+                                v_wrf.dimensions))
+                fout.createVariable(varname, 'f4', v_wrf.dimensions[:-2]
+                        + ('y', 'x'))
+            fout.createVariable('U', 'f4', ('time', 'z_meteo', 'y', 'x'))
+            fout.createVariable('V', 'f4', ('time', 'z_meteo', 'y', 'x'))
+            for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
+                v_wrf = fin.variables[varname]
+                fout.createVariable(varname, 'f4', v_wrf.dimensions)
+
+            for it in range(rt.nt):
+                verbose('Processing timestep {}', it)
+
+                # regular vars
                 for varname in cfg.wrf.hinterp_vars + ['SPECHUM']:
                     v_wrf = fin.variables[varname]
-                    if v_wrf.dimensions[-2:] != ('y_meteo', 'x_meteo'):
-                        raise RuntimeError('Unexpected dimensions for '
-                                'variable {}: {}!'.format(varname,
-                                    v_wrf.dimensions))
-                    fout.createVariable(varname, 'f4', v_wrf.dimensions[:-2]
-                            + ('y', 'x'))
-                fout.createVariable('U', 'f4', ('time', 'z_meteo', 'y', 'x'))
-                fout.createVariable('V', 'f4', ('time', 'z_meteo', 'y', 'x'))
+                    v_out = fout.variables[varname]
+                    v_out[it] = rt.regrid_wrf.regrid(v_wrf[it])
+
+                # U and V have special treatment (unstaggering)
+                fout.variables['U'][it] = rt.regrid_wrf_u.regrid(
+                        fin.variables['U'][it])
+                fout.variables['V'][it] = rt.regrid_wrf_v.regrid(
+                        fin.variables['V'][it])
+
+                # direct copy
                 for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
-                    v_wrf = fin.variables[varname]
-                    fout.createVariable(varname, 'f4', v_wrf.dimensions)
-
-                for it in range(rt.nt):
-                    verbose('Processing timestep {}', it)
-
-                    # regular vars
-                    for varname in cfg.wrf.hinterp_vars + ['SPECHUM']:
-                        v_wrf = fin.variables[varname]
-                        v_out = fout.variables[varname]
-                        v_out[it] = rt.regrid_wrf.regrid(v_wrf[it])
-
-                    # U and V have special treatment (unstaggering)
-                    fout.variables['U'][it] = rt.regrid_wrf_u.regrid(
-                            fin.variables['U'][it])
-                    fout.variables['V'][it] = rt.regrid_wrf_v.regrid(
-                            fin.variables['V'][it])
-
-                    # direct copy
-                    for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
-                        fout.variables[varname][it] = fin.variables[varname][it]
+                    fout.variables[varname][it] = fin.variables[varname][it]
 
     def interpolate_vert(self, *args, **kwargs):
         verbose_dstat = log_dstat_on if cfg.verbosity >= 2 else log_dstat_off
