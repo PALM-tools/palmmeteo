@@ -67,10 +67,10 @@ camx:
     # variables, which may optionally trigger specific preprocessors and/or
     # validations.
     output_var_defs:
-        NO:
+        'NO': #NO without quotes means False in yaml!
             formula: 'NO'
             unit: 'ppm'
-            loaded_vars: [NO]
+            loaded_vars: ['NO']
             validations:
                 - '_units.NO == "ppmv"'
             preprocessors: []
@@ -84,7 +84,7 @@ camx:
         NOX:
             formula: 'NO+NO2'
             unit: 'ppm'
-            loaded_vars: [NO, NO2]
+            loaded_vars: ['NO', NO2]
             validations:
                 - '_units.NO == "ppmv"'
                 - '_units.NO2 == "ppmv"'
@@ -102,7 +102,19 @@ camx:
             loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
                 SOA4, SOPA, SOPB, CPRM]
             validations:
-                - '_units.PM10 == "micrograms m-3"'
+                - '_units.PSO4 == "micrograms m-3"'
+                - '_units.PNO3 == "micrograms m-3"'
+                - '_units.PNH4 == "micrograms m-3"'
+                - '_units.POA == "micrograms m-3"'
+                - '_units.PEC == "micrograms m-3"'
+                - '_units.FPRM == "micrograms m-3"'
+                - '_units.SOA1 == "micrograms m-3"'
+                - '_units.SOA2 == "micrograms m-3"'
+                - '_units.SOA3 == "micrograms m-3"'
+                - '_units.SOA4 == "micrograms m-3"'
+                - '_units.SOPA == "micrograms m-3"'
+                - '_units.SOPB == "micrograms m-3"'
+                - '_units.CPRM == "micrograms m-3"'
             preprocessors: [PM25]
         PM25:
             formula: 'PM25*1e-9'
@@ -110,5 +122,16 @@ camx:
             loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
                 SOA4, SOPA, SOPB]
             validations:
-                - '_units.PM10 == "micrograms m-3"'
+                - '_units.PSO4 == "micrograms m-3"'
+                - '_units.PNO3 == "micrograms m-3"'
+                - '_units.PNH4 == "micrograms m-3"'
+                - '_units.POA == "micrograms m-3"'
+                - '_units.PEC == "micrograms m-3"'
+                - '_units.FPRM == "micrograms m-3"'
+                - '_units.SOA1 == "micrograms m-3"'
+                - '_units.SOA2 == "micrograms m-3"'
+                - '_units.SOA3 == "micrograms m-3"'
+                - '_units.SOA4 == "micrograms m-3"'
+                - '_units.SOPA == "micrograms m-3"'
+                - '_units.SOPB == "micrograms m-3"'
             preprocessors: [PM25]

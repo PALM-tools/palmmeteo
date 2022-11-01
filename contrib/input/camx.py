@@ -1,14 +1,28 @@
+import os
+import re
+import glob
+from datetime import datetime
+import numpy as np
+import netCDF4
+from metpy.interpolate import interpolate_1d
+
 from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg, ConfigError
 from core.runtime import rt
+from core.utils import ensure_dimension
+from .wrf_utils import CAMxCoordTransform, BilinearRegridder
+
+_na = np.newaxis
+re_num = re.compile(r'[0-9\.]+')
+
 
 class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, fout, *args, **kwargs):
         log('Importing CAMx data...')
 
         filled = [False] * rt.nt
-        timesteps = [convertor.new_timestep() for t in rt.times]
+        timesteps = [CAMxConvertor.new_timestep() for t in rt.times]
         zcoord = [None] * rt.nt
 
         # Process input files
@@ -20,13 +34,43 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         for fn in glob.glob(camxglob):
             verbose('Parsing CAMx file {}', fn)
             with netCDF4.Dataset(fn) as fin:
-                # Decode time and locate timestep
-                dts = tflag(f.variables['TFLAG'][:], rt.tindex)
+                # Decode time and locate timesteps
+                tflag = fin.variables['TFLAG'][:]
+                assert len(tflag.shape) == 3 and tflag.shape[2] == 2
+                xdate = tflag[:,0,0]
+                xtime = tflag[:,0,1]
+
+                # Verify that dates are equal for each variable
+                assert (tflag[:,:,0] == xdate[:,_na]).all()
+                assert (tflag[:,:,1] == xtime[:,_na]).all()
+
+                dts = []
+                for i in range(len(xdate)):
+                    dt = datetime.strptime(
+                            '{0:07d} {1:06d} +0000'.format(xdate[i], xtime[i]),
+                            '%Y%j %H%M%S %z')
+                    ireq = rt.tindex(dt)
+                    if not 0 <= ireq < rt.nt:
+                        continue
+                    dts.append((ireq, i))
+
                 if not dts:
-                    print('Skipping CAMx file {0}: no requested times.'.format(fname))
+                    verbose('Skipping CAMx file {0}: no requested times.'.format(fn))
                     continue
 
-                print('Processing CAMx file {0}.'.format(fname))
+                verbose('Processing CAMx file {0}.'.format(fn))
+
+                # locate layer heights
+                try:
+                    vz = fin.variables['z']
+                except KeyError:
+                    verbose('Loading heights from separate file')
+                    vz = None
+                    with open(fn+'.heights') as fh:
+                        fix_hgt = np.array(list(map(float, re_num.findall(fh.read())))) * 1000. #orig in km
+                        fix_hgt = fix_hgt[:,_na,_na] #convert to 3D for broadcasting
+                else:
+                    verbose('Loading heights from variable z')
 
                 if first:
                     # coordinate projection
@@ -41,55 +85,54 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                             cfg.camx.output_var_defs, cfg.camx.preprocessors,
                             rt.regrid_camx)
 
-                # locate layer heights
-                try:
-                    vz = fin.variables['z']
-                except KeyError:
-                    print('Loading heights from separate file')
-                    with open(fname+'.heights') as fh:
-                        fix_hgt = np.array(list(map(float, re_num.findall(fh.read())))) * 1000. #orig in km
-                        zcoord[itout] = fix_hgt[:,_na,_na]
-                else:
-                    print('Loading heights from variable z')
-                    # TODO: check for dicrepancy among input files
-                    zcoord[itout] = rt.regrid_camx.regrid(vz[0, :, rt.regrid_camx.ys, rt.regrid_camx.xs])
-
-                if first:
                     # dimensions
                     ensure_dimension(fout, 'time', rt.nt)
-                    ensure_dimension(fout, 'z_chem', zcoord[itout].shape[0])
+                    ensure_dimension(fout, 'z_chem', fix_hgt.shape[0]
+                            if vz is None else vz.shape[1])
                     ensure_dimension(fout, 'y_chem', rt.regrid_camx.ylen)
                     ensure_dimension(fout, 'x_chem', rt.regrid_camx.xlen)
                     chem_dims = ('time', 'z_chem', 'y_chem', 'x_chem')
 
                 for itout, itf in dts:
-                    times[itout] = True
                     verbose('Importing timestep {} -> {}', itf, itout)
+
+                    # TODO: check for dicrepancy among input files
+                    zcoord[itout] = fix_hgt if vz is None else vz[itf, :,
+                            rt.regrid_camx.ys, rt.regrid_camx.xs]
 
                     filled[itout] = convertor.load_timestep_vars(fin, itf,
                             timesteps[itout])
             first = False
 
+        if first:
+            die('No CAMx files found under {}.', camxglob)
+
         if not all(filled):
-            die('Could not find all CAMx variables for all times: {}', filled)
+            die('Could not find all CAMx variables for all times.\n'
+                    'Missing variables in times:\n{}',
+                    '\n'.join('{}: {}'.format(dt, ', '.join(vn
+                            for vn in(convertor.loaded_vars-tsdata)))
+                        for dt, fil, tsdata in zip(rt.times, filled, timesteps)
+                        if not fil))
+
+        vz_out = fout.createVariable('height_chem', 'f4', chem_dims)
+        vz_out.units = 'm'
 
         for i, tsdata in enumerate(timesteps):
             # Save heights
-            v_out = (fout.createVariable('height_chem', 'f4', chem_dims) if i
-                    else fout.variables['height_chem'])
-            v_out.units = 'm'
-            v_out[i, :, :, :] = zcoord[i]
+            vz_out[i, :, :, :] = zcoord[i]
 
             # Save computed variables
             convertor.validate_timestep(tsdata)
             for sn, v, unit in convertor.calc_timestep_species(tsdata):
-                v_out = (fout.createVariable(spn, 'f4', chem_dims) if i
-                        else fout.variables[spn])
+                v_out = (fout.variables[sn] if i
+                        else fout.createVariable(sn, 'f4', chem_dims))
                 v_out.units = unit
                 v_out[i, :, :, :] = v
 
     def interpolate_horiz(self, fout, *args, **kwargs):
         log('Performing CAMx horizontal interpolation')
+        hvars = ['height_chem'] + cfg.chem_species
 
         with netCDF4.Dataset(rt.paths.imported) as fin:
             verbose('Preparing output file')
@@ -100,7 +143,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             ensure_dimension(fout, 'y', rt.ny)
 
             # Create variables
-            for varname in cfg.chem_species:
+            for varname in hvars:
                 v_in = fin.variables[varname]
                 if v_in.dimensions[-2:] != ('y_chem', 'x_chem'):
                     raise RuntimeError('Unexpected dimensions for '
@@ -113,7 +156,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 verbose('Processing timestep {}', it)
 
                 # regular vars
-                for varname in cfg.chem_species:
+                for varname in hvars:
                     v_in = fin.variables[varname]
                     v_out = fout.variables[varname]
                     v_out[it] = rt.regrid_camx.regrid(v_in[it])
@@ -143,7 +186,11 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 chem_heights[1:,:,:] = agl_chem[it] + terrain_rel
 
                 # Load all variables for the timestep
-                vardata = [fin.variables[vn][it] for vn in cfg.chem_species]
+                vardata = []
+                for vn in cfg.chem_species:
+                    data = fin.variables[vn][it]
+                    data = np.r_[data[0:1], data]
+                    vardata.append(data)
 
                 # Perform vertical interpolation on all currently loaded vars at once
                 vinterp = interpolate_1d(rt.z_levels, chem_heights, *vardata,
@@ -164,16 +211,16 @@ class CAMxConvertor:
         self.loaded_vars = set()
         self.preprocessors = {}
         self.validations = {}
-        self.vars = {}
+        self.species = []
 
-        for spn, sp in species:
+        for sp in species:
             try:
                 vdef = var_defs[sp]
             except KeyError:
                 die('Requested CAMx variable {} not found in configured '
                         'variable definitions.', sp)
 
-            self.loaded_vars.add(sp.loaded_vars)
+            self.loaded_vars.update(vdef.loaded_vars)
 
             for pp in vdef.preprocessors:
                 if pp not in self.preprocessors:
@@ -199,12 +246,12 @@ class CAMxConvertor:
                                 'validation: "{}".', val)
 
             try:
-                fml = compile(sp.formula, '<camx_formula_{}>'.format(spn),
+                fml = compile(vdef.formula, '<camx_formula_{}>'.format(sp),
                         'eval')
             except SyntaxError:
                 die('Syntax error in definition of the CAMx '
-                        'variable {} formula: "{}".', spn, sp.formula)
-            self.species[spn] = (fml, sp.unit)
+                        'variable {} formula: "{}".', sp, vdef.formula)
+            self.species.append((sp, fml, vdef.unit))
 
     @staticmethod
     def new_timestep():
@@ -212,6 +259,7 @@ class CAMxConvertor:
 
     def load_timestep_vars(self, f, tindex, tsdata):
         complete = True
+        units = tsdata['_units']
 
         for vn in self.loaded_vars:
             if vn in tsdata:
@@ -226,6 +274,7 @@ class CAMxConvertor:
 
                 tsdata[vn] = var[tindex, ..., self.regridder.ys,
                         self.regridder.xs]
+                setattr(units, vn, var.units)
 
         return complete
 
@@ -238,28 +287,7 @@ class CAMxConvertor:
         for pp in self.preprocessors.values():
             exec(pp, tsdata)
 
-        for sn, (fml, unit) in self.species:
+        for sp, fml, unit in self.species:
             v = eval(fml, tsdata)
-            yield sn, v, unit
-
-
-def tflag(data, req_dts):
-    assert len(data.shape) == 3 and data.shape[2] == 2
-    xdate = data[:,0,0]
-    xtime = data[:,0,1]
-
-    # Verify that dates are equal for each variable
-    assert (data[:,:,0] == xdate[:,_na]).all()
-    assert (data[:,:,1] == xtime[:,_na]).all()
-
-    dts = []
-    for i in range(len(xdate)):
-        dt = datetime.datetime.strptime(
-            '{0:07d} {1:06d}'.format(xdate[i], xtime[i]), '%Y%j %H%M%S')
-        try:
-            ireq = req_dts[dt]
-        except KeyError:
-            continue
-        dts.append((ireq, i))
-    return dts
+            yield sp, v, unit
 
