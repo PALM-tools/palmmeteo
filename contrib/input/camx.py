@@ -89,7 +89,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 v_out[i, :, :, :] = v
 
     def interpolate_horiz(self, fout, *args, **kwargs):
-        log('Performing horizontal interpolation')
+        log('Performing CAMx horizontal interpolation')
 
         with netCDF4.Dataset(rt.paths.imported) as fin:
             verbose('Preparing output file')
@@ -118,173 +118,41 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     v_out = fout.variables[varname]
                     v_out[it] = rt.regrid_camx.regrid(v_in[it])
 
-    def interpolate_vert(self, *args, **kwargs):
-                    lay_height = np.r_[lowest_layer, lay_height + terrain_shift]
-        verbose_dstat = log_dstat_on if cfg.verbosity >= 2 else log_dstat_off
+    def interpolate_vert(self, fout, *args, **kwargs):
+        log('Performing CAMx vertical interpolation')
+        terrain_rel = rt.terrain_rel[_na,:,:]
 
-        log('Performing vertical interpolation')
-
-        verbose('Preparing output file')
         with netCDF4.Dataset(rt.paths.hinterp) as fin:
-            with netCDF4.Dataset(rt.paths.vinterp, 'w', format='NETCDF4') as fout:
-                for dimname in ['time', 'y', 'x', 'zsoil_meteo']:
-                    fout.createDimension(dimname, len(fin.dimensions[dimname]))
-                fout.createDimension('z', rt.nz)
-                fout.createDimension('zw', rt.nz-1)
-                fout.createDimension('zsoil', rt.nz_soil)
+            agl_chem = fin.variables['height_chem']
+            chem_heights = np.zeros((agl_chem.shape[1]+1,) + agl_chem.shape[2:], dtype=agl_chem.dtype)
+            chem_heights[0,:,:] = -999.
 
-                fout.createVariable('init_atmosphere_qv', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_pt', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
-                fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
-                fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
-                fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
-                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
-                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
-                fout.createVariable('zsoil', 'f4', ('zsoil',))
-                fout.createVariable('z', 'f4', ('z',))
-                fout.createVariable('zw', 'f4', ('zw',))
+            verbose('Preparing output file')
+            for dimname in ['time', 'y', 'x']:
+                ensure_dimension(fout, dimname, len(fin.dimensions[dimname]))
+            ensure_dimension(fout, 'z', rt.nz)
 
-                fout.variables['z'][:] = rt.z_levels
-                fout.variables['zw'][:] = rt.z_levels_stag
-                fout.variables['zsoil'][:] = rt.z_soil_levels #depths of centers of soil layers
+            for vn in cfg.chem_species:
+                var = fout.createVariable(vn, 'f4', ('time', 'z', 'y', 'x'))
+                var.units = fin.variables[vn].units
 
-                for it in range(rt.nt):
-                    verbose('Processing timestep {}', it)
+            for it in range(rt.nt):
+                verbose('Processing timestep {}', it)
 
-                    # Use hybrid ETA levels in WRF and stretch them so that the WRF terrain
-                    # matches either PALM terrain or flat terrain at requested height
-                    gp_w = fin.variables['PH'][it,:,:,:] + fin.variables['PHB'][it,:,:,:]
-                    wrfterr = gp_w[0]*(1./g) #verified: equals HGT
+                # Calc CAMx layer heights
+                chem_heights[1:,:,:] = agl_chem[it] + terrain_rel
 
-                    if cfg.vinterp.terrain_smoothing:
-                        verbose('Smoothing PALM terrain for the purpose of '
-                                'dynamic driver with sigma={0} grid '
-                                'points.', cfg.vinterp.terrain_smoothing)
-                        target_terrain = ndimage.gaussian_filter(rt.terrain,
-                                sigma=cfg.vinterp.terrain_smoothing, order=0)
-                    else:
-                        target_terrain = rt.terrain
+                # Load all variables for the timestep
+                vardata = [fin.variables[vn][it] for vn in cfg.chem_species]
 
-                    verbose('Morphing WRF terrain ({0} ~ {1}) to PALM terrain ({2} ~ {3})',
-                        wrfterr.min(), wrfterr.max(), target_terrain.min(), target_terrain.max())
-                    verbose_dstat('Terrain shift [m]', wrfterr - target_terrain[:,:])
+                # Perform vertical interpolation on all currently loaded vars at once
+                vinterp = interpolate_1d(rt.z_levels, chem_heights, *vardata,
+                        return_list_always=True)
+                del vardata
 
-                    # Load real temperature
-                    t_u = wrf_t(fin, it)
-                    tair_surf = t_u[0,:,:]
-
-                    # Load original dry air column pressure
-                    mu = fin.variables['MUB'][it,:,:] + fin.variables['MU'][it,:,:]
-                    p_top = fin.variables['P_TOP'][it]
-                    p_surf = mu + p_top
-
-                    gp_new_surf = target_terrain * g
-
-                    if cfg.wrf.vertical_stretching == 'universal':
-                        # Calculate transition pressure level using horizontal
-                        # domain-wide pressure average
-                        gp_trans = (rt.origin_z + cfg.wrf.transition_level) * g
-                        p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
-                        verbose('Vertical stretching transition level: {} Pa', p_trans)
-
-                        # Convert the geopotentials to pressure naively using barometric equation
-                        p_orig_w = barom_pres(p_surf, gp_w, gp_w[0,:,:], tair_surf)
-
-                        # Mass (half) levels should be calculated from full
-                        # levels by halving pressure, not geopotential, because
-                        # ZNU = (ZNW[:-1]+ZNW[1:])/2 (verified)
-                        p_orig_u = (p_orig_w[:-1] + p_orig_w[1:]) * 0.5
-
-                        # Calculate terrain pressure shift ratio
-                        p_surf_new = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf)
-                        terrain_ratio = (p_surf_new - p_trans) / (p_surf - p_trans)
-
-                        # TODO: this may be optimized by finding highest stretched level and
-                        # caclulating only below that, or by using numexpr
-                        p_str_u = (p_orig_u[:,:,:] - p_trans) * terrain_ratio + p_trans
-                        p_str_w = (p_orig_w[:,:,:] - p_trans) * terrain_ratio + p_trans
-                        del terrain_ratio
-
-                        # Stretch levels to match terrain and keep everthing above transition level
-                        p_new_u = np.where(p_orig_u > p_trans, p_str_u, p_orig_u)
-                        p_new_w = np.where(p_orig_w > p_trans, p_str_w, p_orig_w)
-
-                        # Calculate new geopotentials
-                        gp_new_u = barom_gp(gp_w[0,:,:], p_new_u, p_surf, tair_surf)
-                        gp_new_w = barom_gp(gp_w[0,:,:], p_new_w, p_surf, tair_surf)
-                        # Verified: gp differences in levels above p_trans
-                        # (~0.03) are only due to float32 precision
-                    else:
-                        # Sigma or hybrid
-                        # Shift column pressure so that it matches PALM terrain
-                        mu2 = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf) - p_top
-
-                        # Calculate original and shifted 3D dry air pressure
-                        if cfg.wrf.vertical_stretching == 'hybrid':
-                            p_orig_w, p_orig_u = calc_ph_hybrid(fin, it, mu)
-                            p_new_w, p_new_u = calc_ph_hybrid(fin, it, mu2)
-                        else:
-                            p_orig_w, p_orig_u = calc_ph_sigma(fin, it, mu)
-                            p_new_w, p_new_u = calc_ph_sigma(fin, it, mu2)
-
-                        t_w = np.concatenate((t_u, t_u[-1:,:,:]), axis=0) # repeat highest layer
-
-                        # Shift 3D geopotential according to delta dry air pressure
-                        gp_new_w = barom_gp(gp_w, p_new_w, p_orig_w, t_w)
-                        # For half-levs, originate from gp full levs rather than less accurate gp halving
-                        gp_new_u = barom_gp(gp_w[:-1,:,:], p_new_u, p_orig_w[:-1,:,:], t_u)
-
-                    # Calculate new heights
-                    z_w = gp_new_w * (1./g) - rt.origin_z
-                    z_u = gp_new_u * (1./g) - rt.origin_z
-
-                    # Report
-                    gpdelta = gp_new_w - gp_w
-                    for k in range(gp_w.shape[0]):
-                        verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
-
-                    # Because we require levels below the lowest level from WRF, we will always
-                    # add one layer at zero level with repeated values from the lowest level.
-                    # WRF-python had some special treatment for theta in this case.
-                    height = np.zeros((z_u.shape[0]+1,) + z_u.shape[1:], dtype=z_u.dtype)
-                    height[0,:,:] = -999. #always below terrain
-                    height[1:,:,:] = z_u
-                    heightw = np.zeros((z_w.shape[0]+1,) + z_w.shape[1:], dtype=z_w.dtype)
-                    heightw[0,:,:] = -999. #always below terrain
-                    heightw[1:,:,:] = z_w
-
-                    var = lpad(fin.variables['SPECHUM'][it])
-                    fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['T'][it] + wrf_base_temp) #from perturbation pt to standard
-                    fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['U'][it])
-                    fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['V'][it])
-                    fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['W'][it]) #z staggered!
-                    fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
-
-                    var = fin.variables['PSFC'][it]
-                    fout.variables['surface_forcing_surface_pressure'][it,:,:] = var
-
-                    var = fin.variables['TSLB'][it] #soil temperature
-                    fout.variables['init_soil_t'][it,:,:,:] = var
-
-                    var = fin.variables['SMOIS'][it] #soil moisture
-                    fout.variables['init_soil_m'][it,:,:,:] = var
-
-                    var = fin.variables['UG'][it]
-                    fout.variables['ls_forcing_ug'][it,:] = var
-
-                    var = fin.variables['VG'][it]
-                    fout.variables['ls_forcing_vg'][it,:] = var
+                for vn, vd in zip(cfg.chem_species, vinterp):
+                    v = fout.variables[vn]
+                    v[it] = vd
 
 
 class CAMxUnitsInfo:
@@ -395,101 +263,3 @@ def tflag(data, req_dts):
         dts.append((ireq, i))
     return dts
 
-def process_tstep(f, itf, regridder, lay_height, fout, itout, z_levels,
-        vars_remaining, filled, conversions, helpers):
-
-    # Load helper vars for this timestep
-    hlp = Helpers()
-    for helper_name, helper in helpers:
-        data = load_conversion(helper_name, f,
-                (itf,slice(None),regridder.ys,regridder.xs), hlp, **helper)
-        if data is not None:
-            setattr(hlp, helper_name, data)
-
-    # Load all usable vars for this timestep, regrid horizontally
-    varmeta = []
-    vardata = []
-    for spc in list(vars_remaining):
-        conv = conversions[spc]
-        data = load_conversion(spc, f, (itf,slice(None),regridder.ys,regridder.xs),
-                hlp, **conv)
-        if data is None:
-            continue
-
-        data = regridder.regrid(data)
-        vardata.append(np.r_[data[0:1], data]) #add peg below
-        varmeta.append((spc, conv['output_unit']))
-
-    # Perform vertical interpolation on all currently loaded vars at once
-    print('Interpolating vertically...')
-    vinterp = interpolate_1d(z_levels, lay_height, *vardata)
-    if len(vardata) == 1:
-        # return_list_always=True argument is only in later versions of MetPy
-        vinterp = [vinterp]
-    del vardata
-    for (vn, vu), vd in zip(varmeta, vinterp):
-        v = fout.variables[vn]
-        v[itout] = vd
-        v.units = vu
-        filled[vn][itout] = True
-
-def process_files(camx_file_list, camx_interp_fname, palm_grid_lat,
-        palm_grid_lon, terrain_rel, z_levels, times, species_names,
-        conversions, helpers):
-
-    terrain_shift = terrain_rel[_na,:,:]
-    lowest_layer = np.zeros(((1,) + palm_grid_lat.shape), dtype='f4')
-    lowest_layer[:] = -999.
-    tindex = dict((dt, i) for i, dt in enumerate(times))
-    filled = {}
-
-    with netCDF4.Dataset(camx_interp_fname, 'w', format='NETCDF4') as fout:
-        fout.createDimension('time', len(times))
-        fout.createDimension('z', len(z_levels))
-        fout.createDimension('y', palm_grid_lat.shape[0])
-        fout.createDimension('x', palm_grid_lat.shape[1])
-        for vn in species_names:
-            fout.createVariable(vn, 'f4', ('time', 'z', 'y', 'x'))
-            filled[vn] = [False] * len(times)
-
-        for fname in sorted(camx_file_list):
-            with netCDF4.Dataset(fname) as f:
-                dts = tflag(f.variables['TFLAG'][:], tindex)
-                if dts:
-                    print('Processing CAMx file {0}.'.format(fname))
-
-                    # preprare projection
-                    trans = palm_wrf_utils.CAMxCoordTransform(f)
-                    palm_in_camx_y, palm_in_camx_x = trans.latlon_to_ji(
-                                                    palm_grid_lat, palm_grid_lon)
-                    regridder = palm_wrf_utils.BilinearRegridder(
-                            palm_in_camx_x, palm_in_camx_y, preloaded=True)
-
-                    # locate layer heights
-                    try:
-                        vz = f.variables['z']
-                    except KeyError:
-                        print('Loading heights from separate file')
-                        with open(fname+'.heights') as fh:
-                            fix_hgt = np.array(list(map(float, re_num.findall(fh.read())))) * 1000. #orig in km
-                            fix_hgt = fix_hgt[:,_na,_na]
-                    else:
-                        print('Loading heights from variable z')
-                        fix_hgt = None
-
-                    for itout, itf in dts:
-                        print('Timestep {0}'.format(itout))
-                        vars_remaining = [vn for vn, vf in filled.items() if not vf[itout]]
-
-                        lay_height = fix_hgt if fix_hgt is not None else (
-                                regridder.regrid(vz[itf,:,regridder.ys,regridder.xs]))
-                        lay_height = np.r_[lowest_layer, lay_height + terrain_shift]
-                                                #add 1 pegging layer always below
-                        process_tstep(f, itf, regridder, lay_height, fout, itout, z_levels,
-                                vars_remaining, filled, conversions, helpers)
-                else:
-                    print('Skipping CAMx file {0} - no required times.'.format(fname))
-
-    if not all(all(vf) for vf in filled.values()):
-        sys.exit('CAMx data not complete - missing some variables/timesteps: {0}'
-                .format(filled))

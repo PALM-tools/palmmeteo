@@ -56,7 +56,6 @@ simulation:
 
 radiation: #empty = off by default, switched on by tasks or manually
 
-chem_species:
-    [NO, NO2, O3, PM10, PM25] #version for phstatp2 mechanism
+chem_species: [] #empty list = disabled chemistry
 
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)

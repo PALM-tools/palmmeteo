@@ -211,172 +211,171 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
                     fout.variables[varname][it] = fin.variables[varname][it]
 
-    def interpolate_vert(self, *args, **kwargs):
+    def interpolate_vert(self, fout, *args, **kwargs):
         verbose_dstat = log_dstat_on if cfg.verbosity >= 2 else log_dstat_off
 
         log('Performing vertical interpolation')
 
-        verbose('Preparing output file')
         with netCDF4.Dataset(rt.paths.hinterp) as fin:
-            with netCDF4.Dataset(rt.paths.vinterp, 'w', format='NETCDF4') as fout:
-                for dimname in ['time', 'y', 'x', 'zsoil_meteo']:
-                    fout.createDimension(dimname, len(fin.dimensions[dimname]))
-                fout.createDimension('z', rt.nz)
-                fout.createDimension('zw', rt.nz-1)
-                fout.createDimension('zsoil', rt.nz_soil)
+            verbose('Preparing output file')
+            for dimname in ['time', 'y', 'x', 'zsoil_meteo']:
+                ensure_dimension(fout, dimname, len(fin.dimensions[dimname]))
+            ensure_dimension(fout, 'z', rt.nz)
+            ensure_dimension(fout, 'zw', rt.nz-1)
+            ensure_dimension(fout, 'zsoil', rt.nz_soil)
 
-                fout.createVariable('init_atmosphere_qv', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_pt', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
-                fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
-                fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
-                fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
-                fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
-                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
-                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
-                fout.createVariable('zsoil', 'f4', ('zsoil',))
-                fout.createVariable('z', 'f4', ('z',))
-                fout.createVariable('zw', 'f4', ('zw',))
+            fout.createVariable('init_atmosphere_qv', 'f4', ('time', 'z', 'y', 'x'))
+            fout.createVariable('init_atmosphere_pt', 'f4', ('time', 'z', 'y', 'x'))
+            fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
+            fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
+            fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
+            fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
+            fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
+            fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
+            fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
+            fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
+            fout.createVariable('zsoil', 'f4', ('zsoil',))
+            fout.createVariable('z', 'f4', ('z',))
+            fout.createVariable('zw', 'f4', ('zw',))
 
-                fout.variables['z'][:] = rt.z_levels
-                fout.variables['zw'][:] = rt.z_levels_stag
-                fout.variables['zsoil'][:] = rt.z_soil_levels #depths of centers of soil layers
+            fout.variables['z'][:] = rt.z_levels
+            fout.variables['zw'][:] = rt.z_levels_stag
+            fout.variables['zsoil'][:] = rt.z_soil_levels #depths of centers of soil layers
 
-                for it in range(rt.nt):
-                    verbose('Processing timestep {}', it)
+            for it in range(rt.nt):
+                verbose('Processing timestep {}', it)
 
-                    # Use hybrid ETA levels in WRF and stretch them so that the WRF terrain
-                    # matches either PALM terrain or flat terrain at requested height
-                    gp_w = fin.variables['PH'][it,:,:,:] + fin.variables['PHB'][it,:,:,:]
-                    wrfterr = gp_w[0]*(1./g) #verified: equals HGT
+                # Use hybrid ETA levels in WRF and stretch them so that the WRF terrain
+                # matches either PALM terrain or flat terrain at requested height
+                gp_w = fin.variables['PH'][it,:,:,:] + fin.variables['PHB'][it,:,:,:]
+                wrfterr = gp_w[0]*(1./g) #verified: equals HGT
 
-                    if cfg.vinterp.terrain_smoothing:
-                        verbose('Smoothing PALM terrain for the purpose of '
-                                'dynamic driver with sigma={0} grid '
-                                'points.', cfg.vinterp.terrain_smoothing)
-                        target_terrain = ndimage.gaussian_filter(rt.terrain,
-                                sigma=cfg.vinterp.terrain_smoothing, order=0)
+                if cfg.vinterp.terrain_smoothing:
+                    verbose('Smoothing PALM terrain for the purpose of '
+                            'dynamic driver with sigma={0} grid '
+                            'points.', cfg.vinterp.terrain_smoothing)
+                    target_terrain = ndimage.gaussian_filter(rt.terrain,
+                            sigma=cfg.vinterp.terrain_smoothing, order=0)
+                else:
+                    target_terrain = rt.terrain
+
+                verbose('Morphing WRF terrain ({0} ~ {1}) to PALM terrain ({2} ~ {3})',
+                    wrfterr.min(), wrfterr.max(), target_terrain.min(), target_terrain.max())
+                verbose_dstat('Terrain shift [m]', wrfterr - target_terrain[:,:])
+
+                # Load real temperature
+                t_u = wrf_t(fin, it)
+                tair_surf = t_u[0,:,:]
+
+                # Load original dry air column pressure
+                mu = fin.variables['MUB'][it,:,:] + fin.variables['MU'][it,:,:]
+                p_top = fin.variables['P_TOP'][it]
+                p_surf = mu + p_top
+
+                gp_new_surf = target_terrain * g
+
+                if cfg.wrf.vertical_stretching == 'universal':
+                    # Calculate transition pressure level using horizontal
+                    # domain-wide pressure average
+                    gp_trans = (rt.origin_z + cfg.wrf.transition_level) * g
+                    p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
+                    verbose('Vertical stretching transition level: {} Pa', p_trans)
+
+                    # Convert the geopotentials to pressure naively using barometric equation
+                    p_orig_w = barom_pres(p_surf, gp_w, gp_w[0,:,:], tair_surf)
+
+                    # Mass (half) levels should be calculated from full
+                    # levels by halving pressure, not geopotential, because
+                    # ZNU = (ZNW[:-1]+ZNW[1:])/2 (verified)
+                    p_orig_u = (p_orig_w[:-1] + p_orig_w[1:]) * 0.5
+
+                    # Calculate terrain pressure shift ratio
+                    p_surf_new = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf)
+                    terrain_ratio = (p_surf_new - p_trans) / (p_surf - p_trans)
+
+                    # TODO: this may be optimized by finding highest stretched level and
+                    # caclulating only below that, or by using numexpr
+                    p_str_u = (p_orig_u[:,:,:] - p_trans) * terrain_ratio + p_trans
+                    p_str_w = (p_orig_w[:,:,:] - p_trans) * terrain_ratio + p_trans
+                    del terrain_ratio
+
+                    # Stretch levels to match terrain and keep everthing above transition level
+                    p_new_u = np.where(p_orig_u > p_trans, p_str_u, p_orig_u)
+                    p_new_w = np.where(p_orig_w > p_trans, p_str_w, p_orig_w)
+
+                    # Calculate new geopotentials
+                    gp_new_u = barom_gp(gp_w[0,:,:], p_new_u, p_surf, tair_surf)
+                    gp_new_w = barom_gp(gp_w[0,:,:], p_new_w, p_surf, tair_surf)
+                    # Verified: gp differences in levels above p_trans
+                    # (~0.03) are only due to float32 precision
+                else:
+                    # Sigma or hybrid
+                    # Shift column pressure so that it matches PALM terrain
+                    mu2 = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf) - p_top
+
+                    # Calculate original and shifted 3D dry air pressure
+                    if cfg.wrf.vertical_stretching == 'hybrid':
+                        p_orig_w, p_orig_u = calc_ph_hybrid(fin, it, mu)
+                        p_new_w, p_new_u = calc_ph_hybrid(fin, it, mu2)
                     else:
-                        target_terrain = rt.terrain
+                        p_orig_w, p_orig_u = calc_ph_sigma(fin, it, mu)
+                        p_new_w, p_new_u = calc_ph_sigma(fin, it, mu2)
 
-                    verbose('Morphing WRF terrain ({0} ~ {1}) to PALM terrain ({2} ~ {3})',
-                        wrfterr.min(), wrfterr.max(), target_terrain.min(), target_terrain.max())
-                    verbose_dstat('Terrain shift [m]', wrfterr - target_terrain[:,:])
+                    t_w = np.concatenate((t_u, t_u[-1:,:,:]), axis=0) # repeat highest layer
 
-                    # Load real temperature
-                    t_u = wrf_t(fin, it)
-                    tair_surf = t_u[0,:,:]
+                    # Shift 3D geopotential according to delta dry air pressure
+                    gp_new_w = barom_gp(gp_w, p_new_w, p_orig_w, t_w)
+                    # For half-levs, originate from gp full levs rather than less accurate gp halving
+                    gp_new_u = barom_gp(gp_w[:-1,:,:], p_new_u, p_orig_w[:-1,:,:], t_u)
 
-                    # Load original dry air column pressure
-                    mu = fin.variables['MUB'][it,:,:] + fin.variables['MU'][it,:,:]
-                    p_top = fin.variables['P_TOP'][it]
-                    p_surf = mu + p_top
+                # Calculate new heights
+                z_w = gp_new_w * (1./g) - rt.origin_z
+                z_u = gp_new_u * (1./g) - rt.origin_z
 
-                    gp_new_surf = target_terrain * g
+                # Report
+                gpdelta = gp_new_w - gp_w
+                for k in range(gp_w.shape[0]):
+                    verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
 
-                    if cfg.wrf.vertical_stretching == 'universal':
-                        # Calculate transition pressure level using horizontal
-                        # domain-wide pressure average
-                        gp_trans = (rt.origin_z + cfg.wrf.transition_level) * g
-                        p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
-                        verbose('Vertical stretching transition level: {} Pa', p_trans)
+                # Because we require levels below the lowest level from WRF, we will always
+                # add one layer at zero level with repeated values from the lowest level.
+                # WRF-python had some special treatment for theta in this case.
+                height = np.zeros((z_u.shape[0]+1,) + z_u.shape[1:], dtype=z_u.dtype)
+                height[0,:,:] = -999. #always below terrain
+                height[1:,:,:] = z_u
+                heightw = np.zeros((z_w.shape[0]+1,) + z_w.shape[1:], dtype=z_w.dtype)
+                heightw[0,:,:] = -999. #always below terrain
+                heightw[1:,:,:] = z_w
 
-                        # Convert the geopotentials to pressure naively using barometric equation
-                        p_orig_w = barom_pres(p_surf, gp_w, gp_w[0,:,:], tair_surf)
+                var = lpad(fin.variables['SPECHUM'][it])
+                fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                        # Mass (half) levels should be calculated from full
-                        # levels by halving pressure, not geopotential, because
-                        # ZNU = (ZNW[:-1]+ZNW[1:])/2 (verified)
-                        p_orig_u = (p_orig_w[:-1] + p_orig_w[1:]) * 0.5
+                var = lpad(fin.variables['T'][it] + wrf_base_temp) #from perturbation pt to standard
+                fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                        # Calculate terrain pressure shift ratio
-                        p_surf_new = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf)
-                        terrain_ratio = (p_surf_new - p_trans) / (p_surf - p_trans)
+                var = lpad(fin.variables['U'][it])
+                fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                        # TODO: this may be optimized by finding highest stretched level and
-                        # caclulating only below that, or by using numexpr
-                        p_str_u = (p_orig_u[:,:,:] - p_trans) * terrain_ratio + p_trans
-                        p_str_w = (p_orig_w[:,:,:] - p_trans) * terrain_ratio + p_trans
-                        del terrain_ratio
+                var = lpad(fin.variables['V'][it])
+                fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
 
-                        # Stretch levels to match terrain and keep everthing above transition level
-                        p_new_u = np.where(p_orig_u > p_trans, p_str_u, p_orig_u)
-                        p_new_w = np.where(p_orig_w > p_trans, p_str_w, p_orig_w)
+                var = lpad(fin.variables['W'][it]) #z staggered!
+                fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
 
-                        # Calculate new geopotentials
-                        gp_new_u = barom_gp(gp_w[0,:,:], p_new_u, p_surf, tair_surf)
-                        gp_new_w = barom_gp(gp_w[0,:,:], p_new_w, p_surf, tair_surf)
-                        # Verified: gp differences in levels above p_trans
-                        # (~0.03) are only due to float32 precision
-                    else:
-                        # Sigma or hybrid
-                        # Shift column pressure so that it matches PALM terrain
-                        mu2 = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf) - p_top
+                var = fin.variables['PSFC'][it]
+                fout.variables['surface_forcing_surface_pressure'][it,:,:] = var
 
-                        # Calculate original and shifted 3D dry air pressure
-                        if cfg.wrf.vertical_stretching == 'hybrid':
-                            p_orig_w, p_orig_u = calc_ph_hybrid(fin, it, mu)
-                            p_new_w, p_new_u = calc_ph_hybrid(fin, it, mu2)
-                        else:
-                            p_orig_w, p_orig_u = calc_ph_sigma(fin, it, mu)
-                            p_new_w, p_new_u = calc_ph_sigma(fin, it, mu2)
+                var = fin.variables['TSLB'][it] #soil temperature
+                fout.variables['init_soil_t'][it,:,:,:] = var
 
-                        t_w = np.concatenate((t_u, t_u[-1:,:,:]), axis=0) # repeat highest layer
+                var = fin.variables['SMOIS'][it] #soil moisture
+                fout.variables['init_soil_m'][it,:,:,:] = var
 
-                        # Shift 3D geopotential according to delta dry air pressure
-                        gp_new_w = barom_gp(gp_w, p_new_w, p_orig_w, t_w)
-                        # For half-levs, originate from gp full levs rather than less accurate gp halving
-                        gp_new_u = barom_gp(gp_w[:-1,:,:], p_new_u, p_orig_w[:-1,:,:], t_u)
+                var = fin.variables['UG'][it]
+                fout.variables['ls_forcing_ug'][it,:] = var
 
-                    # Calculate new heights
-                    z_w = gp_new_w * (1./g) - rt.origin_z
-                    z_u = gp_new_u * (1./g) - rt.origin_z
-
-                    # Report
-                    gpdelta = gp_new_w - gp_w
-                    for k in range(gp_w.shape[0]):
-                        verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
-
-                    # Because we require levels below the lowest level from WRF, we will always
-                    # add one layer at zero level with repeated values from the lowest level.
-                    # WRF-python had some special treatment for theta in this case.
-                    height = np.zeros((z_u.shape[0]+1,) + z_u.shape[1:], dtype=z_u.dtype)
-                    height[0,:,:] = -999. #always below terrain
-                    height[1:,:,:] = z_u
-                    heightw = np.zeros((z_w.shape[0]+1,) + z_w.shape[1:], dtype=z_w.dtype)
-                    heightw[0,:,:] = -999. #always below terrain
-                    heightw[1:,:,:] = z_w
-
-                    var = lpad(fin.variables['SPECHUM'][it])
-                    fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['T'][it] + wrf_base_temp) #from perturbation pt to standard
-                    fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['U'][it])
-                    fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['V'][it])
-                    fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
-
-                    var = lpad(fin.variables['W'][it]) #z staggered!
-                    fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
-
-                    var = fin.variables['PSFC'][it]
-                    fout.variables['surface_forcing_surface_pressure'][it,:,:] = var
-
-                    var = fin.variables['TSLB'][it] #soil temperature
-                    fout.variables['init_soil_t'][it,:,:,:] = var
-
-                    var = fin.variables['SMOIS'][it] #soil moisture
-                    fout.variables['init_soil_m'][it,:,:,:] = var
-
-                    var = fin.variables['UG'][it]
-                    fout.variables['ls_forcing_ug'][it,:] = var
-
-                    var = fin.variables['VG'][it]
-                    fout.variables['ls_forcing_vg'][it,:] = var
+                var = fin.variables['VG'][it]
+                fout.variables['ls_forcing_vg'][it,:] = var
 
 
 class WRFRadPlugin(ImportPluginMixin):
