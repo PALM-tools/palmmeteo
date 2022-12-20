@@ -116,7 +116,7 @@ class VInterpPluginMixin(Plugin):
 class SetupPluginMixin(Plugin):
     """
     Base class mixin for setup plugins.
-    Registers 'import_data' method as a handler for event 'setup'.
+    Registers 'setup_model' method as a handler for event 'setup'.
 
     Abstract methods required to be implemented by derived classes:
         setup_model

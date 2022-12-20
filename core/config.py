@@ -1,7 +1,13 @@
 import os
-import yaml
 import datetime
 from collections import defaultdict
+
+from yaml import load
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader
+
 from .logging import die, warn, log, verbose
 
 class ConfigError(Exception):
@@ -179,12 +185,13 @@ def load_config(argv):
         cfg_segment_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                 'config_init_{}.yaml'.format(segment))
         with open(cfg_segment_path, 'r') as f:
-            cfg._ingest_dict(yaml.load(f))
+            cfg._ingest_dict(load(f, Loader=SafeLoader))
 
     # load settings from selected configfile (if available)
     if argv.config:
         with open(argv.config, 'r') as config_file:
-            cfg._ingest_dict(yaml.load(config_file), check_exist=True)
+            cfg._ingest_dict(load(config_file, Loader=SafeLoader),
+                    check_exist=True)
 
     # apply settings for selected tasks
     for task in cfg.tasks:

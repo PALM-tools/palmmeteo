@@ -50,7 +50,7 @@ task_config:
         set:
         extend:
             plugins:
-                - contrib.input.meteo.EmisPlugin
+                - contrib.input.camx.CAMxPlugin
 
     cosmo:
         set:

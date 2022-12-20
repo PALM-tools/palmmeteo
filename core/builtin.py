@@ -260,44 +260,42 @@ class WritePlugin(WritePluginMixin):
                         fout.variables['ls_forcing_ug'][it] = fin.variables['ls_forcing_ug'][it]
                         fout.variables['ls_forcing_vg'][it] = fin.variables['ls_forcing_vg'][it]
 
-                ### # Write chemical boundary conds
-                ### if camx_interp_fname:
-                ###     f_camx = netCDF4.Dataset(camx_interp_fname)
-                ###     try:
-                ###         for vname, vval in f_camx.variables.items():
-                ###             # PALM doesn't support 3D LOD=2 init for chem yet, we have to average the field
-                ###             var = fout.createVariable('init_atmosphere_'+vname,
-                ###                     'f4', ('z',), )
-                ###             var.units = vval.units
-                ###             var.lod = 1
-                ###             var[:] = vval[0,:,:,:].mean(axis=(1,2))
+                # Write chemical boundary conds
+                for vn in cfg.chem_species:
+                    vin = fin.variables[vn]
 
-                ###             var = fout.createVariable('ls_forcing_left_'+vname,
-                ###                     'f4', ('time','z','y'), )
-                ###             var.units = vval.units
-                ###             var[:] = vval[:,:,:,0]
+                    # PALM doesn't support 3D LOD=2 init for chem yet, we have
+                    # to average the field
+                    var = fout.createVariable('init_atmosphere_'+vn, 'f4',
+                            ('z',))
+                    var.units = vin.units
+                    var.lod = 1
+                    var[:] = vin[0,:,:,:].mean(axis=(1,2))
 
-                ###             var = fout.createVariable('ls_forcing_right_'+vname,
-                ###                     'f4', ('time','z','y'), )
-                ###             var.units = vval.units
-                ###             var[:] = vval[:,:,:,-1]
+                    var = fout.createVariable('ls_forcing_left_'+vn, 'f4',
+                            ('time','z','y'))
+                    var.units = vin.units
+                    var[:] = vin[:,:,:,0]
 
-                ###             var = fout.createVariable('ls_forcing_south_'+vname,
-                ###                     'f4', ('time','z','x'), )
-                ###             var.units = vval.units
-                ###             var[:] = vval[:,:,0,:]
+                    var = fout.createVariable('ls_forcing_right_'+vn, 'f4',
+                            ('time','z','y'))
+                    var.units = vin.units
+                    var[:] = vin[:,:,:,-1]
 
-                ###             var = fout.createVariable('ls_forcing_north_'+vname,
-                ###                     'f4', ('time','z','x'), )
-                ###             var.units = vval.units
-                ###             var[:] = vval[:,:,-1,:]
+                    var = fout.createVariable('ls_forcing_south_'+vn, 'f4',
+                            ('time','z','x'))
+                    var.units = vin.units
+                    var[:] = vin[:,:,0,:]
 
-                ###             var = fout.createVariable('ls_forcing_top_'+vname,
-                ###                     'f4', ('time','y','x'), )
-                ###             var.units = vval.units
-                ###             var[:] = vval[:,-1,:,:]
-                ###     finally:
-                ###         f_camx.close()
+                    var = fout.createVariable('ls_forcing_north_'+vn, 'f4',
+                            ('time','z','x'))
+                    var.units = vin.units
+                    var[:] = vin[:,:,-1,:]
+
+                    var = fout.createVariable('ls_forcing_top_'+vn, 'f4',
+                            ('time','y','x'))
+                    var.units = vin.units
+                    var[:] = vin[:,-1,:,:]
 
             if cfg.radiation:
                 # Separate time dimension for radiation
