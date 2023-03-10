@@ -106,11 +106,10 @@ class WritePlugin(WritePluginMixin):
             fout.createVariable('z',     'f4', ('z',)    )[:] = rt.z_levels[:]
             fout.createVariable('zw',    'f4', ('zw',)   )[:] = rt.z_levels_stag[:]
             fout.createVariable('zsoil', 'f4', ('zsoil',))[:] = rt.z_soil_levels[:]
-            fout.createVariable('y',     'f4', ('y',)    )[:] = rt.dy + rt.dy*np.arange(rt.ny) #TMP
-            fout.createVariable('x',     'f4', ('x',)    )[:] = rt.dx + rt.dx*np.arange(rt.nx) #TMP
-            # TODO replace by this after comparing functionality with palm_dynamic
-            #fout.createVariable('y',     'f4', ('y',)    )[:] = rt.dy/2 + rt.dy*np.arange(rt.ny)
-            #fout.createVariable('x',     'f4', ('x',)    )[:] = rt.dx/2 + rt.dx*np.arange(rt.nx)
+            fout.createVariable('y',     'f4', ('y',)    )[:] = rt.dy/2 + rt.dy*np.arange(rt.ny,dtype='f4')
+            fout.createVariable('x',     'f4', ('x',)    )[:] = rt.dx/2 + rt.dx*np.arange(rt.nx,dtype='f4')
+            fout.createVariable('yv',    'f4', ('yv',)   )[:] = rt.dy*np.arange(1,rt.ny,dtype='f4')
+            fout.createVariable('xu',    'f4', ('xu',)   )[:] = rt.dx*np.arange(1,rt.nx,dtype='f4')
 
             # Create init variables
             fout.createVariable('init_atmosphere_pt', 'f4', ('z', 'y', 'x')).lod = 2
