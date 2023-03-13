@@ -8,6 +8,8 @@ from .config import cfg
 from .runtime import rt
 from .utils import find_free_fname, tstep, td0
 
+fill = -9999.0
+
 class SetupPlugin(SetupPluginMixin):
     def setup_model(self, *args, **kwargs):
         log('Setting up model domain...')
@@ -112,13 +114,13 @@ class WritePlugin(WritePluginMixin):
             fout.createVariable('xu',    'f4', ('xu',)   )[:] = rt.dx*np.arange(1,rt.nx,dtype='f4')
 
             # Create init variables
-            fout.createVariable('init_atmosphere_pt', 'f4', ('z', 'y', 'x')).lod = 2
-            fout.createVariable('init_atmosphere_qv', 'f4', ('z', 'y', 'x')).lod = 2
-            fout.createVariable('init_atmosphere_u', 'f4', ('z', 'y', 'xu')).lod = 2
-            fout.createVariable('init_atmosphere_v', 'f4', ('z', 'yv', 'x')).lod = 2
-            fout.createVariable('init_atmosphere_w', 'f4', ('zw', 'y', 'x')).lod = 2
-            fout.createVariable('init_soil_t', 'f4', ('zsoil', 'y', 'x')).lod = 2
-            fout.createVariable('init_soil_m', 'f4', ('zsoil', 'y', 'x')).lod = 2
+            fout.createVariable('init_atmosphere_pt', 'f4', ('z', 'y', 'x'), fill_value=fill).lod = 2
+            fout.createVariable('init_atmosphere_qv', 'f4', ('z', 'y', 'x'), fill_value=fill).lod = 2
+            fout.createVariable('init_atmosphere_u', 'f4', ('z', 'y', 'xu'), fill_value=fill).lod = 2
+            fout.createVariable('init_atmosphere_v', 'f4', ('z', 'yv', 'x'), fill_value=fill).lod = 2
+            fout.createVariable('init_atmosphere_w', 'f4', ('zw', 'y', 'x'), fill_value=fill).lod = 2
+            fout.createVariable('init_soil_t', 'f4', ('zsoil', 'y', 'x'), fill_value=fill).lod = 2
+            fout.createVariable('init_soil_m', 'f4', ('zsoil', 'y', 'x'), fill_value=fill).lod = 2
 
             # Create forcing variables
             if not rt.nested_domain:
@@ -126,39 +128,39 @@ class WritePlugin(WritePluginMixin):
                 fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time',))
 
                 # boundary - vertical slices from left, right, south, north, top
-                fout.createVariable('ls_forcing_left_pt',  'f4', ('time', 'z',  'y' ))
-                fout.createVariable('ls_forcing_right_pt', 'f4', ('time', 'z',  'y' ))
-                fout.createVariable('ls_forcing_south_pt', 'f4', ('time', 'z',  'x' ))
-                fout.createVariable('ls_forcing_north_pt', 'f4', ('time', 'z',  'x' ))
-                fout.createVariable('ls_forcing_top_pt',   'f4', ('time', 'y',  'x' ))
+                fout.createVariable('ls_forcing_left_pt',  'f4', ('time', 'z',  'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_right_pt', 'f4', ('time', 'z',  'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_south_pt', 'f4', ('time', 'z',  'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_north_pt', 'f4', ('time', 'z',  'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_top_pt',   'f4', ('time', 'y',  'x' ), fill_value=fill)
 
-                fout.createVariable('ls_forcing_left_qv',  'f4', ('time', 'z',  'y' ))
-                fout.createVariable('ls_forcing_right_qv', 'f4', ('time', 'z',  'y' ))
-                fout.createVariable('ls_forcing_south_qv', 'f4', ('time', 'z',  'x' ))
-                fout.createVariable('ls_forcing_north_qv', 'f4', ('time', 'z',  'x' ))
-                fout.createVariable('ls_forcing_top_qv',   'f4', ('time', 'y',  'x' ))
+                fout.createVariable('ls_forcing_left_qv',  'f4', ('time', 'z',  'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_right_qv', 'f4', ('time', 'z',  'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_south_qv', 'f4', ('time', 'z',  'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_north_qv', 'f4', ('time', 'z',  'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_top_qv',   'f4', ('time', 'y',  'x' ), fill_value=fill)
 
-                fout.createVariable('ls_forcing_left_u',   'f4', ('time', 'z',  'y' ))
-                fout.createVariable('ls_forcing_right_u',  'f4', ('time', 'z',  'y' ))
-                fout.createVariable('ls_forcing_south_u',  'f4', ('time', 'z',  'xu'))
-                fout.createVariable('ls_forcing_north_u',  'f4', ('time', 'z',  'xu'))
-                fout.createVariable('ls_forcing_top_u',    'f4', ('time', 'y',  'xu'))
+                fout.createVariable('ls_forcing_left_u',   'f4', ('time', 'z',  'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_right_u',  'f4', ('time', 'z',  'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_south_u',  'f4', ('time', 'z',  'xu'), fill_value=fill)
+                fout.createVariable('ls_forcing_north_u',  'f4', ('time', 'z',  'xu'), fill_value=fill)
+                fout.createVariable('ls_forcing_top_u',    'f4', ('time', 'y',  'xu'), fill_value=fill)
 
-                fout.createVariable('ls_forcing_left_v',   'f4', ('time', 'z',  'yv'))
-                fout.createVariable('ls_forcing_right_v',  'f4', ('time', 'z',  'yv'))
-                fout.createVariable('ls_forcing_south_v',  'f4', ('time', 'z',  'x' ))
-                fout.createVariable('ls_forcing_north_v',  'f4', ('time', 'z',  'x' ))
-                fout.createVariable('ls_forcing_top_v',    'f4', ('time', 'yv', 'x' ))
+                fout.createVariable('ls_forcing_left_v',   'f4', ('time', 'z',  'yv'), fill_value=fill)
+                fout.createVariable('ls_forcing_right_v',  'f4', ('time', 'z',  'yv'), fill_value=fill)
+                fout.createVariable('ls_forcing_south_v',  'f4', ('time', 'z',  'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_north_v',  'f4', ('time', 'z',  'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_top_v',    'f4', ('time', 'yv', 'x' ), fill_value=fill)
 
-                fout.createVariable('ls_forcing_left_w',   'f4', ('time', 'zw', 'y' ))
-                fout.createVariable('ls_forcing_right_w',  'f4', ('time', 'zw', 'y' ))
-                fout.createVariable('ls_forcing_south_w',  'f4', ('time', 'zw', 'x' ))
-                fout.createVariable('ls_forcing_north_w',  'f4', ('time', 'zw', 'x' ))
-                fout.createVariable('ls_forcing_top_w',    'f4', ('time', 'y',  'x' ))
+                fout.createVariable('ls_forcing_left_w',   'f4', ('time', 'zw', 'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_right_w',  'f4', ('time', 'zw', 'y' ), fill_value=fill)
+                fout.createVariable('ls_forcing_south_w',  'f4', ('time', 'zw', 'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_north_w',  'f4', ('time', 'zw', 'x' ), fill_value=fill)
+                fout.createVariable('ls_forcing_top_w',    'f4', ('time', 'y',  'x' ), fill_value=fill)
 
                 # geostrophic wind (1D)
-                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
-                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
+                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'), fill_value=fill)
+                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'), fill_value=fill)
 
             # prepare influx/outflux area sizes
             zstag_all = np.r_[0., rt.z_levels_stag, rt.ztop]
@@ -266,55 +268,55 @@ class WritePlugin(WritePluginMixin):
                     # PALM doesn't support 3D LOD=2 init for chem yet, we have
                     # to average the field
                     var = fout.createVariable('init_atmosphere_'+vn, 'f4',
-                            ('z',))
+                            ('z',), fill_value=fill)
                     var.units = vin.units
                     var.lod = 1
                     var[:] = vin[0,:,:,:].mean(axis=(1,2))
 
                     var = fout.createVariable('ls_forcing_left_'+vn, 'f4',
-                            ('time','z','y'))
+                            ('time','z','y'), fill_value=fill)
                     var.units = vin.units
                     var[:] = vin[:,:,:,0]
 
                     var = fout.createVariable('ls_forcing_right_'+vn, 'f4',
-                            ('time','z','y'))
+                            ('time','z','y'), fill_value=fill)
                     var.units = vin.units
                     var[:] = vin[:,:,:,-1]
 
                     var = fout.createVariable('ls_forcing_south_'+vn, 'f4',
-                            ('time','z','x'))
+                            ('time','z','x'), fill_value=fill)
                     var.units = vin.units
                     var[:] = vin[:,:,0,:]
 
                     var = fout.createVariable('ls_forcing_north_'+vn, 'f4',
-                            ('time','z','x'))
+                            ('time','z','x'), fill_value=fill)
                     var.units = vin.units
                     var[:] = vin[:,:,-1,:]
 
                     var = fout.createVariable('ls_forcing_top_'+vn, 'f4',
-                            ('time','y','x'))
+                            ('time','y','x'), fill_value=fill)
                     var.units = vin.units
                     var[:] = vin[:,-1,:,:]
 
             if cfg.radiation:
                 # Separate time dimension for radiation
                 fout.createDimension('time_rad', rt.nt_rad)
-                var = fout.createVariable('time_rad', 'f4', ('time_rad',))
+                var = fout.createVariable('time_rad', 'f4', ('time_rad',), fill_value=fill)
                 var[:] = rt.times_rad_sec
 
                 # radiation variables
-                var = fout.createVariable('rad_sw_in', 'f4', ('time_rad',))
+                var = fout.createVariable('rad_sw_in', 'f4', ('time_rad',), fill_value=fill)
                 var.lod = 1
                 var.units = 'W/m2'
                 var[:] = rt.rad_swdown
 
-                var = fout.createVariable('rad_lw_in', 'f4', ('time_rad',))
+                var = fout.createVariable('rad_lw_in', 'f4', ('time_rad',), fill_value=fill)
                 var.lod = 1
                 var.units = 'W/m2'
                 var[:] = rt.rad_lwdown
 
                 if rt.has_rad_diffuse:
-                    var = fout.createVariable('rad_sw_in_dif', 'f4', ('time_rad',))
+                    var = fout.createVariable('rad_sw_in_dif', 'f4', ('time_rad',), fill_value=fill)
                     var.lod = 1
                     var.units = 'W/m2'
                     var[:] = rt.rad_swdiff
