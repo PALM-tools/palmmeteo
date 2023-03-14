@@ -135,3 +135,18 @@ camx:
                 - '_units.SOPA == "micrograms m-3"'
                 - '_units.SOPB == "micrograms m-3"'
             preprocessors: [PM25]
+
+synthetic:
+    transition_level: 2000.0 #m above origin_z
+
+    prof_vars:
+        u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        w: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        qv: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+
+    p_surf: ~
+    p_sl: 100000.

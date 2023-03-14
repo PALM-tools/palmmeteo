@@ -52,6 +52,12 @@ task_config:
             plugins:
                 - contrib.input.camx.CAMxPlugin
 
+    synthetic:
+        set:
+        extend:
+            plugins:
+                - contrib.input.synthetic.SyntheticPlugin
+
     cosmo:
         set:
         extend:

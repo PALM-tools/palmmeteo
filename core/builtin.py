@@ -158,10 +158,6 @@ class WritePlugin(WritePluginMixin):
                 fout.createVariable('ls_forcing_north_w',  'f4', ('time', 'zw', 'x' ), fill_value=fill)
                 fout.createVariable('ls_forcing_top_w',    'f4', ('time', 'y',  'x' ), fill_value=fill)
 
-                # geostrophic wind (1D)
-                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'), fill_value=fill)
-                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'), fill_value=fill)
-
             # prepare influx/outflux area sizes
             zstag_all = np.r_[0., rt.z_levels_stag, rt.ztop]
             zwidths = zstag_all[1:] - zstag_all[:-1]
@@ -175,6 +171,10 @@ class WritePlugin(WritePluginMixin):
 
             log('Writing values for initialization variables')
             with netCDF4.Dataset(rt.paths.vinterp) as fin:
+                if 'ls_forcing_ug' in fin.variables:
+                    fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'), fill_value=fill)
+                    fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'), fill_value=fill)
+
                 # write values for initialization variables
                 fout.variables['init_atmosphere_pt'][:,:,:] = fin.variables['init_atmosphere_pt'][0, :, :, :]
                 fout.variables['init_atmosphere_qv'][:,:,:] = fin.variables['init_atmosphere_qv'][0, :, :, :]
@@ -257,9 +257,10 @@ class WritePlugin(WritePluginMixin):
                         fout.variables['ls_forcing_north_w'][it,:,:] = fin.variables['init_atmosphere_w'][it, :, rt.ny-1, :]
                         fout.variables['ls_forcing_top_w'  ][it,:,:] = wztop
 
-                        # copy geostrophic wind
-                        fout.variables['ls_forcing_ug'][it] = fin.variables['ls_forcing_ug'][it]
-                        fout.variables['ls_forcing_vg'][it] = fin.variables['ls_forcing_vg'][it]
+                        # geostrophic wind (1D)
+                        if 'ls_forcing_ug' in fin.variables:
+                            fout.variables['ls_forcing_ug'][it] = fin.variables['ls_forcing_ug'][it]
+                            fout.variables['ls_forcing_vg'][it] = fin.variables['ls_forcing_vg'][it]
 
                 # Write chemical boundary conds
                 for vn in cfg.chem_species:
