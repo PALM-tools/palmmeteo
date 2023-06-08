@@ -134,16 +134,19 @@ duration_units = {
         's': 'seconds',
         }
 
-def parse_duration(section, item):
+def parse_duration(section, item, value=None):
     def err():
         raise ConfigError('Bad specification of duration. The correct format is '
                 '{num} {unit} [{num} {unit} ...], where {unit} is one of d, h, '
                 'm, s. Example: "1 m 3.2 s".', section, item)
 
-    try:
-        s = section[item]
-    except KeyError:
-        err()
+    if value is None:
+        try:
+            s = section[item]
+        except KeyError:
+            err()
+    else:
+        s = value
 
     words = s.split()
     n = len(words)

@@ -30,6 +30,10 @@ paths:                                              #RELATIVE TO:
     camx_output: '../JOBS/{case}{scenario}/CAMX'    #base
     camx_file_mask: 'CAMx.*.nc'                     #camx_output
 
+    icon_output: '../JOBS/{case}{scenario}/ICON'    #base
+    icon_file_mask: 'i?ff[0-9]_*.nc*'               #icon_output
+    icon_static_data: ~                             #icon_output
+
 output:
     # Overwrite existing output files? Otherwise create a new file with
     # numerical suffix

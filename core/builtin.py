@@ -171,6 +171,7 @@ class WritePlugin(WritePluginMixin):
 
             log('Writing values for initialization variables')
             with netCDF4.Dataset(rt.paths.vinterp) as fin:
+                # geostrophic wind (1D)
                 if 'ls_forcing_ug' in fin.variables:
                     fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'), fill_value=fill)
                     fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'), fill_value=fill)
