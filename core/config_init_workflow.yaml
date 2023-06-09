@@ -58,6 +58,12 @@ task_config:
             plugins:
                 - contrib.input.synthetic.SyntheticPlugin
 
+    icon2:
+        set:
+        extend:
+            plugins:
+                - contrib.input.icon2.Icon2Plugin
+
     cosmo:
         set:
         extend:
