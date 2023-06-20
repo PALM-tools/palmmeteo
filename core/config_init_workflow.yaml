@@ -38,6 +38,15 @@ task_config:
         extend:
             plugins:
                 - contrib.input.wrf.WRFPlugin
+    aladin:
+        # Configuration items to be set (if unset by user)
+        set:
+
+        # Configuration items to be extended (added) to existing lists (or new
+        # lists are created).
+        extend:
+            plugins:
+                - contrib.input.aladin.AladinPlugin
 
     wrf_rad:
         set:
@@ -45,6 +54,13 @@ task_config:
         extend:
             plugins:
                 - contrib.input.wrf.WRFRadPlugin
+
+    aladin_rad:
+        set:
+            radiation: on
+        extend:
+            plugins:
+                - contrib.input.aladin.AladinRadPlugin
 
     camx:
         set:
@@ -57,6 +73,12 @@ task_config:
         extend:
             plugins:
                 - contrib.input.synthetic.SyntheticPlugin
+                
+    cams:
+        set:
+        extend:
+            plugins:
+                - contrib.input.cams.CAMSPlugin
 
     icon2:
         set:
