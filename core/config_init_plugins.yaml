@@ -245,7 +245,7 @@ cams:
                 - '_units.no2_conc == "µg/m3"'
             preprocessors: []
         O3:
-            formula: 'o3_conc'
+            formula: 'o3_conc*1e-9'
             convert: True        # do conversion from kg/m3 to ppm
             molar_mass: 48.00E-3 # kg/m3
             unit: 'ppm'
