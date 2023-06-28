@@ -217,7 +217,7 @@ cams:
     
     output_var_defs:
         'NO': #NO without quotes means False in yaml!
-            formula: 'no_conc*1e-6'   # convert to kg/m3
+            formula: 'no_conc*1e-9'   # convert to kg/m3
             convert: True        # do conversion from kg/m3 to ppm
             molar_mass: 30.01E-3 # kg/m3
             unit: 'ppm'
@@ -226,7 +226,7 @@ cams:
                 - '_units.no_conc == "µg/m3"'
             preprocessors: [ ]
         NO2:
-            formula: 'no2_conc*1e-6'
+            formula: 'no2_conc*1e-9'
             convert: True        # do conversion from kg/m3 to ppm
             molar_mass: 46.01E-3 # kg/m3
             unit: 'ppm'
@@ -235,7 +235,7 @@ cams:
                 - '_units.no2_conc == "µg/m3"'
             preprocessors: []
         NOX:
-            formula: 'no_conc*1e-6+no2_conc*1e-6'
+            formula: 'no_conc*1e-9+no2_conc*1e-9'
             convert: True        # do conversion from kg/m3 to ppm
             molar_mass: 30.01E-3 # kg/m3
             unit: 'ppm'
