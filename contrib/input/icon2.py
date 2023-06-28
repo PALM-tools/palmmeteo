@@ -174,10 +174,15 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
         verbose('Parsing ICON files from {}', iconglob)
         rt.times = [None] * rt.nt
 
-        # Prepare aggregated values
         if cfg.radiation:
-            aggr_start = [None] * (rt.nt+1)
-            aggr_end   = [None] * (rt.nt+1)
+            # Radiation uses same timestep as IBC in ICON
+            rt.timestep_rad = rt.simulation.timestep
+            rt.nt_rad = rt.tindex(rt.simulation.end_time_rad) + 1
+            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+
+            # Prepare aggregated values
+            aggr_start = [None] * (rt.nt_rad+1)
+            aggr_end   = [None] * (rt.nt_rad+1)
 
         # HHL is only present at time 0 of the run, so we need to cache it
         hhl_d = {}
@@ -220,6 +225,9 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     if (it == -1 and thoriz < rt.icon2_horz1aggr) or (
                             it == rt.nt and thoriz > rt.icon2_horz1):
                         verbose('Using time {} only for aggregated values', t)
+                        aggr_only = True
+                    elif 0 < it < rt.nt_rad or (it == rt.nt_rad and thoriz > rt.icon2_horz1):
+                        verbose('Using time {} only for radiation', t)
                         aggr_only = True
                     else:
                         verbose('Time {} is out of range - skipping', t)
@@ -425,13 +433,6 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
         if None in rt.times:
             die('Some times are missing: {}', rt.times)
-
-        if cfg.radiation:
-            # radiation times copy normal timestep
-            rt.times_rad = rt.times
-            rt.nt_rad = rt.nt
-            rt.timestep_rad = rt.simulation.timestep
-            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
 
         log('ICON import finished.')
 
