@@ -174,10 +174,15 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
         verbose('Parsing ICON files from {}', iconglob)
         rt.times = [None] * rt.nt
 
-        # Prepare aggregated values
         if cfg.radiation:
-            aggr_start = [None] * (rt.nt+1)
-            aggr_end   = [None] * (rt.nt+1)
+            # Radiation uses same timestep as IBC in ICON
+            rt.timestep_rad = rt.simulation.timestep
+            rt.nt_rad = rt.tindex(rt.simulation.end_time_rad) + 1
+            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+
+            # Prepare aggregated values
+            aggr_start = [None] * (rt.nt_rad+1)
+            aggr_end   = [None] * (rt.nt_rad+1)
 
         # HHL is only present at time 0 of the run, so we need to cache it
         hhl_d = {}
@@ -220,6 +225,9 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     if (it == -1 and thoriz < rt.icon2_horz1aggr) or (
                             it == rt.nt and thoriz > rt.icon2_horz1):
                         verbose('Using time {} only for aggregated values', t)
+                        aggr_only = True
+                    elif 0 < it < rt.nt_rad or (it == rt.nt_rad and thoriz > rt.icon2_horz1):
+                        verbose('Using time {} only for radiation', t)
                         aggr_only = True
                     else:
                         verbose('Time {} is out of range - skipping', t)
@@ -426,13 +434,6 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
         if None in rt.times:
             die('Some times are missing: {}', rt.times)
 
-        if cfg.radiation:
-            # radiation times copy normal timestep
-            rt.times_rad = rt.times
-            rt.nt_rad = rt.nt
-            rt.timestep_rad = rt.simulation.timestep
-            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
-
         log('ICON import finished.')
 
     def interpolate_horiz(self, fout, *args, **kwargs):
@@ -486,6 +487,9 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
             fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
             fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
+            if 'cams' in cfg.tasks:
+                # add pressure field into horizontal interpolated variables
+                fout.createVariable('init_atmosphere_p', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('zsoil', 'f4', ('zsoil',))
@@ -581,6 +585,10 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                 var = lpad(pt_from_t(p, fin.variables['T'][it]))
                 fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
+                if 'cams' in cfg.tasks:
+                    var = lpad(fin.variables['P'][it])
+                    fout.variables['init_atmosphere_p'][it, :, :, :] = interpolate_1d(rt.z_levels, height, var)
+
                 var = lpad(fin.variables['U'][it])
                 fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
@@ -597,4 +605,3 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
                 var = fin.variables['QSOIL'][it] #soil moisture
                 fout.variables['init_soil_m'][it,:,:,:] = var
-

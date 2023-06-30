@@ -86,7 +86,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 filled[itout] = convertor.load_timestep_vars(fin, itf,
                                                              timesteps[itout])
 
-                vz_out[itf,:,:,:] = np.tile(height[:, np.newaxis, np.newaxis], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
+                vz_out[itout,:,:,:] = np.tile(height[:, np.newaxis, np.newaxis], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
 
             if not all(filled):
                 die('Could not find all CAMx variables for all times.\n'
