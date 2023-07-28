@@ -138,7 +138,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
         #TODO: select assim cycles, load HHL if horiz 0 not in selection
 
         first = True
-        for fn in glob.glob(iconglob):
+        for fn in sorted(glob.glob(iconglob)):
             verbose('Parsing ICON file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep
@@ -174,7 +174,8 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                             it == rt.nt and thoriz > rt.icon2_horz1):
                         verbose('Using time {} only for aggregated values', t)
                         aggr_only = True
-                    elif 0 < it < rt.nt_rad or (it == rt.nt_rad and thoriz > rt.icon2_horz1):
+                    elif cfg.radiation and (0 < it < rt.nt_rad
+                                            or (it == rt.nt_rad and thoriz > rt.icon2_horz1)):
                         verbose('Using time {} only for radiation', t)
                         aggr_only = True
                     else:
