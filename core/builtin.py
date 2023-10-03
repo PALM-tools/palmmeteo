@@ -8,8 +8,6 @@ from .config import cfg
 from .runtime import rt
 from .utils import find_free_fname, tstep, td0
 
-fill = -9999.0
-
 class SetupPlugin(SetupPluginMixin):
     def setup_model(self, *args, **kwargs):
         log('Setting up model domain...')
@@ -91,8 +89,24 @@ class WritePlugin(WritePluginMixin):
         log('Writing data to dynamic driver')
 
         fn_out = find_free_fname(rt.paths.dynamic_driver, cfg.output.overwrite)
+        dtdefault = cfg.output.default_precision
+        filldefault = cfg.output.fill_value
+
+
         log('Preparing dynamic driver file {}.', fn_out)
         with netCDF4.Dataset(fn_out, 'w', format='NETCDF4') as fout:
+
+            # shorthands
+            fov = fout.variables
+            def mkvar(vname, dims, lod=None, units=None, dtype=dtdefault,
+                    fill=filldefault):
+                v = fout.createVariable(vname, dtype, dims, fill_value=fill)
+                if lod is not None:
+                    v.lod = lod
+                if units is not None:
+                    v.units = units
+                return v
+
             # Create dimensions
             fout.createDimension('time',  rt.nt     )
             fout.createDimension('z',     rt.nz     )
@@ -104,59 +118,59 @@ class WritePlugin(WritePluginMixin):
             fout.createDimension('yv',    rt.ny-1   )
 
             # Create and write dimension variables
-            fout.createVariable('time',  'f4', ('time',) )[:] = rt.times_sec
-            fout.createVariable('z',     'f4', ('z',)    )[:] = rt.z_levels[:]
-            fout.createVariable('zw',    'f4', ('zw',)   )[:] = rt.z_levels_stag[:]
-            fout.createVariable('zsoil', 'f4', ('zsoil',))[:] = rt.z_soil_levels[:]
-            fout.createVariable('y',     'f4', ('y',)    )[:] = rt.dy/2 + rt.dy*np.arange(rt.ny,dtype='f4')
-            fout.createVariable('x',     'f4', ('x',)    )[:] = rt.dx/2 + rt.dx*np.arange(rt.nx,dtype='f4')
-            fout.createVariable('yv',    'f4', ('yv',)   )[:] = rt.dy*np.arange(1,rt.ny,dtype='f4')
-            fout.createVariable('xu',    'f4', ('xu',)   )[:] = rt.dx*np.arange(1,rt.nx,dtype='f4')
+            mkvar('time',  ('time',) )[:] = rt.times_sec
+            mkvar('z',     ('z',)    )[:] = rt.z_levels[:]
+            mkvar('zw',    ('zw',)   )[:] = rt.z_levels_stag[:]
+            mkvar('zsoil', ('zsoil',))[:] = rt.z_soil_levels[:]
+            mkvar('y',     ('y',)    )[:] = rt.dy/2 + rt.dy*np.arange(rt.ny,dtype=dtdefault)
+            mkvar('x',     ('x',)    )[:] = rt.dx/2 + rt.dx*np.arange(rt.nx,dtype=dtdefault)
+            mkvar('yv',    ('yv',)   )[:] = rt.dy*np.arange(1,rt.ny,dtype=dtdefault)
+            mkvar('xu',    ('xu',)   )[:] = rt.dx*np.arange(1,rt.nx,dtype=dtdefault)
 
             # Create init variables
-            fout.createVariable('init_atmosphere_pt', 'f4', ('z', 'y', 'x'), fill_value=fill).lod = 2
-            fout.createVariable('init_atmosphere_qv', 'f4', ('z', 'y', 'x'), fill_value=fill).lod = 2
-            fout.createVariable('init_atmosphere_u', 'f4', ('z', 'y', 'xu'), fill_value=fill).lod = 2
-            fout.createVariable('init_atmosphere_v', 'f4', ('z', 'yv', 'x'), fill_value=fill).lod = 2
-            fout.createVariable('init_atmosphere_w', 'f4', ('zw', 'y', 'x'), fill_value=fill).lod = 2
-            fout.createVariable('init_soil_t', 'f4', ('zsoil', 'y', 'x'), fill_value=fill).lod = 2
-            fout.createVariable('init_soil_m', 'f4', ('zsoil', 'y', 'x'), fill_value=fill).lod = 2
+            mkvar('init_atmosphere_pt', ('z', 'y', 'x'),     2)
+            mkvar('init_atmosphere_qv', ('z', 'y', 'x'),     2)
+            mkvar('init_atmosphere_u',  ('z', 'y', 'xu'),    2)
+            mkvar('init_atmosphere_v',  ('z', 'yv', 'x'),    2)
+            mkvar('init_atmosphere_w',  ('zw', 'y', 'x'),    2)
+            mkvar('init_soil_t',        ('zsoil', 'y', 'x'), 2)
+            mkvar('init_soil_m',        ('zsoil', 'y', 'x'), 2)
 
             # Create forcing variables
             if not rt.nested_domain:
                 # surface pressure (scalar)
-                fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time',))
+                mkvar('surface_forcing_surface_pressure', ('time',))
 
                 # boundary - vertical slices from left, right, south, north, top
-                fout.createVariable('ls_forcing_left_pt',  'f4', ('time', 'z',  'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_right_pt', 'f4', ('time', 'z',  'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_south_pt', 'f4', ('time', 'z',  'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_north_pt', 'f4', ('time', 'z',  'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_top_pt',   'f4', ('time', 'y',  'x' ), fill_value=fill)
+                mkvar('ls_forcing_left_pt',  ('time', 'z',  'y' ), 2)
+                mkvar('ls_forcing_right_pt', ('time', 'z',  'y' ), 2)
+                mkvar('ls_forcing_south_pt', ('time', 'z',  'x' ), 2)
+                mkvar('ls_forcing_north_pt', ('time', 'z',  'x' ), 2)
+                mkvar('ls_forcing_top_pt',   ('time', 'y',  'x' ), 2)
 
-                fout.createVariable('ls_forcing_left_qv',  'f4', ('time', 'z',  'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_right_qv', 'f4', ('time', 'z',  'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_south_qv', 'f4', ('time', 'z',  'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_north_qv', 'f4', ('time', 'z',  'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_top_qv',   'f4', ('time', 'y',  'x' ), fill_value=fill)
+                mkvar('ls_forcing_left_qv',  ('time', 'z',  'y' ), 2)
+                mkvar('ls_forcing_right_qv', ('time', 'z',  'y' ), 2)
+                mkvar('ls_forcing_south_qv', ('time', 'z',  'x' ), 2)
+                mkvar('ls_forcing_north_qv', ('time', 'z',  'x' ), 2)
+                mkvar('ls_forcing_top_qv',   ('time', 'y',  'x' ), 2)
 
-                fout.createVariable('ls_forcing_left_u',   'f4', ('time', 'z',  'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_right_u',  'f4', ('time', 'z',  'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_south_u',  'f4', ('time', 'z',  'xu'), fill_value=fill)
-                fout.createVariable('ls_forcing_north_u',  'f4', ('time', 'z',  'xu'), fill_value=fill)
-                fout.createVariable('ls_forcing_top_u',    'f4', ('time', 'y',  'xu'), fill_value=fill)
+                mkvar('ls_forcing_left_u',   ('time', 'z',  'y' ), 2)
+                mkvar('ls_forcing_right_u',  ('time', 'z',  'y' ), 2)
+                mkvar('ls_forcing_south_u',  ('time', 'z',  'xu'), 2)
+                mkvar('ls_forcing_north_u',  ('time', 'z',  'xu'), 2)
+                mkvar('ls_forcing_top_u',    ('time', 'y',  'xu'), 2)
 
-                fout.createVariable('ls_forcing_left_v',   'f4', ('time', 'z',  'yv'), fill_value=fill)
-                fout.createVariable('ls_forcing_right_v',  'f4', ('time', 'z',  'yv'), fill_value=fill)
-                fout.createVariable('ls_forcing_south_v',  'f4', ('time', 'z',  'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_north_v',  'f4', ('time', 'z',  'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_top_v',    'f4', ('time', 'yv', 'x' ), fill_value=fill)
+                mkvar('ls_forcing_left_v',   ('time', 'z',  'yv'), 2)
+                mkvar('ls_forcing_right_v',  ('time', 'z',  'yv'), 2)
+                mkvar('ls_forcing_south_v',  ('time', 'z',  'x' ), 2)
+                mkvar('ls_forcing_north_v',  ('time', 'z',  'x' ), 2)
+                mkvar('ls_forcing_top_v',    ('time', 'yv', 'x' ), 2)
 
-                fout.createVariable('ls_forcing_left_w',   'f4', ('time', 'zw', 'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_right_w',  'f4', ('time', 'zw', 'y' ), fill_value=fill)
-                fout.createVariable('ls_forcing_south_w',  'f4', ('time', 'zw', 'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_north_w',  'f4', ('time', 'zw', 'x' ), fill_value=fill)
-                fout.createVariable('ls_forcing_top_w',    'f4', ('time', 'y',  'x' ), fill_value=fill)
+                mkvar('ls_forcing_left_w',   ('time', 'zw', 'y' ), 2)
+                mkvar('ls_forcing_right_w',  ('time', 'zw', 'y' ), 2)
+                mkvar('ls_forcing_south_w',  ('time', 'zw', 'x' ), 2)
+                mkvar('ls_forcing_north_w',  ('time', 'zw', 'x' ), 2)
+                mkvar('ls_forcing_top_w',    ('time', 'y',  'x' ), 2)
 
             # prepare influx/outflux area sizes
             zstag_all = np.r_[0., rt.z_levels_stag, rt.ztop]
@@ -171,19 +185,21 @@ class WritePlugin(WritePluginMixin):
 
             log('Writing values for initialization variables')
             with netCDF4.Dataset(rt.paths.vinterp) as fin:
+                fiv = fin.variables
+
                 # geostrophic wind (1D)
-                if 'ls_forcing_ug' in fin.variables:
-                    fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'), fill_value=fill)
-                    fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'), fill_value=fill)
+                if 'ls_forcing_ug' in fiv:
+                    mkvar('ls_forcing_ug', ('time', 'z'))
+                    mkvar('ls_forcing_vg', ('time', 'z'))
 
                 # write values for initialization variables
-                fout.variables['init_atmosphere_pt'][:,:,:] = fin.variables['init_atmosphere_pt'][0, :, :, :]
-                fout.variables['init_atmosphere_qv'][:,:,:] = fin.variables['init_atmosphere_qv'][0, :, :, :]
-                fout.variables['init_atmosphere_u'][:,:,:] = fin.variables['init_atmosphere_u'][0, :, :, 1:] #TODO fix stag
-                fout.variables['init_atmosphere_v'][:,:,:] = fin.variables['init_atmosphere_v'][0, :, 1:, :] #TODO fix stag
-                fout.variables['init_atmosphere_w'][:,:,:] = fin.variables['init_atmosphere_w'][0, :, :, :]
-                fout.variables['init_soil_t'][:,:,:] = fin.variables['init_soil_t'][0,:,:,:]
-                fout.variables['init_soil_m'][:,:,:] = (fin.variables['init_soil_m'][0,:,:,:]
+                fov['init_atmosphere_pt'][:,:,:] = fiv['init_atmosphere_pt'][0, :, :, :]
+                fov['init_atmosphere_qv'][:,:,:] = fiv['init_atmosphere_qv'][0, :, :, :]
+                fov['init_atmosphere_u'][:,:,:] = fiv['init_atmosphere_u'][0, :, :, 1:] #TODO fix stag
+                fov['init_atmosphere_v'][:,:,:] = fiv['init_atmosphere_v'][0, :, 1:, :] #TODO fix stag
+                fov['init_atmosphere_w'][:,:,:] = fiv['init_atmosphere_w'][0, :, :, :]
+                fov['init_soil_t'][:,:,:] = fiv['init_soil_t'][0,:,:,:]
+                fov['init_soil_m'][:,:,:] = (fiv['init_soil_m'][0,:,:,:]
                         * rt.soil_moisture_adjust[np.newaxis,:,:])
 
                 # Write values for time dependent values
@@ -192,28 +208,28 @@ class WritePlugin(WritePluginMixin):
                         verbose('Processing timestep {}', it)
 
                         # surface pressure
-                        fout.variables['surface_forcing_surface_pressure'][it] = (
-                                fin.variables['surface_forcing_surface_pressure'][it,:,:].mean())
+                        fov['surface_forcing_surface_pressure'][it] = (
+                                fiv['surface_forcing_surface_pressure'][it,:,:].mean())
 
                         # boundary conditions
-                        fout.variables['ls_forcing_left_pt' ][it,:,:] = fin.variables['init_atmosphere_pt'][it, :, :, 0]
-                        fout.variables['ls_forcing_right_pt'][it,:,:] = fin.variables['init_atmosphere_pt'][it, :, :, rt.nx-1]
-                        fout.variables['ls_forcing_south_pt'][it,:,:] = fin.variables['init_atmosphere_pt'][it, :, 0, :]
-                        fout.variables['ls_forcing_north_pt'][it,:,:] = fin.variables['init_atmosphere_pt'][it, :, rt.ny-1, :]
-                        fout.variables['ls_forcing_top_pt'  ][it,:,:] = fin.variables['init_atmosphere_pt'][it, rt.nz-1, :, :]
+                        fov['ls_forcing_left_pt' ][it,:,:] = fiv['init_atmosphere_pt'][it, :, :, 0]
+                        fov['ls_forcing_right_pt'][it,:,:] = fiv['init_atmosphere_pt'][it, :, :, rt.nx-1]
+                        fov['ls_forcing_south_pt'][it,:,:] = fiv['init_atmosphere_pt'][it, :, 0, :]
+                        fov['ls_forcing_north_pt'][it,:,:] = fiv['init_atmosphere_pt'][it, :, rt.ny-1, :]
+                        fov['ls_forcing_top_pt'  ][it,:,:] = fiv['init_atmosphere_pt'][it, rt.nz-1, :, :]
 
-                        fout.variables['ls_forcing_left_qv' ][it,:,:] = fin.variables['init_atmosphere_qv'][it, :, :, 0]
-                        fout.variables['ls_forcing_right_qv'][it,:,:] = fin.variables['init_atmosphere_qv'][it, :, :, rt.nx-1]
-                        fout.variables['ls_forcing_south_qv'][it,:,:] = fin.variables['init_atmosphere_qv'][it, :, 0, :]
-                        fout.variables['ls_forcing_north_qv'][it,:,:] = fin.variables['init_atmosphere_qv'][it, :, rt.ny-1, :]
-                        fout.variables['ls_forcing_top_qv'  ][it,:,:] = fin.variables['init_atmosphere_qv'][it, rt.nz-1, :, :]
+                        fov['ls_forcing_left_qv' ][it,:,:] = fiv['init_atmosphere_qv'][it, :, :, 0]
+                        fov['ls_forcing_right_qv'][it,:,:] = fiv['init_atmosphere_qv'][it, :, :, rt.nx-1]
+                        fov['ls_forcing_south_qv'][it,:,:] = fiv['init_atmosphere_qv'][it, :, 0, :]
+                        fov['ls_forcing_north_qv'][it,:,:] = fiv['init_atmosphere_qv'][it, :, rt.ny-1, :]
+                        fov['ls_forcing_top_qv'  ][it,:,:] = fiv['init_atmosphere_qv'][it, rt.nz-1, :, :]
 
                         # Perform mass balancing for U, V, W
-                        uxleft = fin.variables['init_atmosphere_u'][it, :, :, 0]
-                        uxright = fin.variables['init_atmosphere_u'][it, :, :, rt.nx-1]
-                        vysouth = fin.variables['init_atmosphere_v'][it, :, 0, :]
-                        vynorth = fin.variables['init_atmosphere_v'][it, :, rt.ny-1, :]
-                        wztop = fin.variables['init_atmosphere_w'][it, rt.nz-2, :, :]#nzw=nz-1
+                        uxleft = fiv['init_atmosphere_u'][it, :, :, 0]
+                        uxright = fiv['init_atmosphere_u'][it, :, :, rt.nx-1]
+                        vysouth = fiv['init_atmosphere_v'][it, :, 0, :]
+                        vynorth = fiv['init_atmosphere_v'][it, :, rt.ny-1, :]
+                        wztop = fiv['init_atmosphere_w'][it, rt.nz-2, :, :]#nzw=nz-1
                         mass_disbalance = ((uxleft * areas_xb).sum()
                             - (uxright * areas_xb).sum()
                             + (vysouth * areas_yb).sum()
@@ -240,87 +256,60 @@ class WritePlugin(WritePluginMixin):
                                 mass_disbalance, mass_corr_v)
 
                         # Write U, V, W
-                        fout.variables['ls_forcing_left_u' ][it,:,:] = uxleft
-                        fout.variables['ls_forcing_right_u'][it,:,:] = uxright
-                        fout.variables['ls_forcing_south_u'][it,:,:] = fin.variables['init_atmosphere_u'][it, :, 0, 1:]
-                        fout.variables['ls_forcing_north_u'][it,:,:] = fin.variables['init_atmosphere_u'][it, :, rt.ny-1, 1:]
-                        fout.variables['ls_forcing_top_u'  ][it,:,:] = fin.variables['init_atmosphere_u'][it, rt.nz-1, :, 1:]
+                        fov['ls_forcing_left_u' ][it,:,:] = uxleft
+                        fov['ls_forcing_right_u'][it,:,:] = uxright
+                        fov['ls_forcing_south_u'][it,:,:] = fiv['init_atmosphere_u'][it, :, 0, 1:]
+                        fov['ls_forcing_north_u'][it,:,:] = fiv['init_atmosphere_u'][it, :, rt.ny-1, 1:]
+                        fov['ls_forcing_top_u'  ][it,:,:] = fiv['init_atmosphere_u'][it, rt.nz-1, :, 1:]
 
-                        fout.variables['ls_forcing_left_v' ][it,:,:] = fin.variables['init_atmosphere_v'][it, :, 1:, 0]
-                        fout.variables['ls_forcing_right_v'][it,:,:] = fin.variables['init_atmosphere_v'][it, :, 1:, rt.nx-1]
-                        fout.variables['ls_forcing_south_v'][it,:,:] = vysouth
-                        fout.variables['ls_forcing_north_v'][it,:,:] = vynorth
-                        fout.variables['ls_forcing_top_v'  ][it,:,:] = fin.variables['init_atmosphere_v'][it, rt.nz-1, 1:, :]
+                        fov['ls_forcing_left_v' ][it,:,:] = fiv['init_atmosphere_v'][it, :, 1:, 0]
+                        fov['ls_forcing_right_v'][it,:,:] = fiv['init_atmosphere_v'][it, :, 1:, rt.nx-1]
+                        fov['ls_forcing_south_v'][it,:,:] = vysouth
+                        fov['ls_forcing_north_v'][it,:,:] = vynorth
+                        fov['ls_forcing_top_v'  ][it,:,:] = fiv['init_atmosphere_v'][it, rt.nz-1, 1:, :]
 
-                        fout.variables['ls_forcing_left_w' ][it,:,:] = fin.variables['init_atmosphere_w'][it, :, :, 0]
-                        fout.variables['ls_forcing_right_w'][it,:,:] = fin.variables['init_atmosphere_w'][it, :, :, rt.nx-1]
-                        fout.variables['ls_forcing_south_w'][it,:,:] = fin.variables['init_atmosphere_w'][it, :, 0, :]
-                        fout.variables['ls_forcing_north_w'][it,:,:] = fin.variables['init_atmosphere_w'][it, :, rt.ny-1, :]
-                        fout.variables['ls_forcing_top_w'  ][it,:,:] = wztop
+                        fov['ls_forcing_left_w' ][it,:,:] = fiv['init_atmosphere_w'][it, :, :, 0]
+                        fov['ls_forcing_right_w'][it,:,:] = fiv['init_atmosphere_w'][it, :, :, rt.nx-1]
+                        fov['ls_forcing_south_w'][it,:,:] = fiv['init_atmosphere_w'][it, :, 0, :]
+                        fov['ls_forcing_north_w'][it,:,:] = fiv['init_atmosphere_w'][it, :, rt.ny-1, :]
+                        fov['ls_forcing_top_w'  ][it,:,:] = wztop
 
                         # geostrophic wind (1D)
-                        if 'ls_forcing_ug' in fin.variables:
-                            fout.variables['ls_forcing_ug'][it] = fin.variables['ls_forcing_ug'][it]
-                            fout.variables['ls_forcing_vg'][it] = fin.variables['ls_forcing_vg'][it]
+                        if 'ls_forcing_ug' in fiv:
+                            fov['ls_forcing_ug'][it] = fiv['ls_forcing_ug'][it]
+                            fov['ls_forcing_vg'][it] = fiv['ls_forcing_vg'][it]
 
                 # Write chemical boundary conds
                 for vn in cfg.chem_species:
-                    vin = fin.variables[vn]
+                    vin = fiv[vn]
 
                     # PALM doesn't support 3D LOD=2 init for chem yet, we have
                     # to average the field
-                    var = fout.createVariable('init_atmosphere_'+vn, 'f4',
-                            ('z',), fill_value=fill)
-                    var.units = vin.units
-                    var.lod = 1
+                    var = mkvar('init_atmosphere_'+vn, ('z',), 1, vin.units)
                     var[:] = vin[0,:,:,:].mean(axis=(1,2))
 
-                    var = fout.createVariable('ls_forcing_left_'+vn, 'f4',
-                            ('time','z','y'), fill_value=fill)
-                    var.units = vin.units
-                    var[:] = vin[:,:,:,0]
-
-                    var = fout.createVariable('ls_forcing_right_'+vn, 'f4',
-                            ('time','z','y'), fill_value=fill)
-                    var.units = vin.units
-                    var[:] = vin[:,:,:,-1]
-
-                    var = fout.createVariable('ls_forcing_south_'+vn, 'f4',
-                            ('time','z','x'), fill_value=fill)
-                    var.units = vin.units
-                    var[:] = vin[:,:,0,:]
-
-                    var = fout.createVariable('ls_forcing_north_'+vn, 'f4',
-                            ('time','z','x'), fill_value=fill)
-                    var.units = vin.units
-                    var[:] = vin[:,:,-1,:]
-
-                    var = fout.createVariable('ls_forcing_top_'+vn, 'f4',
-                            ('time','y','x'), fill_value=fill)
-                    var.units = vin.units
-                    var[:] = vin[:,-1,:,:]
+                    if not rt.nested_domain:
+                        mkvar('ls_forcing_left_'+vn,  ('time','z','y'), 2, vin.units)[:] = vin[:,:,:,0]
+                        mkvar('ls_forcing_right_'+vn, ('time','z','y'), 2, vin.units)[:] = vin[:,:,:,-1]
+                        mkvar('ls_forcing_south_'+vn, ('time','z','x'), 2, vin.units)[:] = vin[:,:,0,:]
+                        mkvar('ls_forcing_north_'+vn, ('time','z','x'), 2, vin.units)[:] = vin[:,:,-1,:]
+                        mkvar('ls_forcing_top_'+vn,   ('time','y','x'), 2, vin.units)[:] = vin[:,-1,:,:]
 
             if cfg.radiation:
                 # Separate time dimension for radiation
                 fout.createDimension('time_rad', rt.nt_rad)
-                var = fout.createVariable('time_rad', 'f4', ('time_rad',), fill_value=fill)
+                var = mkvar('time_rad', ('time_rad',))
                 var[:] = rt.times_rad_sec
 
                 # radiation variables
-                var = fout.createVariable('rad_sw_in', 'f4', ('time_rad',), fill_value=fill)
-                var.lod = 1
-                var.units = 'W/m2'
+                var = mkvar('rad_sw_in', ('time_rad',), 1, 'W/m2')
                 var[:] = rt.rad_swdown
 
-                var = fout.createVariable('rad_lw_in', 'f4', ('time_rad',), fill_value=fill)
-                var.lod = 1
-                var.units = 'W/m2'
+                var = mkvar('rad_lw_in', ('time_rad',), 1, 'W/m2')
                 var[:] = rt.rad_lwdown
 
                 if rt.has_rad_diffuse:
-                    var = fout.createVariable('rad_sw_in_dif', 'f4', ('time_rad',), fill_value=fill)
-                    var.lod = 1
-                    var.units = 'W/m2'
+                    var = mkvar('rad_sw_in_dif', ('time_rad',), 1, 'W/m2')
                     var[:] = rt.rad_swdiff
 
         log('Dynamic driver written successfully.')
