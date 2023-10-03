@@ -39,6 +39,9 @@ output:
     # numerical suffix
     overwrite: false
 
+    default_precision: 'f4'
+    fill_value: -9999.0
+
     check_mass_balance: false #re-verify final mass balance after balancing
 
 domain:
