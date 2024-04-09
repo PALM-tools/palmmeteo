@@ -33,6 +33,13 @@ paths:                                              #RELATIVE TO:
     icon_output: '../JOBS/{case}{scenario}/ICON'    #base
     icon_file_mask: 'i?ff[0-9]_*.nc*'               #icon_output
     icon_static_data: ~                             #icon_output
+    
+    aladin_output: '../JOBS/{case}{scenario}/ALADIN/aladin_import.nc'
+    aladin_grib: '../JOBS/{case}{scenario}/ALADIN/ALADIN_GRIBS/'
+    aladin_file_mask: '/**/*.grb'
+    aladin_soil_depth: 'data/aladin_soil_depth.grb'
+    
+    cams_output: '../JOBS/{case}{scenario}/CAMS'    #base
 
 output:
     # Overwrite existing output files? Otherwise create a new file with

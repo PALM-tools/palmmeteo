@@ -151,6 +151,39 @@ synthetic:
     p_surf: ~
     p_sl: 100000.
 
+srid_palm: 32633
+srid_wgs84: 4326
+aladin:
+    load_gribs: true
+    vertical_stretching: universal
+    transition_level: 2000.0 #m above origin_z
+
+    radiation_smoothing_distance: 10000.0
+
+    soil_depth_default: 0.40
+    soil_avg_point: [ 14.418540, 50.073658 ]
+
+    dimensions:
+        time: time
+        x: x_meteo
+        xs: xu_meteo
+        y: y_meteo
+        ys: yv_meteo
+        z: z_meteo
+        zs: zw_meteo
+        soil_layers_stag: zsoil_meteo
+    
+    # horizontally interpolated variables (apart from U+V)
+    hinterp_vars: [ W, T, PH, P, PSFC, TSLB, SMOIS, SMOIS1 ]
+    
+    # variables that compose specific humidity as a sum
+    spechum_vars: [ Q ]
+    
+    # FIXME: how to deal with pressure on the ground: level 0
+    
+    # 1-d variables, direct copy
+    vars_1d: [ ]
+
 icon2:
     # List of assimilation cycles specified as timedeltas after midnight UTC
     input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
@@ -173,3 +206,68 @@ icon2:
     # Smoothing of PALM terrain for vertical interpolation to avoid sharp
     # horizontal gradients. Sigma value in grid points.
     terrain_smoothing: off
+
+
+cams:
+    validations: [ ]
+    
+    loaded_vars: [ ]
+    
+    preprocessors:
+    
+    output_var_defs:
+        'NO': #NO without quotes means False in yaml!
+            formula: 'no_conc*1e-9'   # convert to kg/m3
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 30.01E-3 # kg/m3
+            unit: 'ppm'
+            loaded_vars: [ 'no_conc' ]
+            validations:
+                - '_units.no_conc == "µg/m3"'
+            preprocessors: [ ]
+        NO2:
+            formula: 'no2_conc*1e-9'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 46.01E-3 # kg/m3
+            unit: 'ppm'
+            loaded_vars: [no2_conc]
+            validations:
+                - '_units.no2_conc == "µg/m3"'
+            preprocessors: []
+        NOX:
+            formula: 'no_conc*1e-9+no2_conc*1e-9'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 30.01E-3 # kg/m3
+            unit: 'ppm'
+            loaded_vars: [no_conc, no2_conc]
+            validations:
+                - '_units.no_conc == "µg/m3"'
+                - '_units.no2_conc == "µg/m3"'
+            preprocessors: []
+        O3:
+            formula: 'o3_conc*1e-9'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 48.00E-3 # kg/m3
+            unit: 'ppm'
+            loaded_vars: [o3_conc]
+            validations:
+                - '_units.o3_conc == "µg/m3"'
+            preprocessors: []
+        PM10:
+            formula: 'pm10_conc*1e-9'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            unit: 'kg/m3'
+            loaded_vars: [pm10_conc]
+            validations:
+                - '_units.pm10_conc == "µg/m3"'
+            preprocessors: []
+        PM25:
+            formula: 'pm2p5_conc*1e-9'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            unit: 'kg/m3'
+            loaded_vars: [pm2p5_conc]
+            validations:
+                - '_units.pm2p5_conc == "µg/m3"'
+            preprocessors: []

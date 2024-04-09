@@ -116,5 +116,8 @@ class StaticDriverPlugin(SetupPluginMixin):
         else:
             rt.soil_moisture_adjust = np.ones(shape=(rt.ny, rt.nx), dtype=float)
 
+        # geospatial information from static driver
+        rt.palm_epsg = int(ncs.variables['crs'].epsg_code.split(':')[-1])
+
         # close static driver nc file
         ncs.close()
