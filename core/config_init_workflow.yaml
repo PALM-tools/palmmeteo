@@ -8,8 +8,10 @@
 tasks:
     - wrf     # WRF meteo inputs
     #- wrf_rad # WRF radiation inputs
+    #- icon2   # ICON inputs
+    #- aladin  # Aladin inputs
     #- camx    # CAMx chemistry inputs
-    #- cosmo   # COSMO meteoinputs
+    #- cams    # CAMS chemistry inputs
 
 # Default workflow. Currently no need to have separate workflows per task.
 # Advnanced users may skip some steps in special cases.

@@ -1,9 +1,244 @@
-# A template with all user-selectable configuration options
+# A template with all user-selectable configuration options. The options are
+# commented out and the the values are set to their defaults.
 
-# TODO: fill from config_init_*
+############################## GENERIC OPTIONS ##############################
 
-case: example #case name (required)
+#case: #case name (required)
+#scenario: #optional scenario identification (multiple scenarios per case)
+#dnum: 1 #1 for root domain, 2 for nested domain *_N02 etc.
+
+# Some paths may be relative as specified or absolute. They may contain
+# these references:
+# {case}: case name
+# {scenario}: scenario name (if provided) with leading dot
+# {domain}: domain number string: empty for dnum=1, '_N02' for dnum=2 etc.
+paths:                                               #RELATIVE TO:
+    #base: .                                         #------------
+
+    #palm_input: '../JOBS/{case}{scenario}/INPUT'    #base
+    #dynamic_driver: '{case}_dynamic{domain}'        #palm_input
+    #static_driver: '{case}_static{domain}'          #palm_input
+
+    #intermediate: '../JOBS/{case}{scenario}/METEO'  #base
+    #imported: 'import.nc'                           #intermediate
+    #hinterp: 'hinterp.nc'                           #intermediate
+    #vinterp: 'vinterp.nc'                           #intermediate
+
+    #wrf_output: '../JOBS/{case}{scenario}/WRF'      #base
+    #wrf_file_mask: 'wrfout_*.e000'                  #wrf_output
+    #wrf_rad_file_mask: 'auxhist6_*'                 #wrf_output
+
+    #camx_output: '../JOBS/{case}{scenario}/CAMX'    #base
+    #camx_file_mask: 'CAMx.*.nc'                     #camx_output
+
+    #icon_output: '../JOBS/{case}{scenario}/ICON'    #base
+    #icon_file_mask: 'i?ff[0-9]_*.nc*'               #icon_output
+    #icon_static_data: ~                             #icon_output
+
+output:
+    # Overwrite existing output files? Otherwise create a new file with
+    # numerical suffix
+    #overwrite: false
+
+    #check_mass_balance: false #re-verify final mass balance after balancing
 
 domain:
-    nz: #required
+    #dz: #default=dx
+    #nz: #required
+    #dz_stretch_level: -1.0 #in metres
+    #dz_stretch_factor: 1.0
+    #dz_max: -1.0 #in metres
 
+    # minimal number of free surface canopy layers above top of terrain with
+    # building and plant canopy
+    #nscl_free: 3
+
+simulation:
+    #origin_time: #default: read from static driver
+    #timestep: 1 h
+    #length: 1 d
+
+#radiation: #empty = off by default, switched on by tasks or manually
+
+#chem_species: [] #empty list = disabled chemistry
+
+#verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+
+# One or more tasks selected by the user will add required plugins and set
+# necessary options. Tasks typically select input meteo and/or chemistry data
+# sources.
+tasks:
+    #- wrf     # WRF meteo inputs
+    #- wrf_rad # WRF radiation inputs
+    #- icon2   # ICON inputs
+    #- aladin  # Aladin inputs
+    #- camx    # CAMx chemistry inputs
+    #- cams    # CAMS chemistry inputs
+
+# Default workflow. Currently no need to have separate workflows per task.
+# Advnanced users may skip some steps in special cases.
+#workflow:
+#    - check_config
+#    - setup
+#    - import
+#    - hinterp
+#    - vinterp
+#    - write
+
+######################### PLUGIN-SPECIFIC OPTIONS #########################
+
+vinterp:
+    # Smoothing of PALM terrain for WRF vertical interpolation to avoid sharp
+    # horizontal gradients. Sigma value in grid points.
+    #terrain_smoothing: off
+
+wrf:
+    # Method of stretching vertical levels before vertical interpolation in
+    # order to match the target (high-resolution) terrain, while limiting the
+    # propagation of surface features to higher levels. May be one of:
+    # universal:    A universal method where levels above transition_level are
+    #               kept unmodified while the levels below are stretched
+    #               gradually
+    # hybrid:       Use the WRF hybrid vertical coordinate system from the
+    #               WRFOUT input files to stretch the levels. WARNING: the WRF
+    #               model must be configured to using hybrid levels, not sigma
+    #               leves, there is no check for this!
+    # sigma:        Use the WRF sigma levels system from the WRFOUT input
+    #               files to stretch the levels. WARNING: the WRF model must be
+    #               configured to using sigma levels, not hybrid leves, there
+    #               is no check for this!
+    #vertical_stretching: universal
+    #transition_level: 2000.0 #m above origin_z
+
+# The CAMx configuration uses Python formulae, so it is obviously vulnerable to
+# malicious configuration files. We assume that the users know what they are
+# doing and they do not run arbitrary code from the internet.
+camx:
+    # Python-code checks on input file variables and attributes. May also be
+    # extended by individual output variables.
+    #validations: []
+
+    # A list of variables loaded for processing. May also be extended by
+    # individual output variables.
+    #loaded_vars: []
+
+    # An optional preprocessing Python code on loaded variables, as triggered
+    # by individual output variables.
+    #preprocessors:
+    #    PM25: 'PM25 = PSO4+PNO3+PNH4+POA+PEC+FPRM+SOA1+SOA2+SOA3+SOA4+SOPA+SOPB'
+
+    # Output variable definitions with units and Python formulae on loaded
+    # variables, which may optionally trigger specific preprocessors and/or
+    # validations.
+    #output_var_defs:
+    #    'NO': #NO without quotes means False in yaml!
+    #        formula: 'NO'
+    #        unit: 'ppm'
+    #        loaded_vars: ['NO']
+    #        validations:
+    #            - '_units.NO == "ppmv"'
+    #        preprocessors: []
+    #    NO2:
+    #        formula: 'NO2'
+    #        unit: 'ppm'
+    #        loaded_vars: [NO2]
+    #        validations:
+    #            - '_units.NO2 == "ppmv"'
+    #        preprocessors: []
+    #    NOX:
+    #        formula: 'NO+NO2'
+    #        unit: 'ppm'
+    #        loaded_vars: ['NO', NO2]
+    #        validations:
+    #            - '_units.NO == "ppmv"'
+    #            - '_units.NO2 == "ppmv"'
+    #        preprocessors: []
+    #    O3:
+    #        formula: 'O3'
+    #        unit: 'ppm'
+    #        loaded_vars: [O3]
+    #        validations:
+    #            - '_units.O3 == "ppmv"'
+    #        preprocessors: []
+    #    PM10:
+    #        formula: '(CPRM+PM25)*1e-9'
+    #        unit: 'kg/m3'
+    #        loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
+    #            SOA4, SOPA, SOPB, CPRM]
+    #        validations:
+    #            - '_units.PSO4 == "micrograms m-3"'
+    #            - '_units.PNO3 == "micrograms m-3"'
+    #            - '_units.PNH4 == "micrograms m-3"'
+    #            - '_units.POA == "micrograms m-3"'
+    #            - '_units.PEC == "micrograms m-3"'
+    #            - '_units.FPRM == "micrograms m-3"'
+    #            - '_units.SOA1 == "micrograms m-3"'
+    #            - '_units.SOA2 == "micrograms m-3"'
+    #            - '_units.SOA3 == "micrograms m-3"'
+    #            - '_units.SOA4 == "micrograms m-3"'
+    #            - '_units.SOPA == "micrograms m-3"'
+    #            - '_units.SOPB == "micrograms m-3"'
+    #            - '_units.CPRM == "micrograms m-3"'
+    #        preprocessors: [PM25]
+    #    PM25:
+    #        formula: 'PM25*1e-9'
+    #        unit: 'kg/m3'
+    #        loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
+    #            SOA4, SOPA, SOPB]
+    #        validations:
+    #            - '_units.PSO4 == "micrograms m-3"'
+    #            - '_units.PNO3 == "micrograms m-3"'
+    #            - '_units.PNH4 == "micrograms m-3"'
+    #            - '_units.POA == "micrograms m-3"'
+    #            - '_units.PEC == "micrograms m-3"'
+    #            - '_units.FPRM == "micrograms m-3"'
+    #            - '_units.SOA1 == "micrograms m-3"'
+    #            - '_units.SOA2 == "micrograms m-3"'
+    #            - '_units.SOA3 == "micrograms m-3"'
+    #            - '_units.SOA4 == "micrograms m-3"'
+    #            - '_units.SOPA == "micrograms m-3"'
+    #            - '_units.SOPB == "micrograms m-3"'
+    #        preprocessors: [PM25]
+
+synthetic:
+    #transition_level: 2000.0 #m above origin_z
+
+    prof_vars:
+        #u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        #v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        #w: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        #pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        #qv: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        #soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        #soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+
+    #p_surf: ~
+    #p_sl: 100000.
+
+icon2:
+    # List of assimilation cycles specified as timedeltas after midnight UTC
+    #input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
+
+    # First and last forecast horizon taken from each cycle. Must match
+    # assimilation cycles in such a way that a full, continuous day is formed.
+    # For aggregated values, the last horizon is exactly 1 timestep further.
+    #input_fcst_horizon_range: [0 h, 2 h]
+
+    #interpolation_buffer: 20.0 #km
+    #radiation_smoothing_distance: 30.0 #km
+
+    #transition_level: 2000.0 #m above origin_z
+
+    # Smoothing of PALM terrain for vertical interpolation to avoid sharp
+    # horizontal gradients. Sigma value in grid points.
+    #terrain_smoothing: off
+
+aladin:
+    #load_gribs: true
+    #vertical_stretching: universal
+    #transition_level: 2000.0 #m above origin_z
+
+    #radiation_smoothing_distance: 10000.0
+
+    #soil_depth_default: 0.40
+    #soil_avg_point: [ 14.418540, 50.073658 ]
