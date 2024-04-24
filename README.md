@@ -1,13 +1,12 @@
-# PROMET (formerly PALM-METEO)
+# PALM-METEO
 
-PROMET (PROvider of METeorological inputs) is an advanced and modular tool to
-create PALM's *dynamic driver* with initial and boundary conditions (IBC) and
-other time-varying data, typically using (but not limited to) outputs from
-mesoscale models.
+PALM-METEO is an advanced and modular tool to create PALM's *dynamic driver*
+with initial and boundary conditions (IBC) and other time-varying data,
+typically using (but not limited to) outputs from mesoscale models.
 
 ## Functionality
 
-The PROMET workflow consists of these items:
+The PALM-METEO workflow consists of these items:
 
 1. **Model setup**: setting up basic items such as the PALM model domain.
    Currently this requireds providing the already prepared PALM *static
@@ -37,7 +36,7 @@ The PROMET workflow consists of these items:
    that the PALM's internal mass balancing (which is performed only on the top
    boundary as a last resort) is not overused.
 
-Currently PROMET supports these meteorological inputs:
+Currently PALM-METEO supports these meteorological inputs:
 
 ### Meteorological IBC
 - WRF
@@ -54,14 +53,14 @@ Currently PROMET supports these meteorological inputs:
 - CAMx
 - CAMS
 
-PROMET is higly modular and more input sources will be likely added in the
+PALM-METEO is higly modular and more input sources will be likely added in the
 future. A detailed technical description will be made available in the upcoming
 scientific paper.
 
 ## Installation
 
-PROMET may be used out-of-the box with the project directory as long as the all
-required libraries are available. The easiest way to install them is using
+PALM-METEO may be used out-of-the box with the project directory as long as the
+all required libraries are available. The easiest way to install them is using
 
 ```
 pip3 install -r requirements.txt
@@ -84,7 +83,7 @@ according to your needs.
 
 The main part of configuration is selecting a single or multiple *tasks* by
 adding a list item in the `tasks:` configuration section.  Selecting a task
-means just telling what PROMET what it has to do, which typically involves
+means just telling what PALM-METEO what it has to do, which typically involves
 creating IBC and/or other PALM inputs using the selected method, such as using
 a specific input model.
 
@@ -116,6 +115,7 @@ in the project directory. See also the output of `./main.py -h`.
 
 ## License and authors
 
-PROMET is distributed under the GNU GPL v3+ license (see the `LICENSE` file).
-It was created by the Institute of Computer Science of the Czech Academy of
-Sciences (ICS CAS) and by the Deutsche Wetterdienst (DWD).
+PALM-METEO is distributed under the GNU GPL v3+ license (see the `LICENSE`
+file).  It was created by the Institute of Computer Science of the Czech
+Academy of Sciences (ICS CAS) with contributions by the Deutsche Wetterdienst
+(DWD).
