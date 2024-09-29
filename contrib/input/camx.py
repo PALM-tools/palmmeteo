@@ -16,6 +16,10 @@ from .wrf_utils import CAMxCoordTransform, BilinearRegridder
 _na = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
 
+rdivcp = 0.286
+pressure_ref = 1.0e5
+R = 8.314
+ppm_conv = 1e6
 
 class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, fout, *args, **kwargs):
@@ -192,6 +196,11 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     data = np.r_[data[0:1], data]
                     vardata.append(data)
 
+                # calculate molar volume n/V = p / R / T
+                t = fout.variables['init_atmosphere_pt'][it, ...] / (
+                        (pressure_ref / fout.variables['init_atmosphere_p'][it, ...]) ** rdivcp)
+                nV = fout.variables['init_atmosphere_p'][it, ...] / R / t
+
                 # Perform vertical interpolation on all currently loaded vars at once
                 vinterp = interpolate_1d(rt.z_levels, chem_heights, *vardata,
                         return_list_always=True)
@@ -199,7 +208,10 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 for vn, vd in zip(cfg.chem_species, vinterp):
                     v = fout.variables[vn]
-                    v[it] = vd
+                    if cfg.camx.output_var_defs[vn].convert:
+                        v[it] = vd / cfg.camx.output_var_defs[vn].molar_mass / nV * ppm_conv
+                    else:
+                        v[it] = vd
 
 
 class CAMxUnitsInfo:

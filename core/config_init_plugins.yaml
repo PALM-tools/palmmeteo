@@ -62,6 +62,7 @@ camx:
     # by individual output variables.
     preprocessors:
         PM25: 'PM25 = PSO4+PNO3+PNH4+POA+PEC+FPRM+SOA1+SOA2+SOA3+SOA4+SOPA+SOPB'
+        'NOX': 'NOX = NO+NO2+N03+N2O5'
 
     # Output variable definitions with units and Python formulae on loaded
     # variables, which may optionally trigger specific preprocessors and/or
@@ -69,6 +70,8 @@ camx:
     output_var_defs:
         'NO': #NO without quotes means False in yaml!
             formula: 'NO'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
             unit: 'ppm'
             loaded_vars: ['NO']
             validations:
@@ -76,21 +79,47 @@ camx:
             preprocessors: []
         NO2:
             formula: 'NO2'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
             unit: 'ppm'
             loaded_vars: [NO2]
             validations:
                 - '_units.NO2 == "ppmv"'
             preprocessors: []
-        NOX:
-            formula: 'NO+NO2'
+        'NO3':
+            formula: 'NO3'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
             unit: 'ppm'
-            loaded_vars: ['NO', NO2]
+            loaded_vars: [ NO3 ]
+            validations:
+                - '_units.NO3 == "ppmv"'
+            preprocessors: [ ]
+        N2O5:
+            formula: 'N2O5'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            unit: 'ppm'
+            loaded_vars: [ N2O5 ]
+            validations:
+                - '_units.N2O5 == "ppmv"'
+            preprocessors: [ ]
+        'NOX':
+            formula: 'NO+NO2+N03+N2O5'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            unit: 'ppm'
+            loaded_vars: ['NO', 'NO2', 'NOX', 'N2O5']
             validations:
                 - '_units.NO == "ppmv"'
                 - '_units.NO2 == "ppmv"'
-            preprocessors: []
+                - '_units.NO3 == "ppmv"'
+                - '_units.N2O5 == "ppmv"'
+            preprocessors: ['NOX']
         O3:
             formula: 'O3'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
             unit: 'ppm'
             loaded_vars: [O3]
             validations:
@@ -98,6 +127,8 @@ camx:
             preprocessors: []
         PM10:
             formula: '(CPRM+PM25)*1e-9'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
             unit: 'kg/m3'
             loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
                 SOA4, SOPA, SOPB, CPRM]
@@ -118,6 +149,8 @@ camx:
             preprocessors: [PM25]
         PM25:
             formula: 'PM25*1e-9'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
             unit: 'kg/m3'
             loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
                 SOA4, SOPA, SOPB]
@@ -135,6 +168,459 @@ camx:
                 - '_units.SOPA == "micrograms m-3"'
                 - '_units.SOPB == "micrograms m-3"'
             preprocessors: [PM25]
+        
+        HONO:
+            formula: 'HONO'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            unit: 'ppm'
+            loaded_vars: [ HONO ]
+            validations:
+                - '_units.HONO == "ppmv"'
+            preprocessors: [ ]
+        
+        HNO3:
+            formula: 'HNO3'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            unit: 'ppm'
+            loaded_vars: [ HNO3 ]
+            validations:
+                - '_units.HNO3 == "ppmv"'
+            preprocessors: [ ]
+            
+        PNA:
+            formula: 'PNA'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            unit: 'ppm'
+            loaded_vars: [ PNA ]
+            validations:
+                - '_units.PNA == "ppmv"'
+            preprocessors: [ ]
+
+            
+        O1D:
+            formula: 'O1D*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 16.0E-3 # kg/m3
+            loaded_vars: [ O1D ]
+            validations:
+                - '_units.O1D == "micrograms m-3"'
+            preprocessors: [ ]
+
+            
+        O:
+            formula: 'O*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 16.0E-3 # kg/m3
+            loaded_vars: [ O ]
+            validations:
+                - '_units.O == "micrograms m-3"'
+            preprocessors: [ ]
+
+            
+        OH:
+            formula: 'OH*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 17.0E-3 # kg/m3
+            loaded_vars: [ OH ]
+            validations:
+                - '_units.OH == "micrograms m-3"'
+            preprocessors: [ ]
+            
+        HO:
+            formula: 'HO*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 17.01E-3 # kg/m3
+            loaded_vars: [ HO ]
+            validations:
+                - '_units.HO == "micrograms m-3"'
+            preprocessors: [ ]
+
+            
+        HO2:
+            formula: 'HO2*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 33.01E-3 # kg/m3
+            loaded_vars: [ HO2 ]
+            validations:
+                - '_units.HO2 == "micrograms m-3"'
+            preprocessors: [ ]
+
+            
+        H2O2:
+            formula: 'H2O2'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ H2O2 ]
+            validations:
+                - '_units.H2O2 == "ppmv"'
+            preprocessors: [ ]
+
+        # MB
+        HCHO:
+            formula: 'FORM'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ FORM ]
+            validations:
+                - '_units.FORM == "ppmv"'
+            preprocessors: [ ]
+            
+        ALD2:
+            formula: 'ALDX'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ ALDX ]
+            validations:
+                - '_units.ALDX == "ppmv"'
+            preprocessors: [ ]
+
+            
+        C2O3:
+            formula: 'C2O3*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 65.03E-3 # kg/m3
+            loaded_vars: [ C2O3 ]
+            validations:
+                - '_units.C2O3 == "micrograms m-3"'
+            preprocessors: [ ]
+    
+        PAN:
+            formula: 'PAN'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ PAN ]
+            validations:
+                - '_units.PAN == "ppmv"'
+            preprocessors: [ ]
+
+        PAR:
+            formula: 'PAR'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ PAR ]
+            validations:
+                - '_units.PAR == "ppmv"'
+            preprocessors: [ ]
+         
+         # MB
+#        ROR:
+#            formula: 'ROR*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ ROR ]
+#            validations:
+#                - '_units.ROR == "micrograms m-3"'
+#            preprocessors: [ ]
+        
+        OLE:
+            formula: 'OLE'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ OLE ]
+            validations:
+                - '_units.OLE == "ppmv"'
+            preprocessors: [ ]
+            
+        ETH:
+            formula: 'ETH'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ ETH ]
+            validations:
+                - '_units.ETH == "ppmv"'
+            preprocessors: [ ]
+            
+        TOL:
+            formula: 'TOL'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ TOL ]
+            validations:
+                - '_units.TOL == "ppmv"'
+            preprocessors: [ ]
+            
+        CRES:
+            formula: 'CRES'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ CRES ]
+            validations:
+                - '_units.CRES == "ppmv"'
+            preprocessors: [ ]
+            
+        'XYL':
+            formula: 'XYL'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ XYL ]
+            validations:
+                - '_units.PAN == "ppmv"'
+            preprocessors: [ ]
+            
+        MGLY:
+            formula: 'MGLY'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ MGLY ]
+            validations:
+                - '_units.MGLY == "ppmv"'
+            preprocessors: [ ]
+            
+        ISOP:
+            formula: 'ISOP'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ ISOP ]
+            validations:
+                - '_units.ISOP == "ppmv"'
+            preprocessors: [ ]
+            
+         # MB
+#        XO2:
+#            formula: 'XO2*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ XO2 ]
+#            validations:
+#                - '_units.XO2 == "micrograms m-3"'
+#            preprocessors: [ ]
+#
+#        XO2N:
+#            formula: 'XO2N*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ XO2N ]
+#            validations:
+#                - '_units.XO2N == "micrograms m-3"'
+#            preprocessors: [ ]
+        
+        CO:
+            formula: 'CO'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ CO ]
+            validations:
+                - '_units.CO == "ppmv"'
+            preprocessors: [ ]
+            
+        XOPN:
+            formula: 'XOPN'
+            unit: 'ppm'
+            convert: False       # do conversion from kg/m3 to ppm
+            molar_mass: 0.0      # kg/m3
+            loaded_vars: [ XOPN ]
+            validations:
+                - '_units.XOPN == "ppmv"'
+            preprocessors: [ ]
+            
+        PH2O:
+            formula: 'PH2O*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 18.02E-3 # kg/m3
+            loaded_vars: [ PH2O ]
+            validations:
+                - '_units.PH2O == "micrograms m-3"'
+            preprocessors: [ ]
+            
+        PSO4:
+            formula: 'PSO4*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 96.06E-3 # kg/m3
+            loaded_vars: [ PSO4 ]
+            validations:
+                - '_units.PSO4 == "micrograms m-3"'
+            preprocessors: [ ]
+            
+        PNO3:
+            formula: 'PNO3*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 62.0E-3 # kg/m3
+            loaded_vars: [ PNO3 ]
+            validations:
+                - '_units.PNO3 == "micrograms m-3"'
+            preprocessors: [ ]
+            
+        PNH4:
+            formula: 'PNH4*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 18.04E-3 # kg/m3
+            loaded_vars: [ PNH4 ]
+            validations:
+                - '_units.PNH4 == "micrograms m-3"'
+            preprocessors: [ ]
+            
+        NA:
+            formula: 'NA*1e-9'
+            unit: 'ppm'
+            convert: True        # do conversion from kg/m3 to ppm
+            molar_mass: 79.01E-3 # kg/m3
+            loaded_vars: [ NA ]
+            validations:
+                - '_units.NA == "micrograms m-3"'
+            preprocessors: [ ]
+            
+#        PCL:
+#            formula: 'PCL*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ PCL ]
+#            validations:
+#                - '_units.PCL == "micrograms m-3"'
+#            preprocessors: [ ]
+
+#        PEC:
+#            formula: 'PEC*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ PEC ]
+#            validations:
+#                - '_units.PEC == "micrograms m-3"'
+#            preprocessors: [ ]
+
+#        FPRM:
+#            formula: 'FPRM*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ FPRM ]
+#            validations:
+#                - '_units.FPRM == "micrograms m-3"'
+#            preprocessors: [ ]
+
+#        FCRS:
+#            formula: 'FCRS*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ FCRS ]
+#            validations:
+#                - '_units.FCRS == "micrograms m-3"'
+#            preprocessors: [ ]
+
+#        CPRM:
+#            formula: 'CPRM*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ CPRM ]
+#            validations:
+#                - '_units.CPRM == "micrograms m-3"'
+#            preprocessors: [ ]
+
+#        CCRS:
+#            formula: 'CCRS*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ CCRS ]
+#            validations:
+#                - '_units.CCRS == "micrograms m-3"'
+#            preprocessors: [ ]
+
+#        POA:
+#            formula: 'POA*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ POA ]
+#            validations:
+#                - '_units.POA == "micrograms m-3"'
+#            preprocessors: [ ]
+
+#        SOA1:
+#            formula: 'SOA1*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ SOA1 ]
+#            validations:
+#                - '_units.SOA1 == "micrograms m-3"'
+#            preprocessors: [ ]
+#
+#        SOA2:
+#            formula: 'SOA2*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ SOA2 ]
+#            validations:
+#                - '_units.SOA2 == "micrograms m-3"'
+#            preprocessors: [ ]
+#
+#        SOPA:
+#            formula: 'SOPA*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ SOPA ]
+#            validations:
+#                - '_units.SOPA == "micrograms m-3"'
+#            preprocessors: [ ]
+#
+#        SOA3:
+#            formula: 'SOA3*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ SOA3 ]
+#            validations:
+#                - '_units.SOA3 == "micrograms m-3"'
+#            preprocessors: [ ]
+#
+#        SOA4:
+#            formula: 'SOA4*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ SOA4 ]
+#            validations:
+#                - '_units.SOA4 == "micrograms m-3"'
+#            preprocessors: [ ]
+#
+#        SOPB:
+#            formula: 'SOPB*1e-9'
+#            unit: 'ppm'
+#            convert: True        # do conversion from kg/m3 to ppm
+#            molar_mass: 46.01E-3 # kg/m3
+#            loaded_vars: [ SOPB ]
+#            validations:
+#                - '_units.SOPB == "micrograms m-3"'
+#            preprocessors: [ ]
+    
+    
+    # missing
+    #    H2O
 
 synthetic:
     transition_level: 2000.0 #m above origin_z

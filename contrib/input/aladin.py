@@ -313,7 +313,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
-            if 'cams' in cfg.tasks:
+            if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
                 # add pressure field into horizontal interpolated variables
                 fout.createVariable('init_atmosphere_p', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
@@ -452,7 +452,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 var = lpad(fin.variables['SPECHUM'][it])
                 fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                if 'cams' in cfg.tasks:
+                if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
                     var = lpad(fin.variables['P'][it])
                     fout.variables['init_atmosphere_p'][it, :, :, :] = interpolate_1d(rt.z_levels, height, var)
 

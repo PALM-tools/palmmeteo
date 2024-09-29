@@ -487,7 +487,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
             fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
             fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
-            if 'cams' in cfg.tasks:
+            if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
                 # add pressure field into horizontal interpolated variables
                 fout.createVariable('init_atmosphere_p', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
@@ -585,7 +585,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                 var = lpad(pt_from_t(p, fin.variables['T'][it]))
                 fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                if 'cams' in cfg.tasks:
+                if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
                     var = lpad(fin.variables['P'][it])
                     fout.variables['init_atmosphere_p'][it, :, :, :] = interpolate_1d(rt.z_levels, height, var)
 
