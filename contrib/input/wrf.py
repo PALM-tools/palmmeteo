@@ -12,9 +12,13 @@ from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg, ConfigError
 from core.runtime import rt
 from core.utils import ensure_dimension
-from core.library import barom_pres, barom_gp
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
-    calc_ph_sigma, g, wrf_t, wrf_base_temp, palm_wrf_gw
+    calc_ph_sigma, wrf_t, palm_wrf_gw, WrfPhysics
+from core.library import PalmPhysics
+
+barom_pres = PalmPhysics.barom_lapse0_pres
+barom_gp = PalmPhysics.barom_lapse0_gp
+g = PalmPhysics.g
 
 
 def lpad(var):
@@ -229,7 +233,8 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
-            fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
+            fout.createVariable('palm_hydrostatic_pressure', 'f4', ('time', 'z'))
+            fout.createVariable('palm_hydrostatic_pressure_stag', 'f4', ('time', 'zw'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
@@ -271,6 +276,13 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 mu = fin.variables['MUB'][it,:,:] + fin.variables['MU'][it,:,:]
                 p_top = fin.variables['P_TOP'][it]
                 p_surf = mu + p_top
+
+                # Save 1-D hydrostatic pressure
+                print('lev0shift', rt.origin_z - wrfterr) #TODO DEBUG
+                p_lev0 = PalmPhysics.barom_ptn_pres(p_surf, rt.origin_z - wrfterr, tair_surf).mean()
+                tsurf_ref = tair_surf.mean()
+                fout.variables['palm_hydrostatic_pressure'][it,:,] = PalmPhysics.barom_ptn_pres(p_lev0, rt.z_levels, tsurf_ref)
+                fout.variables['palm_hydrostatic_pressure_stag'][it,:,] = PalmPhysics.barom_ptn_pres(p_lev0, rt.z_levels_stag, tsurf_ref)
 
                 gp_new_surf = target_terrain * g
 
@@ -350,7 +362,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 var = lpad(fin.variables['SPECHUM'][it])
                 fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                var = lpad(fin.variables['T'][it] + wrf_base_temp) #from perturbation pt to standard
+                var = lpad(fin.variables['T'][it] + WrfPhysics.base_temp) #from perturbation pt to standard
                 fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
                 var = lpad(fin.variables['U'][it])
@@ -361,9 +373,6 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 var = lpad(fin.variables['W'][it]) #z staggered!
                 fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
-
-                var = fin.variables['PSFC'][it]
-                fout.variables['surface_forcing_surface_pressure'][it,:,:] = var
 
                 var = fin.variables['TSLB'][it] #soil temperature
                 fout.variables['init_soil_t'][it,:,:,:] = var

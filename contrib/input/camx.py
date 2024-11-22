@@ -8,18 +8,14 @@ from metpy.interpolate import interpolate_1d
 
 from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg, ConfigError
+from core.config import cfg
 from core.runtime import rt
 from core.utils import ensure_dimension
 from .wrf_utils import CAMxCoordTransform, BilinearRegridder
 
-_na = np.newaxis
+ax_ = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
 
-rdivcp = 0.286
-pressure_ref = 1.0e5
-R = 8.314
-ppm_conv = 1e6
 
 class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, fout, *args, **kwargs):
@@ -45,8 +41,8 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 xtime = tflag[:,0,1]
 
                 # Verify that dates are equal for each variable
-                assert (tflag[:,:,0] == xdate[:,_na]).all()
-                assert (tflag[:,:,1] == xtime[:,_na]).all()
+                assert (tflag[:,:,0] == xdate[:,ax_]).all()
+                assert (tflag[:,:,1] == xtime[:,ax_]).all()
 
                 dts = []
                 for i in range(len(xdate)):
@@ -72,7 +68,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     vz = None
                     with open(fn+'.heights') as fh:
                         fix_hgt = np.array(list(map(float, re_num.findall(fh.read())))) * 1000. #orig in km
-                        fix_hgt = fix_hgt[:,_na,_na] #convert to 3D for broadcasting
+                        fix_hgt = fix_hgt[:,ax_,ax_] #convert to 3D for broadcasting
                 else:
                     verbose('Loading heights from variable z')
 
@@ -167,7 +163,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
     def interpolate_vert(self, fout, *args, **kwargs):
         log('Performing CAMx vertical interpolation')
-        terrain_rel = rt.terrain_rel[_na,:,:]
+        terrain_rel = rt.terrain_rel[ax_,:,:]
 
         with netCDF4.Dataset(rt.paths.hinterp) as fin:
             agl_chem = fin.variables['height_chem']
@@ -196,11 +192,6 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     data = np.r_[data[0:1], data]
                     vardata.append(data)
 
-                # calculate molar volume n/V = p / R / T
-                t = fout.variables['init_atmosphere_pt'][it, ...] / (
-                        (pressure_ref / fout.variables['init_atmosphere_p'][it, ...]) ** rdivcp)
-                nV = fout.variables['init_atmosphere_p'][it, ...] / R / t
-
                 # Perform vertical interpolation on all currently loaded vars at once
                 vinterp = interpolate_1d(rt.z_levels, chem_heights, *vardata,
                         return_list_always=True)
@@ -208,10 +199,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 for vn, vd in zip(cfg.chem_species, vinterp):
                     v = fout.variables[vn]
-                    if cfg.camx.output_var_defs[vn].convert:
-                        v[it] = vd / cfg.camx.output_var_defs[vn].molar_mass / nV * ppm_conv
-                    else:
-                        v[it] = vd
+                    v[it] = vd
 
 
 class CAMxUnitsInfo:

@@ -1,8 +1,17 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+A collection of simple, technical utilities.
+
+These utilities need to be stateless, i.e. they must not depend on config or
+runtime.
+"""
+
 import os
 import re
 from datetime import timedelta
 from .logging import die, warn, log, verbose
-
 
 fext_re = re.compile(r'\.(\d{3})$')
 td0 = timedelta(hours=0)

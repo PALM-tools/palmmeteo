@@ -26,24 +26,18 @@
 
 '''WRF (+CAMx) utility module for PALM dynamic driver generator'''
 
-import os
 import math
 import numpy as np
 import pyproj
 import scipy.ndimage as ndimage
 import netCDF4
+from core.library import PalmPhysics
 
 import metpy
 metpy_version_master = int(metpy.__version__.split('.', 1)[0])
 import metpy.calc as mpcalc
 from metpy.interpolate import log_interpolate_1d
 from metpy.units import units
-
-# Constants directly equivalent to WRF code
-radius = 6370000.0
-g = 9.81 #m/s2
-rd_cp = 2./7. #from WRF v4 technote (R_d / c_p)
-wrf_base_temp = 300. #NOT wrfout T00
 
 # User-selectable values FIXME: move to config
 
@@ -53,7 +47,14 @@ gw_wrf_margin_km = 10. #smoothing area in km
 #gw_alpha = .143 #GW vertical interpolation by power law
 gw_alpha = 1. #ignore wind power law, interpolate linearly
 
-_ax = np.newaxis
+ax_ = np.newaxis
+
+class WrfPhysics(PalmPhysics):
+    # Constants directly equivalent to WRF code
+    radius = 6370000.0
+    base_temp = 300.        # NOT the variable T00 from WRFOUT!
+    rd_d_cp = 2./7.         # from WRF v4 technote (R_d / c_p)
+
 
 class WRFCoordTransform(object):
     'Coordinate transformer for WRFOUT files'
@@ -69,7 +70,7 @@ class WRFCoordTransform(object):
         #    no_defs=True) #don't use - WRF datum misuse
 
         latlon_sphere = pyproj.Proj(proj='latlong',
-            a=radius, b=radius,
+            a=WrfPhysics.radius, b=WrfPhysics.radius,
             towgs84='0,0,0', no_defs=True)
 
         lambert_grid = pyproj.Proj(proj='lcc',
@@ -77,7 +78,7 @@ class WRFCoordTransform(object):
             lat_2=attr('TRUELAT2'),
             lat_0=attr('MOAD_CEN_LAT'),
             lon_0=attr('STAND_LON'),
-            a=radius, b=radius,
+            a=WrfPhysics.radius, b=WrfPhysics.radius,
             towgs84='0,0,0', no_defs=True)
 
         # resoltion in m
@@ -144,7 +145,7 @@ class CAMxCoordTransform(object):
         # Define grids
 
         latlon_sphere = pyproj.Proj(proj='latlong',
-            a=radius, b=radius,
+            a=WrfPhysics.radius, b=WrfPhysics.radius,
             towgs84='0,0,0', no_defs=True)
 
         lambert_grid = pyproj.Proj(proj='lcc',
@@ -152,7 +153,7 @@ class CAMxCoordTransform(object):
             lat_2=attr('P_BET'),
             lat_0=attr('YCENT'),
             lon_0=attr('P_GAM'),
-            a=radius, b=radius,
+            a=WrfPhysics.radius, b=WrfPhysics.radius,
             towgs84='0,0,0', no_defs=True)
 
         # resoltion in m
@@ -261,7 +262,7 @@ class BilinearRegridder(object):
 
         # Slice weights to match the extra dimensions
         wslice = ((slice(None),) +      #weights
-            (np.newaxis,) * drank +     #data minus Y,X
+            (ax_,) * drank +            #data minus Y,X
             (slice(None),) * self.rank) #regridded shape
 
         w = selection * self.weights[wslice]
@@ -273,27 +274,27 @@ def calc_ph_hybrid(f, it, mu):
     c4f = f.variables['C4F'][it]
     c3h = f.variables['C3H'][it]
     c4h = f.variables['C4H'][it]
-    return (c3f[:,_ax,_ax]*mu[_ax,:,:] + (c4f[:,_ax,_ax] + pht),
-            c3h[:,_ax,_ax]*mu[_ax,:,:] + (c4h[:,_ax,_ax] + pht))
+    return (c3f[:,ax_,ax_]*mu[ax_,:,:] + (c4f[:,ax_,ax_] + pht),
+            c3h[:,ax_,ax_]*mu[ax_,:,:] + (c4h[:,ax_,ax_] + pht))
 
 def calc_ph_sigma(f, it, mu):
     pht = f.variables['P_TOP'][it]
     eta_f = f.variables['ZNW'][it]
     eta_h = f.variables['ZNU'][it]
-    return (eta_f[:,_ax,_ax]*mu[_ax,:,:] + pht,
-            eta_h[:,_ax,_ax]*mu[_ax,:,:] + pht)
+    return (eta_f[:,ax_,ax_]*mu[ax_,:,:] + pht,
+            eta_h[:,ax_,ax_]*mu[ax_,:,:] + pht)
 
 def wrf_t(f, it):
     p = f.variables['P'][it,:,:,:] + f.variables['PB'][it,:,:,:]
-    return (f.variables['T'][it,:,:,:] + wrf_base_temp) * np.power(0.00001*p, rd_cp)
+    return (f.variables['T'][it,:,:,:] + WrfPhysics.base_temp) * WrfPhysics.exner(p)
 
 def calc_gp(f, it, ph):
     terr = f.variables['HGT'][it,:,:]
-    gp0 = terr * g
+    gp0 = terr * WrfPhysics.g
     gp = [gp0]
     t = wrf_t(f, it)
     for lev in range(1, ph.shape[0]):
-        gp.append(barom_gp(gp[-1], ph[lev,:,:], ph[lev-1,:,:], t[lev-1,:,:]))
+        gp.append(WrfPhysics.barom_lapse0_gp(gp[-1], ph[lev,:,:], ph[lev-1,:,:], t[lev-1,:,:]))
     return np.array(gp)
 
 def palm_wrf_gw(f, lon, lat, levels, tidx=0):

@@ -23,9 +23,14 @@ from core.runtime import rt
 from core.utils import ensure_dimension
 import scipy.ndimage as ndimage
 from .wrf_utils import BilinearRegridder, calc_ph_hybrid, \
-    calc_ph_sigma, g, wrf_t, wrf_base_temp, rd_cp
-from core.library import barom_pres, barom_gp
+    calc_ph_sigma, WrfPhysics
+from core.library import PalmPhysics
 
+barom_pres = PalmPhysics.barom_lapse0_pres
+barom_gp = PalmPhysics.barom_lapse0_gp
+g = PalmPhysics.g
+
+ax_ = np.newaxis
 radius = 6370000.0
 
 # Settings for geostrophic wind FIXME: change them to Aladin
@@ -56,8 +61,8 @@ def variable2parameter():
                                                  'typeOfLevel' : 'depthBelowLand', 'netCDFname' : 'SMOIS'}
     filter_indicator['soil moisture content heightAboveGround'] = {'indicatorOfParameter': 86, 'shortname': 'sm',
                                                  'typeOfLevel': 'heightAboveGround', 'netCDFname': 'SMOIS1'}
-    filter_indicator['surface_forcing_surface_pressure'] = {'indicatorOfParameter': 1, 'shortname': 'pres',
-                             'typeOfLevel': 'heightAboveGround', 'netCDFname': 'PSFC'}
+    #filter_indicator['surface_forcing_surface_pressure'] = {'indicatorOfParameter': 1, 'shortname': 'pres',
+    #                         'typeOfLevel': 'heightAboveGround', 'netCDFname': 'PSFC'}
     filter_indicator['init_soil_t'] = {'indicatorOfParameter': 11, 'shortname': 't',
                              'typeOfLevel': 'heightAboveGround', 'netCDFname': 'TSLB'}
 
@@ -313,10 +318,8 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
-            if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
-                # add pressure field into horizontal interpolated variables
-                fout.createVariable('init_atmosphere_p', 'f4', ('time', 'z', 'y', 'x'))
-            fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
+            fout.createVariable('palm_hydrostatic_pressure', 'f4', ('time', 'z'))
+            fout.createVariable('palm_hydrostatic_pressure_stag', 'f4', ('time', 'zw'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
@@ -367,6 +370,13 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 # p_surf = mu + p_top
                 # p_top = fin.variables['P'][it, -1, :, :]
                 p_surf = fin.variables['P'][it, 0, :, :]
+
+                # Save 1-D hydrostatic pressure
+                print('lev0shift', rt.origin_z - terr) #TODO DEBUG
+                p_lev0 = PalmPhysics.barom_ptn_pres(p_surf, rt.origin_z - terr, tair_surf).mean()
+                tsurf_ref = tair_surf.mean()
+                fout.variables['palm_hydrostatic_pressure'][it,:,] = PalmPhysics.barom_ptn_pres(p_lev0, rt.z_levels, tsurf_ref)
+                fout.variables['palm_hydrostatic_pressure_stag'][it,:,] = PalmPhysics.barom_ptn_pres(p_lev0, rt.z_levels_stag, tsurf_ref)
 
                 gp_new_surf = target_terrain * g
 
@@ -452,10 +462,6 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 var = lpad(fin.variables['SPECHUM'][it])
                 fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
-                    var = lpad(fin.variables['P'][it])
-                    fout.variables['init_atmosphere_p'][it, :, :, :] = interpolate_1d(rt.z_levels, height, var)
-
                 var = lpad(fin.variables['T'][it]) #from perturbation pt to standard
                 fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
@@ -468,8 +474,8 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 var = lpad(fin.variables['W'][it]) #z staggered!
                 fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
 
-                var = fin.variables['PSFC'][it]
-                fout.variables['surface_forcing_surface_pressure'][it,:,:] = p_surf_new
+                #var = fin.variables['PSFC'][it]
+                #fout.variables['surface_forcing_surface_pressure'][it,:,:] = p_surf_new
 
                 var = fin.variables['TSLB'][it] #soil temperature
                 fout.variables['init_soil_t'][it,:,:,:] = var
@@ -806,7 +812,7 @@ class BilinearRegridder(object):
 
         # Slice weights to match the extra dimensions
         wslice = ((slice(None),) +      #weights
-            (np.newaxis,) * drank +     #data minus Y,X
+            (ax_,) * drank +            #data minus Y,X
             (slice(None),) * self.rank) #regridded shape
 
         w = selection * self.weights[wslice]
@@ -1235,9 +1241,10 @@ def calcgw_wrf(f, lat, lon, levels, tidx=0):
 
     return phgt[:,iby,ibx], ug, vg
 
+#TODO suspicious - check!!!
 def aladin_t(f, it):
     p = f.variables['P'][it,:,:,:] # from wrf_utils+ f.variables['PB'][it,:,:,:]
-    return (f.variables['T'][it,:,:,:] + wrf_base_temp) * np.power(0.00001*p, rd_cp)
+    return (f.variables['T'][it,:,:,:] + WrfPhysics.base_temp) * WrfPhysics.exner(p)
 
 
 # for dump purpouse, will be deleted

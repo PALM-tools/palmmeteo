@@ -7,6 +7,9 @@ from .logging import die, warn, log, verbose
 from .config import cfg
 from .runtime import rt
 from .utils import find_free_fname, tstep, td0
+from .library import PalmPhysics
+
+ax_ = np.newaxis
 
 class SetupPlugin(SetupPluginMixin):
     def setup_model(self, *args, **kwargs):
@@ -99,12 +102,19 @@ class WritePlugin(WritePluginMixin):
             # shorthands
             fov = fout.variables
             def mkvar(vname, dims, lod=None, units=None, dtype=dtdefault,
-                    fill=filldefault):
+                    fill=filldefault, attrs_from=None):
                 v = fout.createVariable(vname, dtype, dims, fill_value=fill)
+                if attrs_from is None:
+                    attrs = {}
+                else:
+                    attrs = {a: attrs_from.getncattr(a)
+                                    for a in attrs_from.ncattrs()}
                 if lod is not None:
-                    v.lod = lod
+                    attrs['lod'] = lod
                 if units is not None:
-                    v.units = units
+                    attrs['units'] = units
+                if attrs:
+                    v.setncatts(attrs)
                 return v
 
             # Create dimensions
@@ -176,8 +186,8 @@ class WritePlugin(WritePluginMixin):
             zstag_all = np.r_[0., rt.z_levels_stag, rt.ztop]
             zwidths = zstag_all[1:] - zstag_all[:-1]
             verbose('Z widths: {}', zwidths)
-            areas_xb = (zwidths * rt.dy)[:,np.newaxis]
-            areas_yb = (zwidths * rt.dx)[:,np.newaxis]
+            areas_xb = (zwidths * rt.dy)[:,ax_]
+            areas_yb = (zwidths * rt.dx)[:,ax_]
             areas_zb = rt.dx * rt.dy
             area_boundaries = (areas_xb.sum()*rt.ny*2
                     + areas_yb.sum()*rt.nx*2
@@ -200,16 +210,15 @@ class WritePlugin(WritePluginMixin):
                 fov['init_atmosphere_w'][:,:,:] = fiv['init_atmosphere_w'][0, :, :, :]
                 fov['init_soil_t'][:,:,:] = fiv['init_soil_t'][0,:,:,:]
                 fov['init_soil_m'][:,:,:] = (fiv['init_soil_m'][0,:,:,:]
-                        * rt.soil_moisture_adjust[np.newaxis,:,:])
+                        * rt.soil_moisture_adjust[ax_,:,:])
 
                 # Write values for time dependent values
                 if not rt.nested_domain:
                     for it in range(rt.nt):
                         verbose('Processing timestep {}', it)
 
-                        # surface pressure
-                        fov['surface_forcing_surface_pressure'][it] = (
-                                fiv['surface_forcing_surface_pressure'][it,:,:].mean())
+                        # surface pressure: in PALM, surface pressure is actually level 0 (zb) pressure!!!
+                        fov['surface_forcing_surface_pressure'][it] = fiv['palm_hydrostatic_pressure_stag'][it,0]
 
                         # boundary conditions
                         fov['ls_forcing_left_pt' ][it,:,:] = fiv['init_atmosphere_pt'][it, :, :, 0]

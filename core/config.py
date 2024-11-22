@@ -65,6 +65,9 @@ class ConfigObj(object):
                     'setting in section {}.'.format(key,
                         ':'.join(self._get_path())))
 
+    def __contains__(self, key):
+        return key in self._settings
+
     def __iter__(self):
         return iter(self._settings.items())
 

@@ -8,14 +8,14 @@ from metpy.interpolate import interpolate_1d
 
 from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg, ConfigError
+from core.config import cfg
 from core.runtime import rt
 from core.utils import ensure_dimension
 from .wrf_utils import BilinearRegridder, radius
 from .camx import CAMxConvertor
 import pyproj
 
-_na = np.newaxis
+ax_ = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
 
 rdivcp = 0.286
@@ -33,7 +33,6 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         zcoord = [None] * rt.nt
 
         # Process input files
-        first = True
         verbose('Parsing CAMS file {}', cfg.paths.cams_output)
         with netCDF4.Dataset(cfg.paths.cams_output, 'r') as fin:
             # Decode time and locate timesteps
@@ -81,12 +80,12 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             for itout, itf in dts:
                 verbose('Importing timestep {} -> {}', itf, itout)
                 verbose('\tProcessing CAMS time {0}.'.format(dts[itout]))
-                zcoord[itout] = np.tile(height[:, np.newaxis, np.newaxis], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
+                zcoord[itout] = np.tile(height[:, ax_, ax_], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
 
                 filled[itout] = convertor.load_timestep_vars(fin, itf,
                                                              timesteps[itout])
 
-                vz_out[itout,:,:,:] = np.tile(height[:, np.newaxis, np.newaxis], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
+                vz_out[itout,:,:,:] = np.tile(height[:, ax_, ax_], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
 
             if not all(filled):
                 die('Could not find all CAMx variables for all times.\n'
@@ -141,7 +140,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
     def interpolate_vert(self, fout, *args, **kwargs):
         log('Performing CAMS vertical interpolation')
-        terrain_rel = rt.terrain_rel[_na,:,:]
+        terrain_rel = rt.terrain_rel[ax_,:,:]
 
         with netCDF4.Dataset(rt.paths.hinterp) as fin:
             agl_chem = fin.variables['height_chem']
@@ -175,28 +174,9 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         return_list_always=True)
                 del vardata
 
-                first = True
                 for vn, vd in zip(cfg.chem_species, vinterp):
                     v = fout.variables[vn]
-                    # perform unit conversion
-                    # firstly check if temperature and pressure are available
-                    if first:
-                        if not 'init_atmosphere_p' in fout.variables.keys():
-                            die('Pressure field is missing from interpolate file')
-                        if not 'init_atmosphere_pt' in fout.variables.keys():
-                            die('Potential temperature field is missing from interpolate file')
-
-                        # calculate molar volume n/V = p / R / T
-                        t = fout.variables['init_atmosphere_pt'][it, ...] / (
-                                                       (pressure_ref / fout.variables['init_atmosphere_p'][it, ...]) ** rdivcp)
-                        nV = fout.variables['init_atmosphere_p'][it, ...] / R / t
-
-                        first = False
-
-                    if cfg.cams.output_var_defs[vn].convert:
-                        v[it] = vd / cfg.cams.output_var_defs[vn].molar_mass / nV * ppm_conv
-                    else:
-                        v[it] = vd
+                    v[it] = vd
 
 class CAMSCoordTransform(object):
     'Coordinate transformer for CAMx files running from WRF'

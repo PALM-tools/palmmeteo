@@ -8,19 +8,20 @@ from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg, ConfigError
 from core.runtime import rt
 from core.utils import ensure_dimension
-from core.library import barom_pres, barom_gp, utcdefault
+from core.library import PalmPhysics, utcdefault
 
+barom_pres = PalmPhysics.barom_lapse0_pres
+barom_gp = PalmPhysics.barom_lapse0_gp
+g = PalmPhysics.g
 
-rd_cp = 2./7. #from WRF v4 technote (R_d / c_p)
-g = 9.81 #m/s2
-_na = np.newaxis
+ax_ = np.newaxis
 
 def expand(var):
     """expand horizontal dimensions and pad at top and bottom"""
     v = np.zeros((var.shape[0]+2, rt.ny, rt.nx), dtype=var.dtype)
     v[0,:,:] = var[0]
-    v[1:-1,:,:] = var[:,_na,_na]
-    v[-1,:,:] = var[-1,_na,_na]
+    v[1:-1,:,:] = var[:,ax_,ax_]
+    v[-1,:,:] = var[-1,ax_,ax_]
     return v
 
 class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
@@ -50,7 +51,8 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
         fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
         fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
         fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
-        fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
+        fout.createVariable('palm_hydrostatic_pressure', 'f4', ('time', 'z'))
+        fout.createVariable('palm_hydrostatic_pressure_stag', 'f4', ('time', 'zw'))
         fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
         fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
         fout.createVariable('zsoil', 'f4', ('zsoil',))
@@ -85,12 +87,16 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             else:
                 p_surf = cfg.synthetic.p_surf
 
-            t0 = pt[0] * np.power(0.00001*p_surf, rd_cp)
+            t0 = pt[0] * PalmPhysics.exner(p_surf)
 
             # Calculate transition pressure level using horizontal
             # domain-wide pressure average
             p_trans = barom_pres(p_surf, gp_trans, gp0, t0)
             verbose('Vertical stretching transition level: {} Pa', p_trans)
+
+            # Save 1-D hydrostatic pressure
+            fout.variables['palm_hydrostatic_pressure'][it,:,] = PalmPhysics.barom_ptn_pres(p_surf, rt.z_levels, t0)
+            fout.variables['palm_hydrostatic_pressure_stag'][it,:,] = PalmPhysics.barom_ptn_pres(p_surf, rt.z_levels_stag, t0)
 
             # Calculate terrain pressure shift ratio
             p_surf_new = barom_pres(p_surf, gp_new_surf, gp0, t0)
@@ -120,18 +126,16 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
             fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, z, var)
 
-            fout.variables['surface_forcing_surface_pressure'][it,:,:] = p_surf_new
-
             fout.variables['init_soil_t'][it,:,:,:] = (
-                    rt.synth_profiles['soil_t'].interp_next_time(rt.times[it])[:,_na,_na])
+                    rt.synth_profiles['soil_t'].interp_next_time(rt.times[it])[:,ax_,ax_])
 
             fout.variables['init_soil_m'][it,:,:,:] = (
-                    rt.synth_profiles['soil_m'].interp_next_time(rt.times[it])[:,_na,_na])
+                    rt.synth_profiles['soil_m'].interp_next_time(rt.times[it])[:,ax_,ax_])
 
 def stretch_heigts(heights, terrain_ratio, gp0, t0, p_surf, p_trans):
     # Convert the geopotentials to pressure naively using barometric equation
     gp_prof = heights*g + gp0
-    p_orig = barom_pres(p_surf, gp_prof, gp0, t0)[:,_na,_na]
+    p_orig = barom_pres(p_surf, gp_prof, gp0, t0)[:,ax_,ax_]
 
     # TODO: this may be optimized by finding highest stretched level and
     # caclulating only below that, or by using numexpr

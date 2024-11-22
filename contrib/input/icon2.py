@@ -12,20 +12,16 @@ from core.plugins import SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin
 from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg, ConfigError, parse_duration
 from core.runtime import rt
-from core.library import barom_pres, barom_gp
 from core.utils import ensure_dimension
+from core.library import PalmPhysics
 
-na_ = np.newaxis
+barom_pres = PalmPhysics.barom_lapse0_pres
+barom_gp = PalmPhysics.barom_lapse0_gp
+g = PalmPhysics.g
+
+ax_ = np.newaxis
 rad = np.pi / 180.
-radius = 6371.
 tstr0 = 'minutes since '
-g = 9.81 #m/s2
-rd_cp = 2./7. #from WRF v4 technote (R_d / c_p)
-sigma_sb = 5.67037E-08 #Stefan-Boltzmann constant
-
-def pt_from_t(p, t):
-    #t = pt * np.power(0.00001*p, rd_cp)
-    return t / np.power(0.00001*p, rd_cp)
 
 def barycentric(tri, pt, isimp):
     """Calculate barycentric coordinates of a multi-dimensional point set
@@ -38,11 +34,11 @@ def barycentric(tri, pt, isimp):
 
     # based on help(Delaunay), changing np.dot to selection among dims, using
     # selected simplices
-    fact2 = (pt - sel_transform[...,2,:])[...,na_,:]
+    fact2 = (pt - sel_transform[...,2,:])[...,ax_,:]
     bary0 = (sel_transform[...,:2,:] * fact2).sum(axis=-1) #(pt, bary[:2])
 
     # add third barycentric coordinate
-    bary = np.concatenate((bary0, (1.-bary0.sum(axis=-1))[...,na_]), axis=-1)
+    bary = np.concatenate((bary0, (1.-bary0.sum(axis=-1))[...,ax_]), axis=-1)
     return bary
 
 class TriRegridder:
@@ -52,7 +48,7 @@ class TriRegridder:
         # Simple Mercator-like stretching for equidistant lat/lon coords
         self.lon_coef = np.cos(ylat.mean()*rad)
 
-        deg_range = cfg.icon2.interpolation_buffer / (radius*rad)
+        deg_range = cfg.icon2.interpolation_buffer / (PalmPhysics.radius*rad)
         lat0 = ylat.min() - deg_range
         lat1 = ylat.max() + deg_range
         deg_range /= self.lon_coef
@@ -72,7 +68,7 @@ class TriRegridder:
 
         # identify simplices
         xlonx = xlon * self.lon_coef
-        pt = np.concatenate((ylat[:,:,na_], xlonx[:,:,na_]), axis=2)
+        pt = np.concatenate((ylat[:,:,ax_], xlonx[:,:,ax_]), axis=2)
         isimp = tri.find_simplex(pt)
         assert (isimp >= 0).all()
 
@@ -254,7 +250,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     zsoil_tso = fin.variables[zsoil_tso_dim][:]
                     zsoil_wso_dim = fin.variables['W_SO'].dimensions[1]
                     zsoil_wso = fin.variables[zsoil_wso_dim][:]
-                    zsoil_dwso = (zsoil_wso[1:] - zsoil_wso[:-1])[:,na_]
+                    zsoil_dwso = (zsoil_wso[1:] - zsoil_wso[:-1])[:,ax_]
 
                     assert zsoil_tso[-2] <= zsoil_wso[-1]
 
@@ -277,7 +273,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     if cfg.radiation:
                         verbose('Building list of indices for radiation smoothing.')
 
-                        deg_range = cfg.icon2.radiation_smoothing_distance / (radius*rad)
+                        deg_range = cfg.icon2.radiation_smoothing_distance / (PalmPhysics.radius*rad)
                         rad_mask = np.hypot((clon-rt.cent_lon)*rt.regrid_icon.lon_coef,
                                              clat-rt.cent_lat) <= deg_range
 
@@ -293,7 +289,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                             vemis = fst.variables['EMIS_RAD']
                             assert vemis.shape == clat.shape
                             emis = vemis[:][rad_mask]
-                            emis_sigma = emis * sigma_sb
+                            emis_sigma = emis * PalmPhysics.sigma_sb
                             emis_r = 1. / emis
                             del emis
                         if zsoil_tso[0] != 0.0:
@@ -419,6 +415,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                 lwdown.append(((deag_lwnet + mean_tsurf**4 * emis_sigma) * emis_r).mean())
 
             # TODO: use solar zenith for better temporal disaggregation of SW
+            # TODO: or write rad times at interval centers instead of averaging
             swdown = np.array(swdown)
             rt.rad_swdown = ((swdown[:-1] + swdown[1:]) * 0.5).tolist()
             swdif = np.array(swdif)
@@ -486,10 +483,8 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
             fout.createVariable('init_atmosphere_u', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_v', 'f4', ('time', 'z', 'y', 'x'))
             fout.createVariable('init_atmosphere_w', 'f4', ('time', 'zw', 'y', 'x'))
-            fout.createVariable('surface_forcing_surface_pressure', 'f4', ('time', 'y', 'x'))
-            if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
-                # add pressure field into horizontal interpolated variables
-                fout.createVariable('init_atmosphere_p', 'f4', ('time', 'z', 'y', 'x'))
+            fout.createVariable('palm_hydrostatic_pressure', 'f4', ('time', 'z'))
+            fout.createVariable('palm_hydrostatic_pressure_stag', 'f4', ('time', 'zw'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('zsoil', 'f4', ('zsoil',))
@@ -525,6 +520,13 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
                 p = fin.variables['P'][it,:,:,:]
                 p_surf = fin.variables['PS'][it,:,:]
+
+                # Save 1-D hydrostatic pressure
+                print('lev0shift', rt.origin_z - iconterr) #TODO DEBUG
+                p_lev0 = PalmPhysics.barom_ptn_pres(p_surf, rt.origin_z - iconterr, tair_surf).mean()
+                tsurf_ref = tair_surf.mean()
+                fout.variables['palm_hydrostatic_pressure'][it,:,] = PalmPhysics.barom_ptn_pres(p_lev0, rt.z_levels, tsurf_ref)
+                fout.variables['palm_hydrostatic_pressure_stag'][it,:,] = PalmPhysics.barom_ptn_pres(p_lev0, rt.z_levels_stag, tsurf_ref)
 
                 gp_new_surf = target_terrain * g
 
@@ -582,12 +584,8 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                 var = lpad(fin.variables['QV'][it])
                 fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
 
-                var = lpad(pt_from_t(p, fin.variables['T'][it]))
+                var = lpad(fin.variables['T'][it]*PalmPhysics.exner_inv(p))
                 fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
-
-                if 'cams' in cfg.tasks or 'camx' in cfg.tasks:
-                    var = lpad(fin.variables['P'][it])
-                    fout.variables['init_atmosphere_p'][it, :, :, :] = interpolate_1d(rt.z_levels, height, var)
 
                 var = lpad(fin.variables['U'][it])
                 fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
@@ -597,8 +595,6 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
                 var = lpad(fin.variables['W'][it]) #z staggered!
                 fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
-
-                fout.variables['surface_forcing_surface_pressure'][it,:,:] = p_surf
 
                 var = fin.variables['T_SO'][it] #soil temperature
                 fout.variables['init_soil_t'][it,:,:,:] = var
