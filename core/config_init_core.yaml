@@ -19,9 +19,9 @@ paths:                                              #RELATIVE TO:
     static_driver: '{case}_static{domain}'          #palm_input
 
     intermediate: '../JOBS/{case}{scenario}/METEO'  #base
-    imported: 'import.nc'                           #intermediate
-    hinterp: 'hinterp.nc'                           #intermediate
-    vinterp: 'vinterp.nc'                           #intermediate
+    imported: 'import{domain}.nc'                   #intermediate
+    hinterp: 'hinterp{domain}.nc'                   #intermediate
+    vinterp: 'vinterp{domain}.nc'                   #intermediate
 
     wrf_output: '../JOBS/{case}{scenario}/WRF'      #base
     wrf_file_mask: 'wrfout_*.e000'                  #wrf_output
