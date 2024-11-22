@@ -74,3 +74,159 @@ class PalmPhysics:
 
 utc = datetime.timezone.utc
 utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
+
+
+class UnitConverter:
+    loaded = None
+
+    def __init__(self):
+       self.re_ppmv = re.compile(cfg.chem_units.regexes.ppmv)
+       self.re_ppbv = re.compile(cfg.chem_units.regexes.ppbv)
+       self.re_ugm3 = re.compile(cfg.chem_units.regexes.ugm3)
+       self.re_gm3  = re.compile(cfg.chem_units.regexes.gm3)
+       self.re_kgm3 = re.compile(cfg.chem_units.regexes.kgm3)
+
+    def convert_auto(self, value, unit):
+        # volumetric fractional
+        if self.re_ppmv.match(unit):
+            return value, cfg.chem_units.targets.ppmv
+        if self.re_ppbv.match(unit):
+            return value*1e-3, cfg.chem_units.targets.ppmv
+
+        # mass per volume
+        if self.re_ugm3.match(unit):
+            return value*1e-9, cfg.chem_units.targets.kgm3
+        if self.re_gm3.match(unit):
+            return value*1e-3, cfg.chem_units.targets.kgm3
+        if self.re_kgm3.match(unit):
+            return value, cfg.chem_units.targets.kgm3
+
+        # default
+        return value, unit
+
+    @classmethod
+    def convert(cls, value, unit):
+        if cls.loaded is None:
+            cls.loaded = cls()
+        return cls.loaded.convert_auto(value, unit)
+
+class InputUnitsInfo:
+    pass
+
+class LoadedQuantity:
+    __slots__ = ['name', 'formula', 'code', 'unit', 'attrs']
+
+class QuantityCalculator:
+    def __init__(self, quantities, var_defs, preprocessors, regridder):
+        self.regridder = regridder
+        self.loaded_vars = set()
+        self.preprocessors = {}
+        self.validations = {}
+        self.quantities = []
+
+        for qname in quantities:
+            try:
+                vdef = var_defs[qname]
+            except KeyError:
+                die('Requested quantity {} not found in configured '
+                        'quantity definitions.', qname)
+
+            q = LoadedQuantity()
+            q.name = qname
+
+            self.loaded_vars.update(vdef.loaded_vars)
+            if len(vdef.loaded_vars == 1) and 'formula' not in vdef:
+                # When we have exactly 1 loaded variable and we do not define
+                # an explicit formula, we assume that the formula is identity
+                # for that variable and the unit is taken from the input
+                # variable unless specified otherwise.
+                q.formula = vdef.loaded_vars[0]
+                q.unit = getattr(vdef, 'unit', None)
+                                #None = taken later from loaded variable
+            else:
+                q.formula = vdef.formula
+                q.unit = vdef.unit
+
+            for pp in getattr(vdef, 'preprocessors', []):
+                if pp not in self.preprocessors:
+                    try:
+                        prs = preprocessors[pp]
+                    except KeyError:
+                        die('Requested input preprocessor {} not found in '
+                                'configured variable definitions.', pp)
+                    try:
+                        self.preprocessors[pp] = compile(prs,
+                                '<quantity_preprocessor_{}>'.format(pp), 'exec')
+                    except SyntaxError:
+                        die('Syntax error in definition of the input '
+                                'preprocessor {}: "{}".', pp, prs)
+
+            for val in getattr(vdef, 'validations', []):
+                if val not in self.validations:
+                    try:
+                        self.validations[val] = compile(val,
+                                '<quantity_validation>', 'eval')
+                    except SyntaxError:
+                        die('Syntax error in definition of the input '
+                                'validation: "{}".', val)
+
+            q.attrs = {}
+            if 'molar_mass' in vdef:
+                q.attrs['molar_mass'] = vdef.molar_mass
+            for flag in getattr(vdef, 'flags', []):
+                q.attrs[flag] = np.int8(1)
+
+            try:
+                q.code = compile(q.formula, '<quantity_formula_{}>'.format(qname), 'eval')
+            except SyntaxError:
+                die('Syntax error in definition of the quantity '
+                        '{} formula: "{}".', qname, q.formula)
+            self.quantities.append(q)
+
+    @staticmethod
+    def new_timestep():
+        return {'_units': InputUnitsInfo()}
+
+    def load_timestep_vars(self, f, tindex, tsdata):
+        complete = True
+        units = tsdata['_units']
+
+        for vn in self.loaded_vars:
+            if vn in tsdata:
+                if vn in f.variables:
+                    die('Error: duplicate input variable {}.', vn)
+            else:
+                try:
+                    var = f.variables[vn]
+                except KeyError:
+                    complete = False
+                    continue
+
+                tsdata[vn] = var[tindex, ..., self.regridder.ys,
+                        self.regridder.xs]
+                setattr(units, vn, var.units)
+
+        return complete
+
+    def validate_timestep(self, tsdata):
+        for vs, val in self.validations.items():
+            if not eval(val, tsdata):
+                die('Input validation {} failed!', vs)
+
+    def calc_timestep_species(self, tsdata):
+        for pp in self.preprocessors.values():
+            exec(pp, tsdata)
+
+        for q in self.quantities:
+            value = eval(q.code, tsdata)
+            unit = q.unit
+
+            # Assign default unit with directly loaded variables
+            if unit is None:
+                unit = getattr(tsdata['_units'], q.formula)
+
+            # Check for necessary unit conversion
+            value, unit = UnitConverter.convert(value, unit)
+
+            yield q.name, value, unit, q.attrs
+

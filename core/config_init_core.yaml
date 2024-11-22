@@ -72,4 +72,15 @@ radiation: #empty = off by default, switched on by tasks or manually
 
 chem_species: [] #empty list = disabled chemistry
 
+chem_units:
+    targets:
+        ppmv: 'ppm'
+        kgm3: 'kg/m3'
+    regexes:
+        ppmv: '^ppmv?$'
+        ppbv: '^ppbv?$'
+        ugm3: '^(micrograms?|[uµ]g)\s*(m(et(re|er)s?)\s*\^?\s*-3|/m(et(re|er)s?)\s*\^?\s*3)\s*$'
+        gm3:  '^g(rams?)?\s*(m(et(re|er)s?)\s*\^?\s*-3|/m(et(re|er)s?)\s*\^?\s*3)\s*$'
+        kgm3: '^(kilograms?|kg)\s*(m(et(re|er)s?)\s*\^?\s*-3|/m(et(re|er)s?)\s*\^?\s*3)\s*$'
+
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)

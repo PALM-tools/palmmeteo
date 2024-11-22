@@ -11,8 +11,8 @@ from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg
 from core.runtime import rt
 from core.utils import ensure_dimension
+from core.library import QuantityCalculator
 from .wrf_utils import BilinearRegridder, radius
-from .camx import CAMxConvertor
 import pyproj
 
 ax_ = np.newaxis
@@ -29,7 +29,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Importing CAMS data...')
 
         filled = [False] * rt.nt
-        timesteps = [CAMxConvertor.new_timestep() for t in rt.times]
+        timesteps = [QuantityCalculator.new_timestep() for t in rt.times]
         zcoord = [None] * rt.nt
 
         # Process input files
@@ -63,7 +63,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             rt.regrid_cams = BilinearRegridder(palm_in_cams_x, palm_in_cams_y, preloaded=True)
             del palm_in_cams_y, palm_in_cams_x
 
-            convertor = CAMxConvertor(cfg.chem_species,
+            convertor = QuantityCalculator(cfg.chem_species,
                                       cfg.cams.output_var_defs, cfg.cams.preprocessors,
                                       rt.regrid_cams)
 
@@ -101,10 +101,12 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 # Save computed variables
                 convertor.validate_timestep(tsdata)
-                for sn, v, unit in convertor.calc_timestep_species(tsdata):
+                for sn, v, unit, attrs in convertor.calc_timestep_species(tsdata):
                     v_out = (fout.variables[sn] if i
                              else fout.createVariable(sn, 'f4', chem_dims))
                     v_out.units = unit
+                    if attrs:
+                        v_out.setncatts(attrs)
                     v_out[i, :, :, :] = v
 
     def interpolate_horiz(self, fout, *args, **kwargs):
@@ -128,7 +130,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                                 v_in.dimensions))
                 v_out = fout.createVariable(varname, 'f4', v_in.dimensions[:-2]
                         + ('y', 'x'))
-                v_out.units = v_in.units
+                v_out.setncatts({a: v_in.getncattr(a) for a in v_in.ncattrs()})
             for it in range(rt.nt):
                 verbose('Processing timestep {}', it)
 
@@ -153,8 +155,9 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             ensure_dimension(fout, 'z', rt.nz)
 
             for vn in cfg.chem_species:
+                v_in = fin.variables[vn]
                 var = fout.createVariable(vn, 'f4', ('time', 'z', 'y', 'x'))
-                var.units = fin.variables[vn].units
+                var.setncatts({a: v_in.getncattr(a) for a in v_in.ncattrs()})
 
             for it in range(rt.nt):
                 verbose('Processing timestep {}', it)

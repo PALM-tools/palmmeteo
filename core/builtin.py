@@ -289,20 +289,53 @@ class WritePlugin(WritePluginMixin):
                             fov['ls_forcing_vg'][it] = fiv['ls_forcing_vg'][it]
 
                 # Write chemical boundary conds
-                for vn in cfg.chem_species:
-                    vin = fiv[vn]
+                if cfg.chem_species:
+                    log('Writing values for chemistry variables')
 
-                    # PALM doesn't support 3D LOD=2 init for chem yet, we have
-                    # to average the field
-                    var = mkvar('init_atmosphere_'+vn, ('z',), 1, vin.units)
-                    var[:] = vin[0,:,:,:].mean(axis=(1,2))
+                    convert_to_ppmv = set()
+                    for vn in cfg.chem_species:
+                        vin = fiv[vn]
 
-                    if not rt.nested_domain:
-                        mkvar('ls_forcing_left_'+vn,  ('time','z','y'), 2, vin.units)[:] = vin[:,:,:,0]
-                        mkvar('ls_forcing_right_'+vn, ('time','z','y'), 2, vin.units)[:] = vin[:,:,:,-1]
-                        mkvar('ls_forcing_south_'+vn, ('time','z','x'), 2, vin.units)[:] = vin[:,:,0,:]
-                        mkvar('ls_forcing_north_'+vn, ('time','z','x'), 2, vin.units)[:] = vin[:,:,-1,:]
-                        mkvar('ls_forcing_top_'+vn,   ('time','y','x'), 2, vin.units)[:] = vin[:,-1,:,:]
+                        unit = vin.unit
+                        if (unit == cfg.chem_units.targets.kgm3
+                                and not getattr(vin, 'non_gasphase', False)):
+                            convert_to_ppmv.add(vn)
+                            unit = cfg.chem_units.targets.ppmv
+
+                        mkvar('init_atmosphere_'+vn, ('z',), 1, unit, attrs_from=vin)
+                        if not rt.nested_domain:
+                            mkvar('ls_forcing_left_'+vn,  ('time','z','y'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_right_'+vn, ('time','z','y'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_south_'+vn, ('time','z','x'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_north_'+vn, ('time','z','x'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_top_'+vn,   ('time','y','x'), 2, unit, attrs_from=vin)
+
+                    for it in range(1 if rt.nested_domain else rt.nt):
+                        verbose('Processing timestep {}', it)
+
+                        if convert_to_ppmv:
+                            # calculate molar volume V/n = R*T/p
+                            pres = fiv['palm_hydrostatic_pressure'][it,:][:,ax_,ax_]
+                            t = fiv['init_atmosphere_pt'][it,:,:,:] * PalmPhysics.exner(pres)
+                            mol_vol = t * PalmPhysics.R / pres # m3/mol
+
+                        for vn in cfg.chem_species:
+                            # Load timestep
+                            v = fiv[vn][it,:,:,:]
+
+                            if vn in convert_to_ppmv:
+                                v *= mol_vol * (1e9 / fiv.molar_mass) # kg/g*1e9 = 1e6
+
+                            # PALM doesn't support 3D LOD=2 init for chem yet, we have
+                            # to average the field
+                            fov['init_atmosphere_'+vn][:] = v.mean(axis=(1,2))
+
+                            if not rt.nested_domain:
+                                fov['ls_forcing_left_' +vn][it] = v[:,:,0]
+                                fov['ls_forcing_right_'+vn][it] = v[:,:,-1]
+                                fov['ls_forcing_south_'+vn][it] = v[:,0,:]
+                                fov['ls_forcing_north_'+vn][it] = v[:,-1,:]
+                                fov['ls_forcing_top_'  +vn][it] = v[-1,:,:]
 
             if cfg.radiation:
                 # Separate time dimension for radiation
