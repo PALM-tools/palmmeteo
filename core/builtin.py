@@ -296,9 +296,12 @@ class WritePlugin(WritePluginMixin):
                     for vn in cfg.chem_species:
                         vin = fiv[vn]
 
-                        unit = vin.unit
+                        unit = vin.units
                         if (unit == cfg.chem_units.targets.kgm3
                                 and not getattr(vin, 'non_gasphase', False)):
+                            if not hasattr(vin, 'molar_mass'):
+                                die('Variable {} needs to be converted to ppmv but it '
+                                        'is missing molar mass!', vn)
                             convert_to_ppmv.add(vn)
                             unit = cfg.chem_units.targets.ppmv
 
@@ -309,6 +312,9 @@ class WritePlugin(WritePluginMixin):
                             mkvar('ls_forcing_south_'+vn, ('time','z','x'), 2, unit, attrs_from=vin)
                             mkvar('ls_forcing_north_'+vn, ('time','z','x'), 2, unit, attrs_from=vin)
                             mkvar('ls_forcing_top_'+vn,   ('time','y','x'), 2, unit, attrs_from=vin)
+
+                    if convert_to_ppmv:
+                        log('Chemical quantities converted from kg/m3 to ppmv: {}', convert_to_ppmv)
 
                     for it in range(1 if rt.nested_domain else rt.nt):
                         verbose('Processing timestep {}', it)
@@ -324,7 +330,7 @@ class WritePlugin(WritePluginMixin):
                             v = fiv[vn][it,:,:,:]
 
                             if vn in convert_to_ppmv:
-                                v *= mol_vol * (1e9 / fiv.molar_mass) # kg/g*1e9 = 1e6
+                                v *= mol_vol * (1e9 / fiv[vn].molar_mass) # kg/g*1e9 = 1e6
 
                             # PALM doesn't support 3D LOD=2 init for chem yet, we have
                             # to average the field

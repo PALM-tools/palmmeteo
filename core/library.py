@@ -86,29 +86,35 @@ class UnitConverter:
        self.re_gm3  = re.compile(cfg.chem_units.regexes.gm3)
        self.re_kgm3 = re.compile(cfg.chem_units.regexes.kgm3)
 
-    def convert_auto(self, value, unit):
+    def convert_auto(self, name, value, unit):
         # volumetric fractional
         if self.re_ppmv.match(unit):
+            verbose('Unit {} for variable {} understood as ppmv', unit, name)
             return value, cfg.chem_units.targets.ppmv
         if self.re_ppbv.match(unit):
+            verbose('Converting {} from {} (understood as ppbv) to ppmv', name, unit)
             return value*1e-3, cfg.chem_units.targets.ppmv
 
         # mass per volume
         if self.re_ugm3.match(unit):
+            verbose('Converting {} from {} (understood as ug/m3) to kg/m3', name, unit)
             return value*1e-9, cfg.chem_units.targets.kgm3
         if self.re_gm3.match(unit):
+            verbose('Converting {} from {} (understood as g/m3) to kg/m3', name, unit)
             return value*1e-3, cfg.chem_units.targets.kgm3
         if self.re_kgm3.match(unit):
+            verbose('Unit {} for variable {} understood as kg/m3', unit, name)
             return value, cfg.chem_units.targets.kgm3
 
         # default
+        warn('Unknown unit {} for variable {} - keeping.', unit, name)
         return value, unit
 
     @classmethod
-    def convert(cls, value, unit):
+    def convert(cls, name, value, unit):
         if cls.loaded is None:
             cls.loaded = cls()
-        return cls.loaded.convert_auto(value, unit)
+        return cls.loaded.convert_auto(name, value, unit)
 
 class InputUnitsInfo:
     pass
@@ -135,7 +141,7 @@ class QuantityCalculator:
             q.name = qname
 
             self.loaded_vars.update(vdef.loaded_vars)
-            if len(vdef.loaded_vars == 1) and 'formula' not in vdef:
+            if len(vdef.loaded_vars) == 1 and 'formula' not in vdef:
                 # When we have exactly 1 loaded variable and we do not define
                 # an explicit formula, we assume that the formula is identity
                 # for that variable and the unit is taken from the input
@@ -226,7 +232,7 @@ class QuantityCalculator:
                 unit = getattr(tsdata['_units'], q.formula)
 
             # Check for necessary unit conversion
-            value, unit = UnitConverter.convert(value, unit)
+            value, unit = UnitConverter.convert(q.name, value, unit)
 
             yield q.name, value, unit, q.attrs
 
