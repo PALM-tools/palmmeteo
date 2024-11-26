@@ -50,6 +50,11 @@ wrf:
 # malicious configuration files. We assume that the users know what they are
 # doing and they do not run arbitrary code from the internet.
 camx:
+    # True: model grid is Lambert Conformal Conic from the coupled WRF model.
+    # This uses bilinear inteprolation based on WRF-specific ellipsoid. False
+    # (default): use universal triangular interpolation.
+    uses_wrf_lambert_grid = False
+
     # Python-code checks on input file variables and attributes. May also be
     # extended by individual output variables.
     validations: []
@@ -422,7 +427,10 @@ icon2:
     # For aggregated values, the last horizon is exactly 1 timestep further.
     input_fcst_horizon_range: [0 h, 2 h]
 
-    interpolation_buffer: 20.0 #km
+    # Distance [km] for selecting nearby grid points usable for interpolation.
+    # Recommended value: original grid resolution × 3
+    point_selection_buffer: 20.0
+
     radiation_smoothing_distance: 30.0 #km
 
     transition_level: 2000.0 #m above origin_z

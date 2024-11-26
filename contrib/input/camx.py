@@ -10,11 +10,10 @@ from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMix
 from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg
 from core.runtime import rt
-from core.utils import ensure_dimension
-from core.library import QuantityCalculator
+from core.utils import ensure_dimension, ax_
+from core.library import QuantityCalculator, TriRegridder, verify_palm_hinterp
 from .wrf_utils import CAMxCoordTransform, BilinearRegridder
 
-ax_ = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
 
 
@@ -76,11 +75,30 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 if first:
                     # coordinate projection
                     verbose('Loading projection and preparing regridder')
-                    rt.trans_camx = CAMxCoordTransform(fin)
-                    palm_in_camx_y, palm_in_camx_x = rt.trans_camx.latlon_to_ji(
-                                                        rt.palm_grid_lat, rt.palm_grid_lon)
-                    rt.regrid_camx = BilinearRegridder(palm_in_camx_x, palm_in_camx_y, preloaded=True)
-                    del palm_in_camx_y, palm_in_camx_x
+                    if cfg.camx.uses_wrf_lambert_grid:
+                        rt.trans_camx = CAMxCoordTransform(fin)
+                        palm_in_camx_y, palm_in_camx_x = rt.trans_camx.latlon_to_ji(
+                                                            rt.palm_grid_lat, rt.palm_grid_lon)
+                        rt.regrid_camx = BilinearRegridder(palm_in_camx_x, palm_in_camx_y, preloaded=True)
+                        del palm_in_camx_y, palm_in_camx_x
+
+                        if cfg.hinterp.verify:
+                            verbose('Verifying horizontal inteprolation.')
+                            verify_palm_hinterp(rt.regrid_camx,
+                                                rt.regrid_camx.loader(fin.variables['XLAT'])[0],
+                                                rt.regrid_camx.loader(fin.variables['XLONG'])[0])
+                    else:
+                        clat = fin.variables['latitude'][:]
+                        clon = fin.variables['longitude'][:]
+                        resol = max(fin.XCELL, fin.YCELL) / 1000.
+                        rt.regrid_camx = TriRegridder(clat, clon,
+                                                      rt.palm_grid_lat, rt.palm_grid_lon,
+                                                      resol*3)
+                        if cfg.hinterp.verify:
+                            verbose('Verifying horizontal inteprolation.')
+                            verify_palm_hinterp(rt.regrid_camx,
+                                                rt.regrid_camx.loader(clat)[()],
+                                                rt.regrid_camx.loader(clon)[()])
 
                     convertor = QuantityCalculator(cfg.chem_species,
                             cfg.camx.output_var_defs, cfg.camx.preprocessors,
@@ -90,8 +108,11 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     ensure_dimension(fout, 'time', rt.nt)
                     ensure_dimension(fout, 'z_chem', fix_hgt.shape[0]
                             if vz is None else vz.shape[1])
-                    ensure_dimension(fout, 'y_chem', rt.regrid_camx.ylen)
-                    ensure_dimension(fout, 'x_chem', rt.regrid_camx.xlen)
+                    if cfg.camx.uses_wrf_lambert_grid:
+                        ensure_dimension(fout, 'y_chem', rt.regrid_camx.ylen)
+                        ensure_dimension(fout, 'x_chem', rt.regrid_camx.xlen)
+                    else:
+                        ensure_dimension(fout, 'points_chem', rt.regrid_camx.npt)
                     chem_dims = ('time', 'z_chem', 'y_chem', 'x_chem')
 
                 for itout, itf in dts:
@@ -147,12 +168,19 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             # Create variables
             for varname in hvars:
                 v_in = fin.variables[varname]
-                if v_in.dimensions[-2:] != ('y_chem', 'x_chem'):
-                    raise RuntimeError('Unexpected dimensions for '
-                            'variable {}: {}!'.format(varname,
-                                v_in.dimensions))
-                v_out = fout.createVariable(varname, 'f4', v_in.dimensions[:-2]
-                        + ('y', 'x'))
+                if cfg.camx.uses_wrf_lambert_grid:
+                    if v_in.dimensions[-2:] != ('y_chem', 'x_chem'):
+                        raise RuntimeError('Unexpected dimensions for '
+                                'variable {}: {}!'.format(varname,
+                                    v_in.dimensions))
+                    dims = v_in.dimensions[:-2]
+                else:
+                    if v_in.dimensions[-1] != 'points_chem':
+                        raise RuntimeError('Unexpected dimensions for '
+                                'variable {}: {}!'.format(varname,
+                                    v_in.dimensions))
+                    dims = v_in.dimensions[:-1]
+                v_out = fout.createVariable(varname, 'f4', dims + ('y', 'x'))
                 v_out.setncatts({a: v_in.getncattr(a) for a in v_in.ncattrs()})
             for it in range(rt.nt):
                 verbose('Processing timestep {}', it)
