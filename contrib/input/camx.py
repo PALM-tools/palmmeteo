@@ -82,11 +82,11 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         rt.regrid_camx = BilinearRegridder(palm_in_camx_x, palm_in_camx_y, preloaded=True)
                         del palm_in_camx_y, palm_in_camx_x
 
-                        if cfg.hinterp.verify:
-                            verbose('Verifying horizontal inteprolation.')
+                        if cfg.hinterp.validate:
+                            verbose('Validating horizontal inteprolation.')
                             verify_palm_hinterp(rt.regrid_camx,
-                                                rt.regrid_camx.loader(fin.variables['XLAT'])[0],
-                                                rt.regrid_camx.loader(fin.variables['XLONG'])[0])
+                                                rt.regrid_camx.loader(fin.variables['latitude'])[()],
+                                                rt.regrid_camx.loader(fin.variables['longitude'])[()])
                     else:
                         clat = fin.variables['latitude'][:]
                         clon = fin.variables['longitude'][:]
@@ -94,8 +94,8 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         rt.regrid_camx = TriRegridder(clat, clon,
                                                       rt.palm_grid_lat, rt.palm_grid_lon,
                                                       resol*3)
-                        if cfg.hinterp.verify:
-                            verbose('Verifying horizontal inteprolation.')
+                        if cfg.hinterp.validate:
+                            verbose('Validating horizontal inteprolation.')
                             verify_palm_hinterp(rt.regrid_camx,
                                                 rt.regrid_camx.loader(clat)[()],
                                                 rt.regrid_camx.loader(clon)[()])
@@ -111,9 +111,10 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     if cfg.camx.uses_wrf_lambert_grid:
                         ensure_dimension(fout, 'y_chem', rt.regrid_camx.ylen)
                         ensure_dimension(fout, 'x_chem', rt.regrid_camx.xlen)
+                        chem_dims = ('time', 'z_chem', 'y_chem', 'x_chem')
                     else:
                         ensure_dimension(fout, 'points_chem', rt.regrid_camx.npt)
-                    chem_dims = ('time', 'z_chem', 'y_chem', 'x_chem')
+                        chem_dims = ('time', 'z_chem', 'points_chem')
 
                 for itout, itf in dts:
                     verbose('Importing timestep {} -> {}', itf, itout)
@@ -141,7 +142,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
         for i, tsdata in enumerate(timesteps):
             # Save heights
-            vz_out[i, :, :, :] = zcoord[i]
+            vz_out[i] = zcoord[i]
 
             # Save computed variables
             convertor.validate_timestep(tsdata)
@@ -151,7 +152,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 v_out.units = unit
                 if attrs:
                     v_out.setncatts(attrs)
-                v_out[i, :, :, :] = v
+                v_out[i] = v
 
     def interpolate_horiz(self, fout, *args, **kwargs):
         log('Performing CAMx horizontal interpolation')

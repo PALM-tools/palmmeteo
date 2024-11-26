@@ -53,7 +53,7 @@ camx:
     # True: model grid is Lambert Conformal Conic from the coupled WRF model.
     # This uses bilinear inteprolation based on WRF-specific ellipsoid. False
     # (default): use universal triangular interpolation.
-    uses_wrf_lambert_grid = False
+    uses_wrf_lambert_grid: false
 
     # Python-code checks on input file variables and attributes. May also be
     # extended by individual output variables.
