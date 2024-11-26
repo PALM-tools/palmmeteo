@@ -4,89 +4,20 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 import scipy.ndimage as ndimage
 import netCDF4
-from pyproj import transform
 from metpy.interpolate import interpolate_1d
-from scipy.spatial import Delaunay
 
 from core.plugins import SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg, ConfigError, parse_duration
 from core.runtime import rt
-from core.utils import ensure_dimension
-from core.library import PalmPhysics
+from core.utils import ensure_dimension, ax_, rad
+from core.library import PalmPhysics, TriRegridder, verify_palm_hinterp
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
 
-ax_ = np.newaxis
-rad = np.pi / 180.
 tstr0 = 'minutes since '
-
-def barycentric(tri, pt, isimp):
-    """Calculate barycentric coordinates of a multi-dimensional point set
-    within a triangulation.
-
-    :param pt:      selection of points (multi-dimensional)
-    :param isimp:   selection of simplices (same dims as pt)
-    """
-    sel_transform = tri.transform[isimp,:,:] #transform(simp, bary, cart) -> (pt, bary, cart)
-
-    # based on help(Delaunay), changing np.dot to selection among dims, using
-    # selected simplices
-    fact2 = (pt - sel_transform[...,2,:])[...,ax_,:]
-    bary0 = (sel_transform[...,:2,:] * fact2).sum(axis=-1) #(pt, bary[:2])
-
-    # add third barycentric coordinate
-    bary = np.concatenate((bary0, (1.-bary0.sum(axis=-1))[...,ax_]), axis=-1)
-    return bary
-
-class TriRegridder:
-    def __init__(self, clat, clon, ylat, xlon):
-        #ylat = ylat[0,:5]
-        #xlon = xlon[0,:5]
-        # Simple Mercator-like stretching for equidistant lat/lon coords
-        self.lon_coef = np.cos(ylat.mean()*rad)
-
-        deg_range = cfg.icon2.interpolation_buffer / (PalmPhysics.radius*rad)
-        lat0 = ylat.min() - deg_range
-        lat1 = ylat.max() + deg_range
-        deg_range /= self.lon_coef
-        lon0 = xlon.min() - deg_range
-        lon1 = xlon.max() + deg_range
-        verbose(f'Using range lat = {lat0} .. {lat1}, lon = {lon0} .. {lon1}.')
-
-        verbose('Loading coords')
-        self.ptmask = (lat0 <= clat) & (clat <= lat1) & (lon0 <= clon) & (clon <= lon1)
-        self.npt = self.ptmask.sum()
-
-        verbose(f'Selected {self.npt} out of {len(clat)} points for triangulation.')
-        sclat = clat[self.ptmask]
-        sclon = clon[self.ptmask]
-        sclonx = sclon * self.lon_coef
-        tri = Delaunay(np.transpose([sclat, sclonx]))
-
-        # identify simplices
-        xlonx = xlon * self.lon_coef
-        pt = np.concatenate((ylat[:,:,ax_], xlonx[:,:,ax_]), axis=2)
-        isimp = tri.find_simplex(pt)
-        assert (isimp >= 0).all()
-
-        self.bary = barycentric(tri, pt, isimp)
-
-        self.simp = tri.simplices[isimp] #(pt,bary)
-
-        # find global coords
-        nz = np.nonzero(self.ptmask)[0]
-        self.iglob = nz[self.simp]
-
-    def regrid(self, data):
-        sel_data = data[...,self.simp] #(pt,bary)
-        return (sel_data * self.bary).sum(axis=-1)
-
-    def regrid_full(self, data):
-        sel_data = data[...,self.iglob] #(pt,bary)
-        return (sel_data * self.bary).sum(axis=-1)
 
 def lpad(var):
     """Pad variable in first dimension by repeating lowest layer twice"""
@@ -235,7 +166,15 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
                     clat = fin.variables['CLAT'][0]
                     clon = fin.variables['CLON'][0]
-                    rt.regrid_icon = TriRegridder(clat, clon, rt.palm_grid_lat, rt.palm_grid_lon)
+                    rt.regrid_icon = TriRegridder(clat, clon,
+                                                  rt.palm_grid_lat, rt.palm_grid_lon,
+                                                  cfg.icon2.point_selection_buffer)
+
+                    if cfg.hinterp.verify:
+                        verbose('Verifying horizontal inteprolation.')
+                        verify_palm_hinterp(rt.regrid_icon,
+                                            rt.regrid_icon.loader(clat)[()],
+                                            rt.regrid_icon.loader(clon)[()])
 
                     # dimensions
                     ensure_dimension(fout, 'time', rt.nt)

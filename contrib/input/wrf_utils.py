@@ -31,6 +31,7 @@ import numpy as np
 import pyproj
 import scipy.ndimage as ndimage
 import netCDF4
+from core.utils import SliceExtender
 from core.library import PalmPhysics
 
 import metpy
@@ -245,6 +246,12 @@ class BilinearRegridder(object):
             yd  * xdd, #wy1x0
             yd  * xd , #wy1x1
             ])
+
+    def loader(self, obj):
+        """Prepares a slicing object which automatically adds selector indices
+        for this regridder.
+        """
+        return SliceExtender(obj, self.ys, self.xs)
 
     def regrid(self, data):
         # data may contain additional dimensions (before Y,X)

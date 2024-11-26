@@ -83,4 +83,7 @@ chem_units:
         gm3:  '^g(rams?)?\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\s*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
         kgm3: '^(kilograms?|kg)\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\s*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
 
+hinterp:
+    validate = False
+
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)

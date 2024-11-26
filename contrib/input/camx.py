@@ -98,8 +98,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     verbose('Importing timestep {} -> {}', itf, itout)
 
                     # TODO: check for dicrepancy among input files
-                    zcoord[itout] = fix_hgt if vz is None else vz[itf, :,
-                            rt.regrid_camx.ys, rt.regrid_camx.xs]
+                    zcoord[itout] = fix_hgt if vz is None else rt.regrid_camx.loader(vz)[itf, :]
 
                     filled[itout] = convertor.load_timestep_vars(fin, itf,
                             timesteps[itout])

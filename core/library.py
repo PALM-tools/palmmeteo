@@ -6,8 +6,14 @@
 import datetime
 import re
 import numpy as np
-from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg
+from .logging import die, warn, log, verbose, log_output
+from .config import cfg
+from .runtime import rt
+from .utils import ax_, rad, SliceExtender
+from scipy.spatial import Delaunay
+
+utc = datetime.timezone.utc
+utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
 
 class PalmPhysics:
     """Physics calculations with defined constants
@@ -70,10 +76,6 @@ class PalmPhysics:
         """Reciprocal of the Exner function"""
 
         return (cls.p0/p)**cls.rd_d_cp
-
-
-utc = datetime.timezone.utc
-utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
 
 
 class UnitConverter:
@@ -208,8 +210,7 @@ class QuantityCalculator:
                     complete = False
                     continue
 
-                tsdata[vn] = var[tindex, ..., self.regridder.ys,
-                        self.regridder.xs]
+                tsdata[vn] = self.regridder.loader(var)[tindex,...]
                 setattr(units, vn, var.units)
 
         return complete
@@ -236,3 +237,100 @@ class QuantityCalculator:
 
             yield q.name, value, unit, q.attrs
 
+
+def barycentric(tri, pt, isimp):
+    """Calculate barycentric coordinates of a multi-dimensional point set
+    within a triangulation.
+
+    :param pt:      selection of points (multi-dimensional)
+    :param isimp:   selection of simplices (same dims as pt)
+    """
+    sel_transform = tri.transform[isimp,:,:] #transform(simp, bary, cart) -> (pt, bary, cart)
+
+    # based on help(Delaunay), changing np.dot to selection among dims, using
+    # selected simplices
+    fact2 = (pt - sel_transform[...,2,:])[...,ax_,:]
+    bary0 = (sel_transform[...,:2,:] * fact2).sum(axis=-1) #(pt, bary[:2])
+
+    # add third barycentric coordinate
+    bary = np.concatenate((bary0, (1.-bary0.sum(axis=-1))[...,ax_]), axis=-1)
+    return bary
+
+class TriRegridder:
+    """Universal regridder which uses Delaunay triangulation and barycentric
+    coordinate interpolation.
+
+    Works on any grid - triangular, rectangular or unstructured. The only
+    requirements are the arrays of latitude and longitude coordinates. The grid
+    arrays may be organized as 1- or 2-dimensional.
+    """
+    def __init__(self, clat, clon, ylat, xlon, buffer):
+        #ylat = ylat[0,:5]
+        #xlon = xlon[0,:5]
+        # Simple Mercator-like stretching for equidistant lat/lon coords
+        self.lon_coef = np.cos(ylat.mean()*rad)
+
+        deg_range = buffer / (PalmPhysics.radius*rad)
+        lat0 = ylat.min() - deg_range
+        lat1 = ylat.max() + deg_range
+        deg_range /= self.lon_coef
+        lon0 = xlon.min() - deg_range
+        lon1 = xlon.max() + deg_range
+        verbose(f'Using range lat = {lat0} .. {lat1}, lon = {lon0} .. {lon1}.')
+
+        verbose('Loading coords')
+        self.ptmask = (lat0 <= clat) & (clat <= lat1) & (lon0 <= clon) & (clon <= lon1)
+        self.npt = self.ptmask.sum()
+
+        verbose(f'Selected {self.npt} out of {len(clat)} points for triangulation.')
+        sclat = clat[self.ptmask]
+        sclon = clon[self.ptmask]
+        sclonx = sclon * self.lon_coef
+        tri = Delaunay(np.transpose([sclat, sclonx]))
+
+        # identify simplices
+        xlonx = xlon * self.lon_coef
+        pt = np.concatenate((ylat[:,:,ax_], xlonx[:,:,ax_]), axis=2)
+        isimp = tri.find_simplex(pt)
+        assert (isimp >= 0).all()
+
+        self.bary = barycentric(tri, pt, isimp)
+
+        self.simp = tri.simplices[isimp] #(pt,bary)
+
+        # find global coords
+        nz = np.nonzero(self.ptmask)[0]
+        self.iglob = nz[self.simp]
+
+    def loader(self, obj):
+        """Prepares a slicing object which automatically adds selector indices
+        for this regridder.
+        """
+        return SliceExtender(obj, self.ptmask)
+
+    def regrid(self, data):
+        """Regrid from point set selected using ptmask"""
+
+        sel_data = data[...,self.simp] #(pt,bary)
+        return (sel_data * self.bary).sum(axis=-1)
+
+    def regrid_full(self, data):
+        """Regrid from full source point set"""
+
+        sel_data = data[...,self.iglob] #(pt,bary)
+        return (sel_data * self.bary).sum(axis=-1)
+
+def verify_palm_hinterp(regridder, lats, lons):
+    """Regrids source lat+lon coordinates to PALM coordinates using the regridder and verifies the result."""
+
+    diff = regridder.regrid(lats) - rt.palm_grid_lat
+    log('Regridder verification for latitudes:  Error: {:10.6f} .. {:10.6f} '
+        '(bias={:10.6f}, MAE={:10.6f}, RMSE={:10.6f}).',
+        diff.min(), diff.max(), diff.mean(), np.abs(diff).mean(),
+        np.sqrt(np.square(diff).mean()))
+
+    diff = regridder.regrid(lons) - rt.palm_grid_lon
+    log('Regridder verification for longitudes: Error: {:10.6f} .. {:10.6f} '
+        '(bias={:10.6f}, MAE={:10.6f}, RMSE={:10.6f}).',
+        diff.min(), diff.max(), diff.mean(), np.abs(diff).mean(),
+        np.sqrt(np.square(diff).mean()))
