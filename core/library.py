@@ -9,7 +9,7 @@ import numpy as np
 from .logging import die, warn, log, verbose, log_output
 from .config import cfg
 from .runtime import rt
-from .utils import ax_, rad, SliceExtender
+from .utils import ax_, rad, SliceBoolExtender
 from scipy.spatial import Delaunay
 
 utc = datetime.timezone.utc
@@ -278,13 +278,34 @@ class TriRegridder:
         lon1 = xlon.max() + deg_range
         verbose(f'Using range lat = {lat0} .. {lat1}, lon = {lon0} .. {lon1}.')
 
-        verbose('Loading coords')
-        self.ptmask = (lat0 <= clat) & (clat <= lat1) & (lon0 <= clon) & (clon <= lon1)
-        self.npt = self.ptmask.sum()
+        verbose('Selecting points for triangulation.')
+        ptmask_full = (lat0 <= clat) & (clat <= lat1) & (lon0 <= clon) & (clon <= lon1)
+        self.ndim = len(ptmask_full.shape)
+        self.npt = ptmask_full.sum()
+        if not self.npt:
+            raise ValueError('No points for target area found in the input data!')
 
-        verbose(f'Selected {self.npt} out of {len(clat)} points for triangulation.')
-        sclat = clat[self.ptmask]
-        sclon = clon[self.ptmask]
+        # Multidimensional coordinates. Needs per-dimension slices for
+        # efficient loading from NetCDF.
+        counts = []
+        slices = []
+        for iax, nax in enumerate(ptmask_full.shape):
+            ax_nonzero = ptmask_full.sum(axis=tuple(n for n in range(self.ndim) if n != iax),
+                    dtype=bool)
+            ax0 = ax_nonzero.argmax()
+            ax1 = nax - ax_nonzero[::-1].argmax()
+            slices.append(slice(ax0, ax1))
+            counts.append((ax1-ax0, nax))
+        self.slices = tuple(slices)
+        self.ptmask = ptmask_full[self.slices]
+        verbose(f'Selected {self.npt} points out of {clat.size} total in {self.ndim} dimensions.')
+        verbose('Pre-selection using per-dimension slices: {} from {} ({}).',
+                self.ptmask.size, clat.size,
+                ', '.join(f'{ns} from {nt}' for ns, nt in counts))
+
+        verbose('Triangulating.')
+        sclat = clat[ptmask_full]
+        sclon = clon[ptmask_full]
         sclonx = sclon * self.lon_coef
         tri = Delaunay(np.transpose([sclat, sclonx]))
 
@@ -298,39 +319,31 @@ class TriRegridder:
 
         self.simp = tri.simplices[isimp] #(pt,bary)
 
-        # find global coords
-        nz = np.nonzero(self.ptmask)[0]
-        self.iglob = nz[self.simp]
-
     def loader(self, obj):
         """Prepares a slicing object which automatically adds selector indices
         for this regridder.
         """
-        return SliceExtender(obj, self.ptmask)
+        return SliceBoolExtender(obj, self.slices, self.ptmask)
 
     def regrid(self, data):
-        """Regrid from point set selected using ptmask"""
+        """Regrid from point set selected using loader"""
 
         sel_data = data[...,self.simp] #(pt,bary)
-        return (sel_data * self.bary).sum(axis=-1)
-
-    def regrid_full(self, data):
-        """Regrid from full source point set"""
-
-        sel_data = data[...,self.iglob] #(pt,bary)
         return (sel_data * self.bary).sum(axis=-1)
 
 def verify_palm_hinterp(regridder, lats, lons):
     """Regrids source lat+lon coordinates to PALM coordinates using the regridder and verifies the result."""
 
     diff = regridder.regrid(lats) - rt.palm_grid_lat
-    log('Regridder verification for latitudes:  Error: {:10.6f} .. {:10.6f} '
-        '(bias={:10.6f}, MAE={:10.6f}, RMSE={:10.6f}).',
+    log('Regridder verification for latitudes:  Error [deg]: {:9.3g} .. {:9.3g} '
+        '(bias={:9.3g}, MAE={:8.3g}, RMSE={:8.3g}).',
         diff.min(), diff.max(), diff.mean(), np.abs(diff).mean(),
         np.sqrt(np.square(diff).mean()))
 
     diff = regridder.regrid(lons) - rt.palm_grid_lon
-    log('Regridder verification for longitudes: Error: {:10.6f} .. {:10.6f} '
-        '(bias={:10.6f}, MAE={:10.6f}, RMSE={:10.6f}).',
+    log('Regridder verification for longitudes: Error [deg]: {:9.3g} .. {:9.3g} '
+        '(bias={:9.3g}, MAE={:8.3g}, RMSE={:8.3g}).',
         diff.min(), diff.max(), diff.mean(), np.abs(diff).mean(),
         np.sqrt(np.square(diff).mean()))
+
+    verbose('NOTE: 1 metre =~ 0.9e-5 degrees of latitudes.')

@@ -98,3 +98,18 @@ class SliceExtender:
             return self.slice_obj[key+self.slices]
         else:
             return self.slice_obj[(key,)+self.slices]
+
+class SliceBoolExtender:
+    __slots__ = ['slice_obj', 'slices', 'boolindex']
+
+    def __init__(self, slice_obj, slices, boolindex):
+        self.slice_obj = slice_obj
+        self.slices = slices
+        self.boolindex = boolindex
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            v = self.slice_obj[key+self.slices]
+        else:
+            v = self.slice_obj[(key,)+self.slices]
+        return v[...,self.boolindex]

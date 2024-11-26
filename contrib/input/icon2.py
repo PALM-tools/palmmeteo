@@ -170,8 +170,8 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                                                   rt.palm_grid_lat, rt.palm_grid_lon,
                                                   cfg.icon2.point_selection_buffer)
 
-                    if cfg.hinterp.verify:
-                        verbose('Verifying horizontal inteprolation.')
+                    if cfg.hinterp.validate:
+                        verbose('Validating horizontal inteprolation.')
                         verify_palm_hinterp(rt.regrid_icon,
                                             rt.regrid_icon.loader(clat)[()],
                                             rt.regrid_icon.loader(clon)[()])
