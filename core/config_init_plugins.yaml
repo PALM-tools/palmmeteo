@@ -65,6 +65,11 @@ wrf:
     # 1-d variables, direct copy
     vars_1d: [P_TOP, C3F, C4F, C3H, C4H, ZNW, ZNU]
 
+    rad_vars:
+        sw_tot_h: SWDOWN #may be also SWDNB
+        sw_dif_h: SWDDIF
+        lw_tot_h: GLW #may be also LWDNB
+
 # The CAMx configuration uses Python formulae, so it is obviously vulnerable to
 # malicious configuration files. We assume that the users know what they are
 # doing and they do not run arbitrary code from the internet.
