@@ -104,6 +104,12 @@ def getvar(f, varname, *args, **kwargs):
         return f.createVariable(varname, *args, **kwargs)
     return v
 
+def assert_dir(filepath):
+    """Creates a directory for an output file if it doesn't exist already."""
+
+    dn = os.path.dirname(filepath)
+    if not os.path.isdir(dn):
+        os.makedirs(dn)
 class SliceExtender:
     __slots__ = ['slice_obj', 'slices']
 

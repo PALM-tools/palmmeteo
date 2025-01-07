@@ -25,6 +25,7 @@ import core.plugins as plg
 from .logging import die, warn, log, verbose, configure_log
 from .config import load_config, cfg
 from .runtime import rt, basic_init
+from .utils import assert_dir
 
 
 def build_exec_queue(event, from_plugins):
@@ -45,14 +46,17 @@ def execute_event(event):
     try:
         # Prepare common files or other common processing for specific events
         if event == 'import':
+            assert_dir(rt.paths.imported)
             f = netCDF4.Dataset(rt.paths.imported, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
         elif event == 'hinterp':
+            assert_dir(rt.paths.hinterp)
             f = netCDF4.Dataset(rt.paths.hinterp, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
         elif event == 'vinterp':
+            assert_dir(rt.paths.vinterp)
             f = netCDF4.Dataset(rt.paths.vinterp, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
