@@ -38,9 +38,9 @@ paths:                                              #RELATIVE TO:
     static_driver: '{case}_static{domain}'          #palm_input
 
     intermediate: '../JOBS/{case}{scenario}/METEO'  #base
-    imported: 'import.nc'                           #intermediate
-    hinterp: 'hinterp.nc'                           #intermediate
-    vinterp: 'vinterp.nc'                           #intermediate
+    imported: 'import{domain}.nc'                   #intermediate
+    hinterp: 'hinterp{domain}.nc'                   #intermediate
+    vinterp: 'vinterp{domain}.nc'                   #intermediate
 
     wrf_output: '../JOBS/{case}{scenario}/WRF'      #base
     wrf_file_mask: 'wrfout_*.e000'                  #wrf_output
@@ -90,5 +90,19 @@ simulation:
 radiation: #empty = off by default, switched on by tasks or manually
 
 chem_species: [] #empty list = disabled chemistry
+
+chem_units:
+    targets:
+        ppmv: 'ppm'
+        kgm3: 'kg/m3'
+    regexes:
+        ppmv: '^ppmv?$'
+        ppbv: '^ppbv?$'
+        ugm3: '^(micrograms?|[uµ]g)\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
+        gm3:  '^g(rams?)?\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\s*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
+        kgm3: '^(kilograms?|kg)\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\s*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
+
+hinterp:
+    validate: false
 
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)

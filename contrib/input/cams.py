@@ -29,14 +29,14 @@ from metpy.interpolate import interpolate_1d
 
 from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg, ConfigError
+from core.config import cfg
 from core.runtime import rt
 from core.utils import ensure_dimension
+from core.library import QuantityCalculator
 from .wrf_utils import BilinearRegridder, radius
-from .camx import CAMxConvertor
 import pyproj
 
-_na = np.newaxis
+ax_ = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
 
 rdivcp = 0.286
@@ -50,11 +50,10 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Importing CAMS data...')
 
         filled = [False] * rt.nt
-        timesteps = [CAMxConvertor.new_timestep() for t in rt.times]
+        timesteps = [QuantityCalculator.new_timestep() for t in rt.times]
         zcoord = [None] * rt.nt
 
         # Process input files
-        first = True
         verbose('Parsing CAMS file {}', cfg.paths.cams_output)
         with netCDF4.Dataset(cfg.paths.cams_output, 'r') as fin:
             # Decode time and locate timesteps
@@ -85,7 +84,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             rt.regrid_cams = BilinearRegridder(palm_in_cams_x, palm_in_cams_y, preloaded=True)
             del palm_in_cams_y, palm_in_cams_x
 
-            convertor = CAMxConvertor(cfg.chem_species,
+            convertor = QuantityCalculator(cfg.chem_species,
                                       cfg.cams.output_var_defs, cfg.cams.preprocessors,
                                       rt.regrid_cams)
 
@@ -102,12 +101,12 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             for itout, itf in dts:
                 verbose('Importing timestep {} -> {}', itf, itout)
                 verbose('\tProcessing CAMS time {0}.'.format(dts[itout]))
-                zcoord[itout] = np.tile(height[:, np.newaxis, np.newaxis], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
+                zcoord[itout] = np.tile(height[:, ax_, ax_], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
 
                 filled[itout] = convertor.load_timestep_vars(fin, itf,
                                                              timesteps[itout])
 
-                vz_out[itout,:,:,:] = np.tile(height[:, np.newaxis, np.newaxis], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
+                vz_out[itout,:,:,:] = np.tile(height[:, ax_, ax_], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
 
             if not all(filled):
                 die('Could not find all CAMx variables for all times.\n'
@@ -123,10 +122,12 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 # Save computed variables
                 convertor.validate_timestep(tsdata)
-                for sn, v, unit in convertor.calc_timestep_species(tsdata):
+                for sn, v, unit, attrs in convertor.calc_timestep_species(tsdata):
                     v_out = (fout.variables[sn] if i
                              else fout.createVariable(sn, 'f4', chem_dims))
                     v_out.units = unit
+                    if attrs:
+                        v_out.setncatts(attrs)
                     v_out[i, :, :, :] = v
 
     def interpolate_horiz(self, fout, *args, **kwargs):
@@ -150,7 +151,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                                 v_in.dimensions))
                 v_out = fout.createVariable(varname, 'f4', v_in.dimensions[:-2]
                         + ('y', 'x'))
-                v_out.units = v_in.units
+                v_out.setncatts({a: v_in.getncattr(a) for a in v_in.ncattrs()})
             for it in range(rt.nt):
                 verbose('Processing timestep {}', it)
 
@@ -162,7 +163,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
     def interpolate_vert(self, fout, *args, **kwargs):
         log('Performing CAMS vertical interpolation')
-        terrain_rel = rt.terrain_rel[_na,:,:]
+        terrain_rel = rt.terrain_rel[ax_,:,:]
 
         with netCDF4.Dataset(rt.paths.hinterp) as fin:
             agl_chem = fin.variables['height_chem']
@@ -175,8 +176,9 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             ensure_dimension(fout, 'z', rt.nz)
 
             for vn in cfg.chem_species:
+                v_in = fin.variables[vn]
                 var = fout.createVariable(vn, 'f4', ('time', 'z', 'y', 'x'))
-                var.units = fin.variables[vn].units
+                var.setncatts({a: v_in.getncattr(a) for a in v_in.ncattrs()})
 
             for it in range(rt.nt):
                 verbose('Processing timestep {}', it)
@@ -196,28 +198,9 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         return_list_always=True)
                 del vardata
 
-                first = True
                 for vn, vd in zip(cfg.chem_species, vinterp):
                     v = fout.variables[vn]
-                    # perform unit conversion
-                    # firstly check if temperature and pressure are available
-                    if first:
-                        if not 'init_atmosphere_p' in fout.variables.keys():
-                            die('Pressure field is missing from interpolate file')
-                        if not 'init_atmosphere_pt' in fout.variables.keys():
-                            die('Potential temperature field is missing from interpolate file')
-
-                        # calculate molar volume n/V = p / R / T
-                        t = fout.variables['init_atmosphere_pt'][it, ...] / (
-                                                       (pressure_ref / fout.variables['init_atmosphere_p'][it, ...]) ** rdivcp)
-                        nV = fout.variables['init_atmosphere_p'][it, ...] / R / t
-
-                        first = False
-
-                    if cfg.cams.output_var_defs[vn].convert:
-                        v[it] = vd / cfg.cams.output_var_defs[vn].molar_mass / nV * ppm_conv
-                    else:
-                        v[it] = vd
+                    v[it] = vd
 
 class CAMSCoordTransform(object):
     'Coordinate transformer for CAMx files running from WRF'

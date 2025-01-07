@@ -19,14 +19,24 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
+"""
+A collection of simple, technical utilities.
+
+These utilities need to be stateless, i.e. they must not depend on config or
+runtime.
+"""
+
 import os
 import re
 from datetime import timedelta
+import numpy as np
 from .logging import die, warn, log, verbose
 
+ax_ = np.newaxis
+rad = np.pi / 180.
+td0 = timedelta(hours=0)
 
 fext_re = re.compile(r'\.(\d{3})$')
-td0 = timedelta(hours=0)
 
 def find_free_fname(fpath, overwrite=False):
     if not os.path.exists(fpath):
@@ -93,3 +103,31 @@ def getvar(f, varname, *args, **kwargs):
     except KeyError:
         return f.createVariable(varname, *args, **kwargs)
     return v
+
+class SliceExtender:
+    __slots__ = ['slice_obj', 'slices']
+
+    def __init__(self, slice_obj, *slices):
+        self.slice_obj = slice_obj
+        self.slices = slices
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            return self.slice_obj[key+self.slices]
+        else:
+            return self.slice_obj[(key,)+self.slices]
+
+class SliceBoolExtender:
+    __slots__ = ['slice_obj', 'slices', 'boolindex']
+
+    def __init__(self, slice_obj, slices, boolindex):
+        self.slice_obj = slice_obj
+        self.slices = slices
+        self.boolindex = boolindex
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            v = self.slice_obj[key+self.slices]
+        else:
+            v = self.slice_obj[(key,)+self.slices]
+        return v[...,self.boolindex]
