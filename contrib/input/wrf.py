@@ -460,14 +460,16 @@ class WRFRadPlugin(ImportPluginMixin):
 
                 # load radiation
                 if first:
-                    if 'SWDDIF' in fin.variables:
-                        verbose('WRF file does contain SWDDIF variable, adding diffuse component.')
+                    rad_vars = [cfg.wrf.rad_vars.sw_tot_h, cfg.wrf.rad_vars.lw_tot_h]
+                    if cfg.wrf.rad_vars.sw_dif_h in fin.variables:
+                        verbose('WRF file does contain {} variable, adding diffuse component.',
+                                cfg.wrf.rad_vars.sw_dif_h)
                         rt.has_rad_diffuse = True
-                        rad_vars = ['SWDOWN', 'GLW', 'SWDDIF']
+                        rad_vars.append(cfg.wrf.rad_vars.sw_dif_h)
                     else:
-                        verbose('WRF file does not contain SWDDIF variable, diffuse compoment will be estimated in PALM.')
+                        verbose('WRF file does not contain {} variable, diffuse compoment will be estimated in PALM.',
+                                cfg.wrf.rad_vars.sw_dif_h)
                         rt.has_rad_diffuse = False
-                        rad_vars = ['SWDOWN', 'GLW']
 
                 entry = [t]
                 for varname in rad_vars:
