@@ -203,16 +203,33 @@ class WritePlugin(WritePluginMixin):
                 mkvar('ls_forcing_north_w',  ('time', 'zw', 'x' ), 2)
                 mkvar('ls_forcing_top_w',    ('time', 'y',  'x' ), 2)
 
-            # prepare influx/outflux area sizes
-            zstag_all = np.r_[0., rt.z_levels_stag, rt.ztop]
-            zwidths = zstag_all[1:] - zstag_all[:-1]
-            verbose('Z widths: {}', zwidths)
-            areas_xb = (zwidths * rt.dy)[:,ax_]
-            areas_yb = (zwidths * rt.dx)[:,ax_]
-            areas_zb = rt.dx * rt.dy
-            area_boundaries = (areas_xb.sum()*rt.ny*2
-                    + areas_yb.sum()*rt.nx*2
-                    + areas_zb*rt.nx*rt.ny)
+                # prepare influx/outflux area sizes
+                zstag_all = np.r_[0., rt.z_levels_stag, rt.ztop]
+                zwidths = zstag_all[1:] - zstag_all[:-1]
+                verbose('Z widths: {}', zwidths)
+                areas_xb = (zwidths * rt.dy)[:,ax_]
+                areas_yb = (zwidths * rt.dx)[:,ax_]
+                areas_zb = rt.dx * rt.dy
+
+                tmask_left  = rt.terrain_mask[:, :, 0]
+                tmask_right = rt.terrain_mask[:, :, rt.nx-1]
+                tmask_south = rt.terrain_mask[:, 0, :]
+                tmask_north = rt.terrain_mask[:, rt.ny-1, :]
+                ntmask_left  = ~tmask_left
+                ntmask_right = ~tmask_right
+                ntmask_south = ~tmask_south
+                ntmask_north = ~tmask_north
+
+                area_boundaries = ((areas_xb * ntmask_left ).sum() +
+                                   (areas_xb * ntmask_right).sum() +
+                                   (areas_yb * ntmask_south).sum() +
+                                   (areas_yb * ntmask_north).sum() +
+                                   areas_zb*rt.nx*rt.ny)
+
+                log('NOTE: mass balancing is only valid for the '
+                        'Boussinesq approximation (PALM default). If '
+                        'approximation=anelastic is set in PALM, the '
+                        'balance will be wrong.')
 
             log('Writing values for initialization variables')
             with netCDF4.Dataset(rt.paths.vinterp) as fin:
@@ -256,9 +273,13 @@ class WritePlugin(WritePluginMixin):
 
                         # Perform mass balancing for U, V, W
                         uxleft = fiv['init_atmosphere_u'][it, :, :, 0]
+                        uxleft[tmask_left] = 0.
                         uxright = fiv['init_atmosphere_u'][it, :, :, rt.nx-1]
+                        uxright[tmask_right] = 0.
                         vysouth = fiv['init_atmosphere_v'][it, :, 0, :]
+                        vysouth[tmask_south] = 0.
                         vynorth = fiv['init_atmosphere_v'][it, :, rt.ny-1, :]
+                        vynorth[tmask_north] = 0.
                         wztop = fiv['init_atmosphere_w'][it, rt.nz-2, :, :]#nzw=nz-1
                         mass_disbalance = ((uxleft * areas_xb).sum()
                             - (uxright * areas_xb).sum()
@@ -268,10 +289,10 @@ class WritePlugin(WritePluginMixin):
                         mass_corr_v = mass_disbalance / area_boundaries
                         log('Mass disbalance: {0:8g} m3/s (avg = {1:8g} m/s)',
                             mass_disbalance, mass_corr_v)
-                        uxleft -= mass_corr_v
-                        uxright += mass_corr_v
-                        vysouth -= mass_corr_v
-                        vynorth += mass_corr_v
+                        uxleft[ntmask_left] -= mass_corr_v
+                        uxright[ntmask_right] += mass_corr_v
+                        vysouth[ntmask_south] -= mass_corr_v
+                        vynorth[ntmask_north] += mass_corr_v
                         wztop += mass_corr_v
 
                         # Verify mass balance
