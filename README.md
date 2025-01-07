@@ -118,4 +118,4 @@ in the project directory. See also the output of `./main.py -h`.
 PALM-METEO is distributed under the GNU GPL v3+ license (see the `LICENSE`
 file).  It was created by the Institute of Computer Science of the Czech
 Academy of Sciences (ICS CAS) with contributions by the Deutsche Wetterdienst
-(DWD).
+(DWD) and the Czech Hydrometeorological Institute (CHMI).

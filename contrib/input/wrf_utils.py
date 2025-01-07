@@ -1,28 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#------------------------------------------------------------------------------#
+# Copyright 2018-2024 Institute of Computer Science of the Czech Academy of
+# Sciences, Prague, Czech Republic. Authors: Pavel Krc, Martin Bures, Jaroslav
+# Resler.
 #
-# Scripts for processing of WRF and CAMx files to PALM dynamic driver
+# This file is part of PALM-METEO.
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# PALM-METEO is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# PALM-METEO is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-# Copyright 2018-2020 Institute of Computer Science
-#                     of the Czech Academy of Sciences, Prague
-# Authors: Krystof Eben, Jaroslav Resler, Pavel Krc
-#
-#------------------------------------------------------------------------------#
+# You should have received a copy of the GNU General Public License along with
+# PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 '''WRF (+CAMx) utility module for PALM dynamic driver generator'''
 
