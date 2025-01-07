@@ -27,7 +27,7 @@ from .plugins import SetupPluginMixin, WritePluginMixin
 from .logging import die, warn, log, verbose
 from .config import cfg
 from .runtime import rt
-from .utils import find_free_fname, tstep, td0
+from .utils import find_free_fname, tstep, td0, assert_dir
 from .library import PalmPhysics
 
 ax_ = np.newaxis
@@ -118,6 +118,7 @@ class WritePlugin(WritePluginMixin):
 
 
         log('Preparing dynamic driver file {}.', fn_out)
+        assert_dir(fn_out)
         with netCDF4.Dataset(fn_out, 'w', format='NETCDF4') as fout:
 
             # shorthands
