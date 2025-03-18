@@ -377,7 +377,8 @@ class WritePlugin(WritePluginMixin):
 
                             # PALM doesn't support 3D LOD=2 init for chem yet, we have
                             # to average the field
-                            fov['init_atmosphere_'+vn][:] = v.mean(axis=(1,2))
+                            if it == 0:
+                                fov['init_atmosphere_'+vn][:] = v.mean(axis=(1,2))
 
                             if not rt.nested_domain:
                                 fov['ls_forcing_left_' +vn][it] = v[:,:,0]

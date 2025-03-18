@@ -98,7 +98,7 @@ chem_units:
     regexes:
         ppmv: '^ppmv?$'
         ppbv: '^ppbv?$'
-        ugm3: '^(micrograms?|[uµ]g)\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
+        ugm3: '^(micrograms?|[uµ]g)\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\s*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
         gm3:  '^g(rams?)?\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\s*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
         kgm3: '^(kilograms?|kg)\s*(m(et(re|er)s?)?\s*\^?\s*-3|/\s*m(et(re|er)s?)?\s*\^?\s*3)\s*$'
 

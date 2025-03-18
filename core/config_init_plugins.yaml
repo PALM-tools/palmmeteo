@@ -432,7 +432,7 @@ aladin:
         soil_layers_stag: zsoil_meteo
     
     # horizontally interpolated variables (apart from U+V)
-    hinterp_vars: [ W, T, PH, P, PSFC, TSLB, SMOIS, SMOIS1 ]
+    hinterp_vars: [ W, T, PH, P, TSLB, SMOIS, SMOIS1 ]
     
     # variables that compose specific humidity as a sum
     spechum_vars: [ Q ]
