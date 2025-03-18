@@ -106,4 +106,7 @@ hinterp:
     validate: false
     max_input_grid_error: 0.01
 
+postproc:
+    nox_post_sum: false
+
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
