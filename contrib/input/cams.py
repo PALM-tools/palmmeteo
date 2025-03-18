@@ -32,18 +32,12 @@ from core.logging import die, warn, log, verbose, log_output
 from core.config import cfg
 from core.runtime import rt
 from core.utils import ensure_dimension
-from core.library import QuantityCalculator
-from .wrf_utils import BilinearRegridder, radius
+from core.library import QuantityCalculator, LatLonRegularGrid, verify_palm_hinterp
+from .wrf_utils import BilinearRegridder, WrfPhysics
 import pyproj
 
 ax_ = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
-
-rdivcp = 0.286
-pressure_ref = 1.0e5
-R = 8.314
-ppm_conv = 1e6
-
 
 class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, fout, *args, **kwargs):
@@ -79,10 +73,20 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
             # coordinate projection
             verbose('Loading projection and preparing regridder')
-            rt.trans_cams = CAMSCoordTransform(fin, rt.palm_epsg)
-            palm_in_cams_y, palm_in_cams_x = rt.trans_cams.latlon_to_ji(rt.palm_grid_lat, rt.palm_grid_lon)
+            lats = fin.variables['latitude'][:]
+            lons = fin.variables['longitude'][:]
+            transform = LatLonRegularGrid(lats, lons)
+            palm_in_cams_y, palm_in_cams_x = transform.latlon_to_ji(rt.palm_grid_lat, rt.palm_grid_lon)
             rt.regrid_cams = BilinearRegridder(palm_in_cams_x, palm_in_cams_y, preloaded=True)
             del palm_in_cams_y, palm_in_cams_x
+
+            if cfg.hinterp.validate:
+                verbose('Validating horizontal inteprolation.')
+                llats, llons = np.broadcast_arrays(lats[:,ax_], lons[ax_,:])
+                verify_palm_hinterp(rt.regrid_cams,
+                                    rt.regrid_cams.loader(llats)[()],
+                                    rt.regrid_cams.loader(llons)[()])
+                del llats, llons
 
             convertor = QuantityCalculator(cfg.chem_species,
                                       cfg.cams.output_var_defs, cfg.cams.preprocessors,
@@ -109,7 +113,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 vz_out[itout,:,:,:] = np.tile(height[:, ax_, ax_], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
 
             if not all(filled):
-                die('Could not find all CAMx variables for all times.\n'
+                die('Could not find all CAMS variables for all times.\n'
                     'Missing variables in times:\n{}',
                     '\n'.join('{}: {}'.format(dt, ', '.join(vn
                                                             for vn in (convertor.loaded_vars - tsdata)))
@@ -202,56 +206,3 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     v = fout.variables[vn]
                     v[it] = vd
 
-class CAMSCoordTransform(object):
-    'Coordinate transformer for CAMx files running from WRF'
-
-    def __init__(self, ncf, palm_epsg):
-        attr = lambda a: getattr(ncf, a)
-
-        # Define grids
-
-        latlon_sphere = pyproj.Proj(proj='latlong',
-            a=radius, b=radius,
-            towgs84='0,0,0', no_defs=True)
-
-        lambert_grid = pyproj.Proj(init='EPSG:{}'.format(palm_epsg))
-
-        # number of mass grid points
-        self.nx = nx = ncf.variables['longitude'][:].size
-        self.ny = ny = ncf.variables['latitude'][:].size
-
-        # Define fast transformation methods
-        lat = ncf.variables['latitude'][:]
-        lon = ncf.variables['longitude'][:]
-
-        # create lat, lon grid
-        LON, LAT = np.meshgrid(lon, lat)
-        x, y = pyproj.transform(latlon_sphere, lambert_grid,
-                                LON, LAT)
-        dx, dy = x[0,1]-x[0,0], y[1,0]-y[0,0]
-        i0_x, j0_y = x[0,0], y[0,0]
-
-        def latlon_to_ji(lat, lon):
-            x, y = pyproj.transform(latlon_sphere, lambert_grid,
-                    lon, lat)
-            return (y-j0_y)/dy, (x-i0_x)/dx
-        self.latlon_to_ji = latlon_to_ji
-
-        def ji_to_latlon(j, i):
-            lon, lat = pyproj.transform(lambert_grid, latlon_sphere,
-                i*dx+i0_x, j*dy+j0_y)
-            return lat, lon
-        self.ji_to_latlon = ji_to_latlon
-
-    def verify(self, ncf):
-        lat = ncf.variables['latitude'][:]
-        lon = ncf.variables['longitude'][:]
-        j, i = np.mgrid[0:self.ny, 0:self.nx]
-
-        jj, ii = self.latlon_to_ji(lat, lon)
-        d = np.hypot(jj-j, ii-i)
-        print('error for ll->ji: max {0} m, avg {1} m.'.format(d.max(), d.mean()))
-
-        llat, llon = self.ji_to_latlon(j, i)
-        d = np.hypot(llat - lat, llon - lon)
-        print('error for ji->ll: max {0} deg, avg {1} deg.'.format(d.max(), d.mean()))

@@ -104,5 +104,6 @@ chem_units:
 
 hinterp:
     validate: false
+    max_input_grid_error: 0.01
 
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
