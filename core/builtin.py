@@ -150,7 +150,8 @@ class WritePlugin(WritePluginMixin):
             fout.createDimension('yv',    rt.ny-1   )
 
             # Create and write dimension variables
-            mkvar('time',  ('time',) )[:] = rt.times_sec
+            mkvar('time',  ('time',), units=f'seconds since {rt.simulation.start_time}'
+                    )[:] = rt.times_sec
             mkvar('z',     ('z',)    )[:] = rt.z_levels[:]
             mkvar('zw',    ('zw',)   )[:] = rt.z_levels_stag[:]
             mkvar('zsoil', ('zsoil',))[:] = rt.z_soil_levels[:]
