@@ -365,3 +365,36 @@ def verify_palm_hinterp(regridder, lats, lons):
         np.sqrt(np.square(diff).mean()))
 
     verbose('NOTE: 1 metre =~ 0.9e-5 degrees of latitudes.')
+
+def parse_linspace(space, name, maxerr):
+    """Verifies that a vector is evenly-spaced and returns the parameters
+    of such spacing.
+    """
+    n = len(space)
+    base = space[0]
+    step = (space[-1] - base) / (n-1)
+    dstep = 1. / step
+    max_error = np.abs((space - base) * dstep  -
+                       np.arange(n, dtype=space.dtype)).max()
+
+    if max_error > maxerr:
+        die('Error: Maximum error in {} = {} times grid '
+                'spacing!', name, max_error)
+    else:
+        verbose('Maximum error in {} = {} times grid '
+                'spacing - OK.', name, max_error)
+
+    return base, step, dstep
+
+class LatLonRegularGrid:
+    """Coordinate transformer for simple regular lat-lon grids"""
+
+    def __init__(self, lats, lons):
+        lat_base, lat_step, lat_dstep = parse_linspace(lats,
+                'input grid latitudes', cfg.hinterp.max_input_grid_error)
+        lon_base, lon_step, lon_dstep = parse_linspace(lons,
+                'input grid longitudes', cfg.hinterp.max_input_grid_error)
+
+        self.latlon_to_ji = lambda lat, lon: ((lat-lat_base)*lat_dstep, (lon-lon_base)*lon_dstep)
+        self.ji_to_latlon = lambda j, i: (j*lat_step+lat_base, i*lon_step+lon_base)
+

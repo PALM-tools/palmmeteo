@@ -150,7 +150,8 @@ class WritePlugin(WritePluginMixin):
             fout.createDimension('yv',    rt.ny-1   )
 
             # Create and write dimension variables
-            mkvar('time',  ('time',) )[:] = rt.times_sec
+            mkvar('time',  ('time',), units=f'seconds since {rt.simulation.start_time}'
+                    )[:] = rt.times_sec
             mkvar('z',     ('z',)    )[:] = rt.z_levels[:]
             mkvar('zw',    ('zw',)   )[:] = rt.z_levels_stag[:]
             mkvar('zsoil', ('zsoil',))[:] = rt.z_soil_levels[:]
@@ -356,6 +357,18 @@ class WritePlugin(WritePluginMixin):
                             mkvar('ls_forcing_north_'+vn, ('time','z','x'), 2, unit, attrs_from=vin)
                             mkvar('ls_forcing_top_'+vn,   ('time','y','x'), 2, unit, attrs_from=vin)
 
+                    # TODO move to separate plugin
+                    if cfg.postproc.nox_post_sum:
+                        vin = fiv[cfg.postproc.nox_post_sum[0]]
+                        unit = cfg.chem_units.targets.ppmv
+                        mkvar('init_atmosphere_NOX', ('z',), 1, unit, attrs_from=vin)
+                        if not rt.nested_domain:
+                            mkvar('ls_forcing_left_NOX',  ('time','z','y'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_right_NOX', ('time','z','y'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_south_NOX', ('time','z','x'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_north_NOX', ('time','z','x'), 2, unit, attrs_from=vin)
+                            mkvar('ls_forcing_top_NOX',   ('time','y','x'), 2, unit, attrs_from=vin)
+
                     if convert_to_ppmv:
                         log('Chemical quantities converted from kg/m3 to ppmv: {}', convert_to_ppmv)
 
@@ -377,7 +390,8 @@ class WritePlugin(WritePluginMixin):
 
                             # PALM doesn't support 3D LOD=2 init for chem yet, we have
                             # to average the field
-                            fov['init_atmosphere_'+vn][:] = v.mean(axis=(1,2))
+                            if it == 0:
+                                fov['init_atmosphere_'+vn][:] = v.mean(axis=(1,2))
 
                             if not rt.nested_domain:
                                 fov['ls_forcing_left_' +vn][it] = v[:,:,0]
@@ -385,6 +399,22 @@ class WritePlugin(WritePluginMixin):
                                 fov['ls_forcing_south_'+vn][it] = v[:,0,:]
                                 fov['ls_forcing_north_'+vn][it] = v[:,-1,:]
                                 fov['ls_forcing_top_'  +vn][it] = v[-1,:,:]
+
+                        if cfg.postproc.nox_post_sum:
+                            if it == 0:
+                                fov['init_atmosphere_NOX'][:] = sum(fov['init_atmosphere_'+vn][:]
+                                                                    for vn in cfg.postproc.nox_post_sum)
+                            if not rt.nested_domain:
+                                fov['ls_forcing_left_NOX'][it] = sum(fov['ls_forcing_left_'+vn][it]
+                                                                    for vn in cfg.postproc.nox_post_sum)
+                                fov['ls_forcing_right_NOX'][it] = sum(fov['ls_forcing_right_'+vn][it]
+                                                                    for vn in cfg.postproc.nox_post_sum)
+                                fov['ls_forcing_south_NOX'][it] = sum(fov['ls_forcing_south_'+vn][it]
+                                                                    for vn in cfg.postproc.nox_post_sum)
+                                fov['ls_forcing_north_NOX'][it] = sum(fov['ls_forcing_north_'+vn][it]
+                                                                    for vn in cfg.postproc.nox_post_sum)
+                                fov['ls_forcing_top_NOX'][it] = sum(fov['ls_forcing_top_'+vn][it]
+                                                                    for vn in cfg.postproc.nox_post_sum)
 
             if cfg.radiation:
                 # Separate time dimension for radiation

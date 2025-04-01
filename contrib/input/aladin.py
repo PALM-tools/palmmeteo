@@ -52,7 +52,6 @@ barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
 
 ax_ = np.newaxis
-radius = 6370000.0
 
 # Settings for geostrophic wind FIXME: change them to Aladin
 gw_gfs_margin_deg = 5.  # smoothing area in degrees lat/lon
