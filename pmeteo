@@ -25,7 +25,7 @@ Creates PALM dynamic driver from multiple sources.
 """
 
 from argparse import ArgumentParser
-from core import run
+from palmmeteo import run
 
 
 argp = ArgumentParser(description=__doc__)

@@ -22,6 +22,8 @@
 import os
 import datetime
 from collections import defaultdict
+import importlib
+import pkgutil
 
 from yaml import load
 try:
@@ -143,6 +145,21 @@ class ConfigObj(object):
                     if self._settings.get(k, None) is None:
                         self._settings[k] = v
 
+    def _ingest_module_config(self, modname, modpath):
+        """Locates the initial configuration file config_init.yaml within module
+        code and ingests it.
+        """
+        cfg_path = os.path.join(os.path.dirname(os.path.abspath(modpath)),
+                                'config_init.yaml')
+
+        if not os.path.isfile(cfg_path):
+            die('Cannot load initial configuration for module {}: file {} '
+                'not found!', modname, cfg_path)
+
+        verbose('Loading {} configuration from {}', modname, cfg_path)
+        with open(cfg_path, 'r') as f:
+            cfg._ingest_dict(load(f, Loader=SafeLoader))
+
     def _get_path(self):
         if self._parent is None:
             return []
@@ -207,12 +224,21 @@ def load_config(argv):
     """
     global cfg
 
-    # load initial configuration segments
-    for segment in ['core', 'workflow', 'plugins']:
-        cfg_segment_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                'config_init_{}.yaml'.format(segment))
-        with open(cfg_segment_path, 'r') as f:
-            cfg._ingest_dict(load(f, Loader=SafeLoader))
+    log('Loading configuration')
+
+    # Load initial configuration for core palmmeteo
+    cfg._ingest_module_config('palmmeteo', __file__)
+
+    # Standard plugins are mandatory and loaded first
+    cfg._ingest_module_config('palmmeteo_stdplugins',
+                     importlib.util.find_spec('palmmeteo_stdplugins').origin)
+
+    # Load initial configuration for plugins by finding all other modules that
+    # start with palmmeteo_
+    for modfinder, modname, ispkg in pkgutil.iter_modules():
+        if modname.startswith('palmmeteo_') and modname != 'palmmeteo_stdplugins':
+            cfg._ingest_module_config(modname,
+                                      modfinder.find_spec(modname).origin)
 
     # load settings from selected configfile (if available)
     if argv.config:

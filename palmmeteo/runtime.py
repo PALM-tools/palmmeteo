@@ -20,7 +20,8 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import os
-from .config import cfg, parse_duration
+from .logging import die, warn, log, verbose
+from .config import cfg, parse_duration, ConfigObj
 
 class RuntimeObj(object):
     """An object for holding runtime-related values.
@@ -38,25 +39,30 @@ def basic_init(rt):
     rt.simulation.length = parse_duration(cfg.simulation, 'length')
 
     # Paths
-    rt.paths = RuntimeObj()
-    rt.paths.expand = dict(
-            case=cfg.case,
-            scenario='.'+cfg.scenario if cfg.scenario else '',
-            domain='' if cfg.dnum==1 else '_N{:02d}'.format(cfg.dnum))
+    rt.path_strings = {}
+    for key, func in cfg.path_strings:
+        try:
+            code = compile(func, '<path_string_{}>'.format(key), 'eval')
+        except SyntaxError as e:
+            die('Syntax error in definition of the path '
+                'string {} "{}": {}.', key, func, e)
+        try:
+            val = eval(code, cfg._settings)
+        except Exception as e:
+            die('Error while evaluating the path string {} "{}": {}.', key, func, e)
+            raise
+        rt.path_strings[key] = val
 
-    rt.paths.base = cfg.paths.base.format(**rt.paths.expand)
-    rt.paths.palm_input = os.path.join(rt.paths.base,
-            cfg.paths.palm_input.format(**rt.paths.expand))
-    rt.paths.dynamic_driver = os.path.join(rt.paths.palm_input,
-            cfg.paths.dynamic_driver.format(**rt.paths.expand))
-    rt.paths.intermediate = os.path.join(rt.paths.base,
-            cfg.paths.intermediate.format(**rt.paths.expand))
-    rt.paths.imported = os.path.join(rt.paths.intermediate,
-            cfg.paths.imported.format(**rt.paths.expand))
-    rt.paths.hinterp = os.path.join(rt.paths.intermediate,
-            cfg.paths.hinterp.format(**rt.paths.expand))
-    rt.paths.vinterp = os.path.join(rt.paths.intermediate,
-            cfg.paths.vinterp.format(**rt.paths.expand))
+    rt.paths = RuntimeObj()
+    rt.paths.base = cfg.paths.base.format(**rt.path_strings)
+    for sect_name, sect_cfg in cfg.paths:
+        if isinstance(sect_cfg, ConfigObj):
+            path_sect = RuntimeObj()
+            setattr(rt.paths, sect_name, path_sect)
+            for key, val in sect_cfg:
+                if isinstance(val, str):
+                    setattr(path_sect, key,
+                        os.path.join(rt.paths.base, val.format(**rt.path_strings)))
 
     # Domain
     rt.nested_domain = (cfg.dnum > 1)

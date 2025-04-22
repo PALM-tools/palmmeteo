@@ -24,10 +24,10 @@ from datetime import datetime, timezone
 import numpy as np
 import netCDF4
 
-from core.config import cfg, ConfigError
-from core.runtime import rt
-from core.plugins import SetupPluginMixin
-from core.logging import die, warn, log, verbose
+from palmmeteo.config import cfg, ConfigError
+from palmmeteo.runtime import rt
+from palmmeteo.plugins import SetupPluginMixin
+from palmmeteo.logging import die, warn, log, verbose
 
 na_ = np.newaxis
 
@@ -35,14 +35,11 @@ class StaticDriverPlugin(SetupPluginMixin):
     """Default setup plugin for loading domain info from static driver file."""
 
     def setup_model(self, *args, **kwargs):
-        static_driver_file = os.path.join(rt.paths.palm_input,
-                cfg.paths.static_driver.format(**rt.paths.expand))
-        log('Loading domain info from static driver file {}...', static_driver_file)
-
+        log('Loading domain info from static driver file {}...', rt.paths.palm_input.static_driver)
         try:
-            ncs = netCDF4.Dataset(static_driver_file, "r")
+            ncs = netCDF4.Dataset(rt.paths.palm_input.static_driver, 'r')
         except Exception as err:
-            die("Error opening static driver file {}: {}", static_driver_file, err)
+            die("Error opening static driver file {}: {}", rt.paths.palm_input.static_driver, err)
 
         # get horizontal structure of the domain
         rt.nx = ncs.dimensions['x'].size

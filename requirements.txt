@@ -1,10 +1,11 @@
-metpy==1.3.1
-netCDF4==1.7.2
-pyproj==3.5.0; python_version == '3.8'
-pyproj==3.6.1; python_version == '3.9'
-pyproj==3.7.0; python_version >= '3.10'
-pytest==7.2.0
-pyyaml==6.0.2
-scipy==1.10.1; python_version == '3.8'
-scipy==1.13.1; python_version == '3.9'
-scipy==1.14.1; python_version >= '3.10'
+# Explicit dependency versions
+pint>=0.24
+
+# Project reqs (for py310)
+numpy>=2.1,<2.2
+pyyaml>=6.0
+netCDF4>=1.7.2
+scipy>=1.15; python_version >= '3.10'
+pyproj>=3.7; python_version >= '3.10'
+metpy>=1.6; python_version >= '3.10'
+pytest>=7.0

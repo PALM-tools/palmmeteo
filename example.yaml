@@ -1,7 +1,15 @@
-# An example of a minimal config
+# An example of a very small (yet still not minimal) config for WRF
 
 case: example #case name (required)
+dnum: 1 #single (root) domain
 
 domain:
     nz: 30 #required
 
+simulation:
+    length: 6 h
+
+# One or more tasks selected by the user will add required plugins and set
+# necessary options.
+tasks:
+    - wrf

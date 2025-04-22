@@ -1,10 +1,15 @@
+/tests/integration_tests/simple_wrf/INPUT/simple_wrf_dynamic
+/tests/integration_tests/simple_wrf/METEO/import.nc
+/tests/integration_tests/simple_wrf/METEO/hinterp.nc
+/tests/integration_tests/simple_wrf/METEO/vinterp.nc
+
+/.venv
+
 *.pyc
 __pycache__/
-.*.swp
-.vimrc
-
 
 # Vim files
+.vimrc
 
 ## Swap
 [._]*.s[a-v][a-z]

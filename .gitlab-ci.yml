@@ -1,4 +1,4 @@
-image: ubuntu:20.04
+image: ubuntu:22.04
 
 stages:
   - unit_tests
@@ -47,6 +47,6 @@ integration_tests:
     - cpus1
   script:
     - echo -e "\e[0Ksection_start:`date +%s`:integration_test_section[collapsed=false]\r\e[0KExecuting palm_meteo_test"
-    - python3 tests/integration_tests/palm_meteo_test.py tests/integration_tests/simple_wrf/simple.yml
+    - tests/integration_tests/integration_tests.sh simple_wrf
     - echo -e "\e[0Ksection_end:`date +%s`:integration_test_section\r\e[0K"
 

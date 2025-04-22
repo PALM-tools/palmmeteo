@@ -17,48 +17,36 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 
-# This file is part of program code. It stores inital values for configuration
-# of core variables. It is not intended to be used as a user configuration file
-# or a template thereof.
+# ATTENTION: This file is part of program code. It stores inital values for
+# configuration of core variables. It is not intended to be used as a user
+# configuration file or a template thereof.
 
 case: #case name (required)
-scenario: #optional scenario identification (multiple scenarios per case)
+# Optional scenario identification (for preparing multiple scenarios based on
+# the same case)
+scenario:
 dnum: 1 #1 for root domain, 2 for nested domain *_N02 etc.
 
-# Some paths may be relative as specified or absolute. They may contain
-# these references:
-# {case}: case name
-# {scenario}: scenario name (if provided) with leading dot
-# {domain}: domain number string: empty for dnum=1, '_N02' for dnum=2 etc.
-paths:                                              #RELATIVE TO:
-    base: .                                         #------------
+# Replacement strings to be used in paths. They are valid Python expressions
+# and they may reference configuration values such as `dnum` or `scenario`.
+path_strings:
+    case: 'case'
+    scenario: 'f"_{scenario}" if scenario else ""'
+    domain: 'f"_{dnum:02d}" if dnum != 1 else ""'
 
-    palm_input: '../JOBS/{case}{scenario}/INPUT'    #base
-    dynamic_driver: '{case}_dynamic{domain}'        #palm_input
-    static_driver: '{case}_static{domain}'          #palm_input
+# All paths are either absolute or relative to paths.base. They may contain
+# references to entries in path_strings
+paths:
+    base: '../JOBS/{case}{scenario}'
 
-    intermediate: '../JOBS/{case}{scenario}/METEO'  #base
-    imported: 'import{domain}.nc'                   #intermediate
-    hinterp: 'hinterp{domain}.nc'                   #intermediate
-    vinterp: 'vinterp{domain}.nc'                   #intermediate
+    palm_input:
+        dynamic_driver: 'INPUT/{case}_dynamic{domain}'
+        static_driver:  'INPUT/{case}_static{domain}'
 
-    wrf_output: '../JOBS/{case}{scenario}/WRF'      #base
-    wrf_file_mask: 'wrfout_*.e000'                  #wrf_output
-    wrf_rad_file_mask: 'auxhist6_*'                 #wrf_output
-
-    camx_output: '../JOBS/{case}{scenario}/CAMX'    #base
-    camx_file_mask: 'CAMx.*.nc'                     #camx_output
-
-    icon_output: '../JOBS/{case}{scenario}/ICON'    #base
-    icon_file_mask: 'i?ff[0-9]_*.nc*'               #icon_output
-    icon_static_data: ~                             #icon_output
-    
-    aladin_output: '../JOBS/{case}{scenario}/ALADIN/aladin_import.nc'
-    aladin_grib: '../JOBS/{case}{scenario}/ALADIN/ALADIN_GRIBS/'
-    aladin_file_mask: '/**/*.grb'
-    aladin_soil_depth: 'data/aladin_soil_depth.grb'
-    
-    cams_output: '../JOBS/{case}{scenario}/CAMS'    #base
+    intermediate:
+        imported: 'METEO/import{domain}.nc'
+        hinterp:  'METEO/hinterp{domain}.nc'
+        vinterp:  'METEO/vinterp{domain}.nc'
 
 output:
     # Overwrite existing output files? Otherwise create a new file with
@@ -87,7 +75,8 @@ simulation:
     timestep: 1 h
     length: 1 d
 
-radiation: #empty = off by default, switched on by tasks or manually
+#Off by default (empty so that tasks may overwrite), switched on by tasks or manually
+radiation:
 
 chem_species: [] #empty list = disabled chemistry
 
@@ -106,7 +95,38 @@ hinterp:
     validate: false
     max_input_grid_error: 0.01
 
+vinterp:
+    # Smoothing of PALM terrain for WRF vertical interpolation to avoid sharp
+    # horizontal gradients. Sigma value in grid points.
+    terrain_smoothing: off
+
 postproc:
     nox_post_sum: false
 
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+
+# Default workflow - all stages
+workflow:
+    - check_config
+    - setup
+    - import
+    - hinterp
+    - vinterp
+    - write
+
+# Ordered list of selected plugins. Typically extended by selected tasks.
+plugins:
+    - palmmeteo_stdplugins.setup_staticdriver.StaticDriverPlugin
+    - palmmeteo_stdplugins.setup.SetupPlugin
+    - palmmeteo_stdplugins.write.WritePlugin
+
+# One or more tasks selected by the user will add required plugins and set
+# necessary options. Tasks typically select input meteo and/or chemistry data
+# sources.
+tasks:
+    - wrf     # WRF meteo inputs
+    #- wrf_rad # WRF radiation inputs
+    #- icon    # ICON inputs
+    #- aladin  # Aladin inputs
+    #- camx    # CAMx chemistry inputs
+    #- cams    # CAMS chemistry inputs
