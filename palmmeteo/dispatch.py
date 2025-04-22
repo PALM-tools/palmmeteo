@@ -21,7 +21,7 @@
 
 import netCDF4
 
-import core.plugins as plg
+from . import plugins as plg
 from .logging import die, warn, log, verbose, configure_log
 from .config import load_config, cfg
 from .runtime import rt, basic_init
@@ -46,18 +46,18 @@ def execute_event(event):
     try:
         # Prepare common files or other common processing for specific events
         if event == 'import':
-            assert_dir(rt.paths.imported)
-            f = netCDF4.Dataset(rt.paths.imported, 'w', format='NETCDF4')
+            assert_dir(rt.paths.intermediate.imported)
+            f = netCDF4.Dataset(rt.paths.intermediate.imported, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
         elif event == 'hinterp':
-            assert_dir(rt.paths.hinterp)
-            f = netCDF4.Dataset(rt.paths.hinterp, 'w', format='NETCDF4')
+            assert_dir(rt.paths.intermediate.hinterp)
+            f = netCDF4.Dataset(rt.paths.intermediate.hinterp, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
         elif event == 'vinterp':
-            assert_dir(rt.paths.vinterp)
-            f = netCDF4.Dataset(rt.paths.vinterp, 'w', format='NETCDF4')
+            assert_dir(rt.paths.intermediate.vinterp)
+            f = netCDF4.Dataset(rt.paths.intermediate.vinterp, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
 
@@ -73,11 +73,26 @@ def execute_event(event):
 
 
 def run(argv):
-    load_config(argv)
-    basic_init(rt)
+    # Set initial verbosity from commandline, so that we can log the
+    # configuration progress appropriately.
+    cfg._settings['verbosity'] = (argv.verbosity_arg
+                                  if argv.verbosity_arg is not None else 1)
     configure_log(cfg)
+
+    # Load all configfiles and apply commandline config
+    load_config(argv)
+
+    # Configure logging according to final config
+    configure_log(cfg)
+
+    # Runtime data
+    basic_init(rt)
+
+    # Load plugins as configured
     rt.plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
                       for p in cfg.plugins]
 
+    # Execute all stages in the workflow
     for event in cfg.workflow:
         execute_event(event)
+    log('Finished all stages in the workflow.')

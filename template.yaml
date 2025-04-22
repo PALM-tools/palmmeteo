@@ -1,54 +1,81 @@
-# A template with all user-selectable configuration options. The options are
-# commented out and the the values are set to their defaults.
+# A template with all user-selectable configuration options. Most options are
+# commented out and the the values shown are the defaults.
 
 ############################## GENERIC OPTIONS ##############################
 
 #case: #case name (required)
-#scenario: #optional scenario identification (multiple scenarios per case)
+# Optional scenario identification (for preparing multiple scenarios based on
+# the same case)
+#scenario:
 #dnum: 1 #1 for root domain, 2 for nested domain *_N02 etc.
 
-# Some paths may be relative as specified or absolute. They may contain
-# these references:
-# {case}: case name
-# {scenario}: scenario name (if provided) with leading dot
-# {domain}: domain number string: empty for dnum=1, '_N02' for dnum=2 etc.
-paths:                                               #RELATIVE TO:
-    #base: .                                         #------------
+# One or more tasks selected by the user will add required plugins and set
+# necessary options. Tasks typically select input meteo and/or chemistry data
+# sources.
+tasks:
+    - wrf     # WRF meteo inputs
+    #- wrf_rad # WRF radiation inputs
+    #- icon    # ICON inputs
+    #- aladin  # Aladin inputs
+    #- camx    # CAMx chemistry inputs
+    #- cams    # CAMS chemistry inputs
 
-    #palm_input: '../JOBS/{case}{scenario}/INPUT'    #base
-    #dynamic_driver: '{case}_dynamic{domain}'        #palm_input
-    #static_driver: '{case}_static{domain}'          #palm_input
+# Replacement strings to be used in paths. They are valid Python expressions
+# and they may reference configuration values such as `dnum` or `scenario`.
+path_strings:
+    #case: 'case'
+    #scenario: 'f"_{scenario}" if scenario else ""'
+    #domain: 'f"_{dnum:02d}" if dnum != 1 else ""'
 
-    #intermediate: '../JOBS/{case}{scenario}/METEO'  #base
-    #imported: 'import.nc'                           #intermediate
-    #hinterp: 'hinterp.nc'                           #intermediate
-    #vinterp: 'vinterp.nc'                           #intermediate
+# All paths are either absolute or relative to paths.base. They may contain
+# references to entries in path_strings
+paths:
+    #base: '../JOBS/{case}{scenario}'
 
-    #wrf_output: '../JOBS/{case}{scenario}/WRF'      #base
-    #wrf_file_mask: 'wrfout_*.e000'                  #wrf_output
-    #wrf_rad_file_mask: 'auxhist6_*'                 #wrf_output
+    palm_input:
+        #dynamic_driver: 'INPUT/{case}_dynamic{domain}'
+        #static_driver:  'INPUT/{case}_static{domain}'
 
-    #camx_output: '../JOBS/{case}{scenario}/CAMX'    #base
-    #camx_file_mask: 'CAMx.*.nc'                     #camx_output
+    intermediate:
+        #imported: 'METEO/import{domain}.nc'
+        #hinterp:  'METEO/hinterp{domain}.nc'
+        #vinterp:  'METEO/vinterp{domain}.nc'
 
-    #icon_output: '../JOBS/{case}{scenario}/ICON'    #base
-    #icon_file_mask: 'i?ff[0-9]_*.nc*'               #icon_output
-    #icon_static_data: ~                             #icon_output
+    wrf:
+        #file_mask:      'WRF/wrfout_*.e000'
+        #rad_file_mask:  'WRF/auxhist6_*'
+
+    camx:
+        #file_mask:      'CAMX/CAMx.*.nc'
+
+    icon:
+        #file_mask:      'ICON/i?ff[0-9]_*.nc*'
+        #static_data:    ~
+
+    aladin:
+        #output:         'ALADIN/aladin_import.nc'
+        #grib_file_mask: 'ALADIN/ALADIN_GRIBS/**/*.grb'
+        #soil_depth:     'ALADIN/aladin_soil_depth.grb'
+
+    cams:
+        #file:           'CAMS'
 
 output:
     # Overwrite existing output files? Otherwise create a new file with
     # numerical suffix
     #overwrite: false
 
+    #default_precision: 'f4'
+    #fill_value: -9999.0
+
     #check_mass_balance: false #re-verify final mass balance after balancing
 
 domain:
     #dz: #default=dx
-    #nz: #required
+    nz: #required
     #dz_stretch_level: -1.0 #in metres
     #dz_stretch_factor: 1.0
     #dz_max: -1.0 #in metres
-
     # minimal number of free surface canopy layers above top of terrain with
     # building and plant canopy
     #nscl_free: 3
@@ -58,25 +85,25 @@ simulation:
     #timestep: 1 h
     #length: 1 d
 
-#radiation: #empty = off by default, switched on by tasks or manually
+#radiation: false #off by default, switched on by tasks or manually
 
 #chem_species: [] #empty list = disabled chemistry
 
-#verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+hinterp:
+    #validate: false
+    #max_input_grid_error: 0.01
 
-# One or more tasks selected by the user will add required plugins and set
-# necessary options. Tasks typically select input meteo and/or chemistry data
-# sources.
-tasks:
-    #- wrf     # WRF meteo inputs
-    #- wrf_rad # WRF radiation inputs
-    #- icon2   # ICON inputs
-    #- aladin  # Aladin inputs
-    #- camx    # CAMx chemistry inputs
-    #- cams    # CAMS chemistry inputs
+vinterp:
+    # Smoothing of PALM terrain for WRF vertical interpolation to avoid sharp
+    # horizontal gradients. Sigma value in grid points.
+    #terrain_smoothing: off
 
-# Default workflow. Currently no need to have separate workflows per task.
-# Advnanced users may skip some steps in special cases.
+postproc:
+    #nox_post_sum: false
+
+verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+
+# Default workflow - all stages
 #workflow:
 #    - check_config
 #    - setup
@@ -86,11 +113,6 @@ tasks:
 #    - write
 
 ######################### PLUGIN-SPECIFIC OPTIONS #########################
-
-vinterp:
-    # Smoothing of PALM terrain for WRF vertical interpolation to avoid sharp
-    # horizontal gradients. Sigma value in grid points.
-    #terrain_smoothing: off
 
 wrf:
     # Method of stretching vertical levels before vertical interpolation in
@@ -110,10 +132,19 @@ wrf:
     #vertical_stretching: universal
     #transition_level: 2000.0 #m above origin_z
 
-# The CAMx configuration uses Python formulae, so it is obviously vulnerable to
-# malicious configuration files. We assume that the users know what they are
-# doing and they do not run arbitrary code from the internet.
+    #radiation_smoothing_distance: 10000.0
+
+    rad_vars:
+        #sw_tot_h: SWDOWN #may be also SWDNB
+        #sw_dif_h: SWDDIF
+        #lw_tot_h: GLW #may be also LWDNB
+
 camx:
+    # True: model grid is Lambert Conformal Conic from the coupled WRF model.
+    # This uses bilinear inteprolation based on WRF-specific ellipsoid. False
+    # (default): use universal triangular interpolation.
+    #uses_wrf_lambert_grid: false
+
     # Python-code checks on input file variables and attributes. May also be
     # extended by individual output variables.
     #validations: []
@@ -127,111 +158,20 @@ camx:
     #preprocessors:
     #    PM25: 'PM25 = PSO4+PNO3+PNH4+POA+PEC+FPRM+SOA1+SOA2+SOA3+SOA4+SOPA+SOPB'
 
-    # Output variable definitions with units and Python formulae on loaded
-    # variables, which may optionally trigger specific preprocessors and/or
-    # validations.
-    #output_var_defs:
-    #    'NO': #NO without quotes means False in yaml!
-    #        formula: 'NO'
-    #        unit: 'ppm'
-    #        loaded_vars: ['NO']
-    #        validations:
-    #            - '_units.NO == "ppmv"'
-    #        preprocessors: []
-    #    NO2:
-    #        formula: 'NO2'
-    #        unit: 'ppm'
-    #        loaded_vars: [NO2]
-    #        validations:
-    #            - '_units.NO2 == "ppmv"'
-    #        preprocessors: []
-    #    NOX:
-    #        formula: 'NO+NO2'
-    #        unit: 'ppm'
-    #        loaded_vars: ['NO', NO2]
-    #        validations:
-    #            - '_units.NO == "ppmv"'
-    #            - '_units.NO2 == "ppmv"'
-    #        preprocessors: []
-    #    O3:
-    #        formula: 'O3'
-    #        unit: 'ppm'
-    #        loaded_vars: [O3]
-    #        validations:
-    #            - '_units.O3 == "ppmv"'
-    #        preprocessors: []
-    #    PM10:
-    #        formula: '(CPRM+PM25)*1e-9'
-    #        unit: 'kg/m3'
-    #        loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
-    #            SOA4, SOPA, SOPB, CPRM]
-    #        validations:
-    #            - '_units.PSO4 == "micrograms m-3"'
-    #            - '_units.PNO3 == "micrograms m-3"'
-    #            - '_units.PNH4 == "micrograms m-3"'
-    #            - '_units.POA == "micrograms m-3"'
-    #            - '_units.PEC == "micrograms m-3"'
-    #            - '_units.FPRM == "micrograms m-3"'
-    #            - '_units.SOA1 == "micrograms m-3"'
-    #            - '_units.SOA2 == "micrograms m-3"'
-    #            - '_units.SOA3 == "micrograms m-3"'
-    #            - '_units.SOA4 == "micrograms m-3"'
-    #            - '_units.SOPA == "micrograms m-3"'
-    #            - '_units.SOPB == "micrograms m-3"'
-    #            - '_units.CPRM == "micrograms m-3"'
-    #        preprocessors: [PM25]
-    #    PM25:
-    #        formula: 'PM25*1e-9'
-    #        unit: 'kg/m3'
-    #        loaded_vars: [PSO4, PNO3, PNH4, POA, PEC, FPRM, SOA1, SOA2, SOA3,
-    #            SOA4, SOPA, SOPB]
-    #        validations:
-    #            - '_units.PSO4 == "micrograms m-3"'
-    #            - '_units.PNO3 == "micrograms m-3"'
-    #            - '_units.PNH4 == "micrograms m-3"'
-    #            - '_units.POA == "micrograms m-3"'
-    #            - '_units.PEC == "micrograms m-3"'
-    #            - '_units.FPRM == "micrograms m-3"'
-    #            - '_units.SOA1 == "micrograms m-3"'
-    #            - '_units.SOA2 == "micrograms m-3"'
-    #            - '_units.SOA3 == "micrograms m-3"'
-    #            - '_units.SOA4 == "micrograms m-3"'
-    #            - '_units.SOPA == "micrograms m-3"'
-    #            - '_units.SOPB == "micrograms m-3"'
-    #        preprocessors: [PM25]
-
 synthetic:
     #transition_level: 2000.0 #m above origin_z
 
-    prof_vars:
-        #u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
-        #v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
-        #w: {profiles: ~, heights: ~, timeseries: ~, times: ~}
-        #pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}
-        #qv: {profiles: ~, heights: ~, timeseries: ~, times: ~}
-        #soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}
-        #soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #prof_vars:
+    #    u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    w: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    qv: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}
 
     #p_surf: ~
     #p_sl: 100000.
-
-icon2:
-    # List of assimilation cycles specified as timedeltas after midnight UTC
-    #input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
-
-    # First and last forecast horizon taken from each cycle. Must match
-    # assimilation cycles in such a way that a full, continuous day is formed.
-    # For aggregated values, the last horizon is exactly 1 timestep further.
-    #input_fcst_horizon_range: [0 h, 2 h]
-
-    #interpolation_buffer: 20.0 #km
-    #radiation_smoothing_distance: 30.0 #km
-
-    #transition_level: 2000.0 #m above origin_z
-
-    # Smoothing of PALM terrain for vertical interpolation to avoid sharp
-    # horizontal gradients. Sigma value in grid points.
-    #terrain_smoothing: off
 
 aladin:
     #load_gribs: true
@@ -242,3 +182,28 @@ aladin:
 
     #soil_depth_default: 0.40
     #soil_avg_point: [ 14.418540, 50.073658 ]
+
+icon:
+    # List of assimilation cycles specified as timedeltas after midnight UTC
+    #input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
+
+    # First and last forecast horizon taken from each cycle. Must match
+    # assimilation cycles in such a way that a full, continuous day is formed.
+    # For aggregated values, the last horizon is exactly 1 timestep further.
+    #input_fcst_horizon_range: [0 h, 2 h]
+
+    # Distance [km] for selecting nearby grid points usable for interpolation.
+    # Recommended value: original grid resolution × 3
+    #point_selection_buffer: 20.0
+
+    #radiation_smoothing_distance: 30.0 #km
+
+    #transition_level: 2000.0 #m above origin_z
+
+    # Smoothing of PALM terrain for vertical interpolation to avoid sharp
+    # horizontal gradients. Sigma value in grid points.
+    #terrain_smoothing: off
+
+
+cams:
+

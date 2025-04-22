@@ -21,10 +21,27 @@
 # of variables that are used by various plugins internally. It is not intended
 # to be used as a user configuration file or a template thereof.
 
-vinterp:
-    # Smoothing of PALM terrain for WRF vertical interpolation to avoid sharp
-    # horizontal gradients. Sigma value in grid points.
-    terrain_smoothing: off
+# All paths are either absolute or relative to paths.base. They may contain
+# references to entries in path_strings
+paths:
+    wrf:
+        file_mask:      'WRF/wrfout_*.e000'
+        rad_file_mask:  'WRF/auxhist6_*'
+
+    camx:
+        file_mask:      'CAMX/CAMx.*.nc'
+
+    icon:
+        file_mask:      'ICON/i?ff[0-9]_*.nc*'
+        static_data:    ~
+
+    aladin:
+        output:         'ALADIN/aladin_import.nc'
+        grib_file_mask: 'ALADIN/ALADIN_GRIBS/**/*.grb'
+        soil_depth:     'ALADIN/aladin_soil_depth.grb'
+
+    cams:
+        file:           'CAMS'
 
 wrf:
     # Method of stretching vertical levels before vertical interpolation in
@@ -442,7 +459,7 @@ aladin:
     # 1-d variables, direct copy
     vars_1d: [ ]
 
-icon2:
+icon:
     # List of assimilation cycles specified as timedeltas after midnight UTC
     input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
 
@@ -509,3 +526,59 @@ cams:
             loaded_vars: [pm2p5_conc]
             validations:
                 - '_units.pm2p5_conc == "µg/m3"'
+
+
+# Configuration items for selected tasks
+task_config:
+    wrf:
+        # Configuration items to be set (if unset by user)
+        set:
+
+        # Configuration items to be extended (added) to existing lists (or new
+        # lists are created).
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.wrf.WRFPlugin
+    aladin:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.aladin.AladinPlugin
+
+    wrf_rad:
+        set:
+            radiation: true
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.wrf.WRFRadPlugin
+
+    aladin_rad:
+        set:
+            radiation: true
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.aladin.AladinRadPlugin
+
+    camx:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.camx.CAMxPlugin
+
+    synthetic:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.synthetic.SyntheticPlugin
+                
+    cams:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.cams.CAMSPlugin
+
+    icon:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.icon.IconPlugin

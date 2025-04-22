@@ -19,8 +19,8 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-from core.plugins import Plugin, ImportPluginMixin
-from core.logging import die, warn, log, verbose
+from palmmeteo.plugins import Plugin, ImportPluginMixin
+from palmmeteo.logging import die, warn, log, verbose
 
 available_meteo_vars = {
     'tas':  {'desc': 'temperature at surface', 'units': 'K'},
