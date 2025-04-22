@@ -14,7 +14,11 @@ simulation:
     origin_time: 2018-07-19 10:00:00
     length: 3 h
 
+hinterp:
+    #validate: true
+
 output:
     overwrite: true
+    #check_mass_balance: true
 
 verbosity: 2

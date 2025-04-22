@@ -103,8 +103,8 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         if cfg.hinterp.validate:
                             verbose('Validating horizontal inteprolation.')
                             verify_palm_hinterp(rt.regrid_camx,
-                                                rt.regrid_camx.loader(fin.variables['latitude'])[()],
-                                                rt.regrid_camx.loader(fin.variables['longitude'])[()])
+                                                rt.regrid_camx.loader(fin.variables['latitude'])[...],
+                                                rt.regrid_camx.loader(fin.variables['longitude'])[...])
                     else:
                         clat = fin.variables['latitude'][:]
                         clon = fin.variables['longitude'][:]
@@ -115,8 +115,8 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         if cfg.hinterp.validate:
                             verbose('Validating horizontal inteprolation.')
                             verify_palm_hinterp(rt.regrid_camx,
-                                                rt.regrid_camx.loader(clat)[()],
-                                                rt.regrid_camx.loader(clon)[()])
+                                                rt.regrid_camx.loader(clat)[...],
+                                                rt.regrid_camx.loader(clon)[...])
 
                     convertor = QuantityCalculator(cfg.chem_species,
                             cfg.camx.output_var_defs, cfg.camx.preprocessors,
