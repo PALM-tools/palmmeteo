@@ -24,12 +24,12 @@ import numpy as np
 import scipy.ndimage as ndimage
 from metpy.interpolate import interpolate_1d
 
-from core.plugins import ImportPluginMixin, VInterpPluginMixin
-from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg, ConfigError
-from core.runtime import rt
-from core.utils import ensure_dimension
-from core.library import PalmPhysics, utcdefault
+from palmmeteo.plugins import ImportPluginMixin, VInterpPluginMixin
+from palmmeteo.logging import die, warn, log, verbose, log_output
+from palmmeteo.config import cfg, ConfigError
+from palmmeteo.runtime import rt
+from palmmeteo.utils import ensure_dimension
+from palmmeteo.library import PalmPhysics, utcdefault
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp

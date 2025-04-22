@@ -27,12 +27,12 @@ import numpy as np
 import netCDF4
 from metpy.interpolate import interpolate_1d
 
-from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
-from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg
-from core.runtime import rt
-from core.utils import ensure_dimension
-from core.library import QuantityCalculator, LatLonRegularGrid, verify_palm_hinterp
+from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from palmmeteo.logging import die, warn, log, verbose
+from palmmeteo.config import cfg
+from palmmeteo.runtime import rt
+from palmmeteo.utils import ensure_dimension
+from palmmeteo.library import QuantityCalculator, LatLonRegularGrid, verify_palm_hinterp
 from .wrf_utils import BilinearRegridder, WrfPhysics
 import pyproj
 
@@ -48,8 +48,8 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         zcoord = [None] * rt.nt
 
         # Process input files
-        verbose('Parsing CAMS file {}', cfg.paths.cams_output)
-        with netCDF4.Dataset(cfg.paths.cams_output, 'r') as fin:
+        verbose('Parsing CAMS file {}', rt.paths.cams.file)
+        with netCDF4.Dataset(rt.paths.cams.file, 'r') as fin:
             # Decode time and locate timesteps
             origin_time = fin.variables['time'].long_name.split(' ')[-1]
             origin_time = datetime.strptime(origin_time, '%Y%m%d')
@@ -138,7 +138,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing CAMS horizontal interpolation')
         hvars = ['height_chem'] + cfg.chem_species
 
-        with netCDF4.Dataset(rt.paths.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
             verbose('Preparing output file')
             # Create dimensions
             for d in ['time', 'z_chem']:
@@ -169,7 +169,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing CAMS vertical interpolation')
         terrain_rel = rt.terrain_rel[ax_,:,:]
 
-        with netCDF4.Dataset(rt.paths.hinterp) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.hinterp) as fin:
             agl_chem = fin.variables['height_chem']
             chem_heights = np.zeros((agl_chem.shape[1]+1,) + agl_chem.shape[2:], dtype=agl_chem.dtype)
             chem_heights[0,:,:] = -999.

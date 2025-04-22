@@ -26,8 +26,8 @@ import numpy as np
 import pyproj
 import scipy.ndimage as ndimage
 import netCDF4
-from core.utils import SliceExtender
-from core.library import PalmPhysics
+from palmmeteo.utils import SliceExtender
+from palmmeteo.library import PalmPhysics
 
 import metpy
 metpy_version_master = int(metpy.__version__.split('.', 1)[0])

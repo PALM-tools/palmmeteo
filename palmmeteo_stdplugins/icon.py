@@ -27,12 +27,12 @@ import scipy.ndimage as ndimage
 import netCDF4
 from metpy.interpolate import interpolate_1d
 
-from core.plugins import SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
-from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg, ConfigError, parse_duration
-from core.runtime import rt
-from core.utils import ensure_dimension, ax_, rad
-from core.library import PalmPhysics, TriRegridder, verify_palm_hinterp
+from palmmeteo.plugins import SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from palmmeteo.logging import die, warn, log, verbose, log_output
+from palmmeteo.config import cfg, ConfigError, parse_duration
+from palmmeteo.runtime import rt
+from palmmeteo.utils import ensure_dimension, ax_, rad
+from palmmeteo.library import PalmPhysics, TriRegridder, verify_palm_hinterp
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
@@ -74,36 +74,36 @@ def assign_time(coll, key, value):
         raise RuntimeError(f'Time index {key} was already loaded!')
     coll[key] = value
 
-class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
+class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
-        rt.icon2_cycles = [parse_duration(cfg.icon2, 'input_assim_cycles', c)
-                for c in cfg.icon2.input_assim_cycles]
+        rt.icon_cycles = [parse_duration(cfg.icon, 'input_assim_cycles', c)
+                for c in cfg.icon.input_assim_cycles]
 
-        if len(cfg.icon2.input_fcst_horizon_range) != 2:
+        if len(cfg.icon.input_fcst_horizon_range) != 2:
             raise ConfigError('Must specify exactly two horizon values [first, last]',
-                    cfg.icon2, 'input_fcst_horizon_range')
-        rt.icon2_horz0 = parse_duration(cfg.icon2, 'input_fcst_horizon_range',
-                cfg.icon2.input_fcst_horizon_range[0])
-        rt.icon2_horz1 = parse_duration(cfg.icon2, 'input_fcst_horizon_range',
-                cfg.icon2.input_fcst_horizon_range[1])
-        rt.icon2_horz1aggr = rt.icon2_horz1 + rt.simulation.timestep
+                    cfg.icon, 'input_fcst_horizon_range')
+        rt.icon_horz0 = parse_duration(cfg.icon, 'input_fcst_horizon_range',
+                cfg.icon.input_fcst_horizon_range[0])
+        rt.icon_horz1 = parse_duration(cfg.icon, 'input_fcst_horizon_range',
+                cfg.icon.input_fcst_horizon_range[1])
+        rt.icon_horz1aggr = rt.icon_horz1 + rt.simulation.timestep
         verbose('ICON horizon range for instantaneous values: {}...{}',
-                rt.icon2_horz0, rt.icon2_horz1)
+                rt.icon_horz0, rt.icon_horz1)
         verbose('ICON horizon range for aggregated values: {}...{}',
-                rt.icon2_horz0, rt.icon2_horz1aggr)
+                rt.icon_horz0, rt.icon_horz1aggr)
 
         # Make sure that the cycles together with horizon ranges form
         # a continuous 1-day long timeseries (using timestep)
-        delta0 = rt.icon2_horz0
-        delta1 = rt.icon2_horz1 + rt.simulation.timestep
-        for c1, c2 in zip(rt.icon2_cycles,
-                [rt.icon2_cycles[-1] - timedelta(days=1)] + rt.icon2_cycles[:-1]):
+        delta0 = rt.icon_horz0
+        delta1 = rt.icon_horz1 + rt.simulation.timestep
+        for c1, c2 in zip(rt.icon_cycles,
+                [rt.icon_cycles[-1] - timedelta(days=1)] + rt.icon_cycles[:-1]):
             if c1 + delta0 != c2 + delta1:
                 die('Input forecast horizon ranges do not conform: '
                     'cycle {} + horizon {} != cycle {} + horizon {}.',
                     c1, delta0, c2, delta1)
 
-        if cfg.radiation and not cfg.paths.icon_static_data:
+        if cfg.radiation and not rt.paths.icon.static_data:
             raise ConfigError('For radiation with ICON, the static data file '
                     'with surface emissivity must be specified', cfg.path,
                     'icon_static_data')
@@ -115,11 +115,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
         log('Importing ICON data...')
 
         # Process input files
-        iconglob = os.path.join(
-            cfg.paths.icon_output.format(**rt.paths.expand),
-            cfg.paths.icon_file_mask
-        )
-        verbose('Parsing ICON files from {}', iconglob)
+        verbose('Parsing ICON files from {}', rt.paths.icon.file_mask)
         rt.times = [None] * rt.nt
 
         if cfg.radiation:
@@ -138,7 +134,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
         #TODO: select assim cycles, load HHL if horiz 0 not in selection
 
         first = True
-        for fn in sorted(glob.glob(iconglob)):
+        for fn in sorted(glob.glob(rt.paths.icon.file_mask)):
             verbose('Parsing ICON file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep
@@ -151,14 +147,14 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                 hor_mins = float(tvar[0])
                 thoriz = timedelta(minutes=hor_mins)
                 t = tcycle + thoriz
-                if thoriz < rt.icon2_horz0:
+                if thoriz < rt.icon_horz0:
                     verbose('Horizon {} before first forecast horizon - skipping', thoriz)
                     continue
-                if thoriz > rt.icon2_horz1aggr:
+                if thoriz > rt.icon_horz1aggr:
                     verbose('Horizon {} after last forecast horizon - skipping', thoriz)
                     continue
 
-                if thoriz > rt.icon2_horz1:
+                if thoriz > rt.icon_horz1:
                     verbose('Horizon {} after last forecast horizon but used for aggregated values', thoriz)
                     aggr_only = True
                 else:
@@ -170,12 +166,12 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     verbose('Time {} is not within timestep intervals - skipping', t)
                     continue
                 if not (0 <= it < rt.nt):
-                    if (it == -1 and thoriz < rt.icon2_horz1aggr) or (
-                            it == rt.nt and thoriz > rt.icon2_horz1):
+                    if (it == -1 and thoriz < rt.icon_horz1aggr) or (
+                            it == rt.nt and thoriz > rt.icon_horz1):
                         verbose('Using time {} only for aggregated values', t)
                         aggr_only = True
                     elif cfg.radiation and (0 < it < rt.nt_rad
-                                            or (it == rt.nt_rad and thoriz > rt.icon2_horz1)):
+                                            or (it == rt.nt_rad and thoriz > rt.icon_horz1)):
                         verbose('Using time {} only for radiation', t)
                         aggr_only = True
                     else:
@@ -190,7 +186,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     clon = fin.variables['CLON'][0]
                     rt.regrid_icon = TriRegridder(clat, clon,
                                                   rt.palm_grid_lat, rt.palm_grid_lon,
-                                                  cfg.icon2.point_selection_buffer)
+                                                  cfg.icon.point_selection_buffer)
 
                     if cfg.hinterp.validate:
                         verbose('Validating horizontal inteprolation.')
@@ -222,19 +218,19 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     wsoil_coords = np.searchsorted(zsoil_wso, zsoil_tso[:-1], 'right') - 1
 
                     verbose('Initializing import file variables.')
-                    for varname in cfg.icon2.vars_3d:
+                    for varname in cfg.icon.vars_3d:
                         fout.createVariable(varname, 'f4', ['time', 'z_meteo', 'ncells'])
-                    for varname in cfg.icon2.vars_3dw + ['HHL']:
+                    for varname in cfg.icon.vars_3dw + ['HHL']:
                         fout.createVariable(varname, 'f4', ['time', 'zw_meteo', 'ncells'])
-                    for varname in cfg.icon2.vars_2d:
+                    for varname in cfg.icon.vars_2d:
                         fout.createVariable(varname, 'f4', ['time', 'ncells'])
-                    for varname in cfg.icon2.vars_soil:
+                    for varname in cfg.icon.vars_soil:
                         fout.createVariable(varname, 'f4', ['time', 'zsoil', 'ncells'])
 
                     if cfg.radiation:
                         verbose('Building list of indices for radiation smoothing.')
 
-                        deg_range = cfg.icon2.radiation_smoothing_distance / (PalmPhysics.radius*rad)
+                        deg_range = cfg.icon.radiation_smoothing_distance / (PalmPhysics.radius*rad)
                         rad_mask = np.hypot((clon-rt.cent_lon)*rt.regrid_icon.lon_coef,
                                              clat-rt.cent_lat) <= deg_range
 
@@ -243,10 +239,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                         log('Converting net longwave radiation to downward using surface '
                             'emissivity from a static file. CAUTION - this is only valid '
                             'without snow cover!')
-                        fpath_static = os.path.join(
-                            cfg.paths.icon_output.format(**rt.paths.expand),
-                            cfg.paths.icon_static_data)
-                        with netCDF4.Dataset(fpath_static) as fst:
+                        with netCDF4.Dataset(rt.paths.icon.static_data) as fst:
                             vemis = fst.variables['EMIS_RAD']
                             assert vemis.shape == clat.shape
                             emis = vemis[:][rad_mask]
@@ -276,9 +269,9 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     lwnet = fin.variables['ATHB_S'][0][rad_mask]
                     tsurf = fin.variables['T_SO'][0,0,:][rad_mask] # zero-height soil layer
                     h = thoriz.total_seconds()
-                    if thoriz < rt.icon2_horz1aggr:
+                    if thoriz < rt.icon_horz1aggr:
                         assign_time(aggr_start, it+1, (h, swdir, swdif, lwnet, tsurf))
-                    if thoriz > rt.icon2_horz0:
+                    if thoriz > rt.icon_horz0:
                         assign_time(aggr_end, it, (h, swdir, swdif, lwnet, tsurf))
 
                 if aggr_only:
@@ -291,11 +284,11 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
                 # ICON netcdf dimension names are just generated, we cannot rely
                 # on the exact names.
-                for varname in cfg.icon2.vars_3d:
+                for varname in cfg.icon.vars_3d:
                     v_icon = get_3dvar(fin, varname)
                     fout.variables[varname][it] = v_icon[0][::-1,rt.regrid_icon.ptmask]
 
-                for varname in cfg.icon2.vars_3dw:
+                for varname in cfg.icon.vars_3dw:
                     v_icon = get_3dvar(fin, varname)
                     fout.variables[varname][it] = v_icon[0][::-1,rt.regrid_icon.ptmask]
 
@@ -311,7 +304,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
                     assert np.abs(hsurf - hhl[-1]).max() < 0.1 #10 cm
                     hhl_d[tbase] = hhl
 
-                for varname in cfg.icon2.vars_2d:
+                for varname in cfg.icon.vars_2d:
                     v_icon = fin.variables[varname]
                     fout.variables[varname][it] = v_icon[0][...,rt.regrid_icon.ptmask]
 
@@ -398,7 +391,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
         log('Performing horizontal interpolation')
 
         verbose('Preparing output file')
-        with netCDF4.Dataset(rt.paths.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
             # Create dimensions
             for d in ['time', 'z_meteo', 'zw_meteo', 'zsoil']:
                 fout.createDimension(d, len(fin.dimensions[d]))
@@ -406,8 +399,8 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
             fout.createDimension('y', rt.ny)
 
             # Create variables
-            vars = (cfg.icon2.vars_2d + cfg.icon2.vars_3d + cfg.icon2.vars_3dw
-                    + ['HHL'] + cfg.icon2.vars_soil)
+            vars = (cfg.icon.vars_2d + cfg.icon.vars_3d + cfg.icon.vars_3dw
+                    + ['HHL'] + cfg.icon.vars_soil)
             for varname in vars:
                 v_icon = fin.variables[varname]
                 if v_icon.dimensions[-1] != 'ncells':
@@ -431,7 +424,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
         log('Performing vertical interpolation')
 
-        with netCDF4.Dataset(rt.paths.hinterp) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.hinterp) as fin:
             verbose('Preparing output file')
             for dimname in ['time', 'y', 'x']:
                 ensure_dimension(fout, dimname, len(fin.dimensions[dimname]))
@@ -493,7 +486,7 @@ class Icon2Plugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInte
 
                 # Calculate transition pressure level using horizontal
                 # domain-wide pressure average
-                gp_trans = (rt.origin_z + cfg.icon2.transition_level) * g
+                gp_trans = (rt.origin_z + cfg.icon.transition_level) * g
                 p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
                 verbose('Vertical stretching transition level: {} Pa', p_trans)
 

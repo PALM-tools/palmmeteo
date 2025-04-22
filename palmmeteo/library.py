@@ -24,7 +24,7 @@
 import datetime
 import re
 import numpy as np
-from .logging import die, warn, log, verbose, log_output
+from .logging import die, warn, log, verbose
 from .config import cfg
 from .runtime import rt
 from .utils import ax_, rad, SliceBoolExtender

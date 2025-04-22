@@ -27,12 +27,12 @@ import numpy as np
 import netCDF4
 from metpy.interpolate import interpolate_1d
 
-from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
-from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg
-from core.runtime import rt
-from core.utils import ensure_dimension, ax_
-from core.library import QuantityCalculator, TriRegridder, verify_palm_hinterp
+from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from palmmeteo.logging import die, warn, log, verbose, log_output
+from palmmeteo.config import cfg
+from palmmeteo.runtime import rt
+from palmmeteo.utils import ensure_dimension, ax_
+from palmmeteo.library import QuantityCalculator, TriRegridder, verify_palm_hinterp
 from .wrf_utils import CAMxCoordTransform, BilinearRegridder
 
 re_num = re.compile(r'[0-9\.]+')
@@ -47,12 +47,9 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         zcoord = [None] * rt.nt
 
         # Process input files
-        camxglob = os.path.join(rt.paths.base,
-                cfg.paths.camx_output.format(**rt.paths.expand),
-                cfg.paths.camx_file_mask)
-        verbose('Parsing CAMx files from {}', camxglob)
+        verbose('Parsing CAMx files from {}', rt.paths.camx.file_mask)
         first = True
-        for fn in glob.glob(camxglob):
+        for fn in glob.glob(rt.paths.camx.file_mask):
             verbose('Parsing CAMx file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timesteps
@@ -148,7 +145,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             first = False
 
         if first:
-            die('No CAMx files found under {}.', camxglob)
+            die('No CAMx files found under {}.', rt.paths.camx.file_mask)
 
         if not all(filled):
             die('Could not find all CAMx variables for all times.\n'
@@ -179,7 +176,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing CAMx horizontal interpolation')
         hvars = ['height_chem'] + cfg.chem_species
 
-        with netCDF4.Dataset(rt.paths.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
             verbose('Preparing output file')
             # Create dimensions
             for d in ['time', 'z_chem']:
@@ -217,7 +214,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing CAMx vertical interpolation')
         terrain_rel = rt.terrain_rel[ax_,:,:]
 
-        with netCDF4.Dataset(rt.paths.hinterp) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.hinterp) as fin:
             agl_chem = fin.variables['height_chem']
             chem_heights = np.zeros((agl_chem.shape[1]+1,) + agl_chem.shape[2:], dtype=agl_chem.dtype)
             chem_heights[0,:,:] = -999.

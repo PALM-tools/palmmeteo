@@ -6,7 +6,7 @@ typically using (but not limited to) outputs from mesoscale models.
 
 ## Functionality
 
-The PALM-METEO workflow consists of these items:
+The PALM-METEO workflow consists of these _stages_:
 
 1. **Model setup**: setting up basic items such as the PALM model domain.
    Currently this requireds providing the already prepared PALM *static
@@ -26,9 +26,10 @@ The PALM-METEO workflow consists of these items:
    terrain-following, isobaric, eta, hybrid etc.) to PALM model levels
    (altitude-based). Part of this process is terrain matching, as the
    high-resolution PALM terrain may differ, even significantly, from the input
-   model terrain. This process includes configurable stretching, where the
-   lowest layer matches the terrain while the vertical shifts are progressively
-   smaller in the upper layers.
+   model terrain. This process includes configurable vertical adaptation, where
+   the lowest input layer is shifted to match the PALM terrain while in the
+   higher layers, the vertical shifts are progressively smaller until they
+   reach the _transition level_, above which they are not shifted at all.
 
 5. **Output generation** creates the final PALM dynamic driver. Final
    adjustments are performed here, notably the mass balancing which is

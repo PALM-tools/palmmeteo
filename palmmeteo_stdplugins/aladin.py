@@ -37,15 +37,15 @@ from metpy.interpolate import log_interpolate_1d
 from metpy.units import units
 from pyproj import transform
 from metpy.interpolate import interpolate_1d
-from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
-from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg, ConfigError
-from core.runtime import rt
-from core.utils import ensure_dimension
+from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from palmmeteo.logging import die, warn, log, verbose, log_output
+from palmmeteo.config import cfg, ConfigError
+from palmmeteo.runtime import rt
+from palmmeteo.utils import ensure_dimension
 import scipy.ndimage as ndimage
 from .wrf_utils import BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, WrfPhysics
-from core.library import PalmPhysics
+from palmmeteo.library import PalmPhysics
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
@@ -139,21 +139,17 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, fout, *args, **kwargs):
         log('Importing Aladin data...')
         # Process input files
-        aladglob = os.path.join(rt.paths.base,
-                   cfg.paths.aladin_output.format(**rt.paths.expand))
-
-        aladgrib = os.path.join(cfg.paths.aladin_grib + cfg.paths.aladin_file_mask)
         if cfg.aladin.load_gribs:
-            ierr = transform_from_grib(aladgrib, aladglob, cfg, **kwargs)
+            ierr = transform_from_grib(rt.paths.aladin.grib_file_mask, rt.paths.aladin.output, cfg, **kwargs)
 
         log('Tranform from grid, done ...')
 
-        verbose('Parsing Aladin files from {}', aladglob)
+        verbose('Parsing Aladin files from {}', rt.paths.aladin.output)
 
         rt.times = [None] * rt.nt
         first = True
-        # for fn in glob.glob(aladglob):
-        fn = aladglob
+        # for fn in glob.glob(rt.paths.aladin.output):
+        fn = rt.paths.aladin.output
 
         with netCDF4.Dataset(fn, "r", format='NETCDF4') as fin:
             verbose('Parsing Aladin file {}', fn)
@@ -279,7 +275,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing horizontal interpolation')
 
         verbose('Preparing output file')
-        with netCDF4.Dataset(rt.paths.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
             # Create dimensions
             for d in ['time', 'z_meteo', 'zw_meteo', 'z', 'zsoil_meteo']:
                 ensure_dimension(fout, d, len(fin.dimensions[d]))
@@ -326,7 +322,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing vertical interpolation')
 
         verbose('Preparing output file')
-        with netCDF4.Dataset(rt.paths.hinterp) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.hinterp) as fin:
             for dimname in ['time', 'y', 'x', 'zsoil_meteo']:
                 ensure_dimension(fout, dimname, len(fin.dimensions[dimname]))
             ensure_dimension(fout, 'z', rt.nz)
@@ -596,9 +592,7 @@ class AladinCoordTransform(object):
 class AladinRadPlugin(ImportPluginMixin):
     def import_data(self, *args, **kwargs):
         log('Importing Aladin radiation data...')
-        fglob = os.path.join(rt.paths.base,
-                cfg.paths.aladin_grib)
-        verbose('Parsing Aladin radiation files from {}', fglob)
+        verbose('Parsing Aladin radiation files from {}', rt.paths.aladin.grib_file_mask)
 
         rad_data = []
 
@@ -622,7 +616,7 @@ class AladinRadPlugin(ImportPluginMixin):
         # grib_filter['total cloud cover'] = {'indicatorOfParameter' : 171, 'shortname' : 'unknown',
         #                                          'typeOfLevel' : 'heightAboveGround', 'netCDFname' : 'Nan2'}
         origin_time = False
-        for fn in glob.glob(fglob + '/**/*.grb', recursive=True):
+        for fn in glob.glob(rt.paths.aladin.grib_file_mask, recursive=True):
             verbose('Parsing Aladin radiation file {}', fn)
             if 'soil_depth' in fn:
                 verbose('soil depth file, skip')
@@ -1019,8 +1013,7 @@ def transform_from_grib(filename,fileout, cfg, **kwargs):
                     plat = cfg.aladin.soil_avg_point[0], cfg.aladin.soil_avg_point[1]
                     # FIXME: is it correct?
                     i, j = findnearest(lon_orig, lat_orig, (plon, plat))
-                    ds_soil = np.asarray(cg.open_dataset(os.path.join(rt.paths.base,
-                                cfg.paths.aladin_soil_depth))['z'])
+                    ds_soil = np.asarray(cg.open_dataset(rt.paths.aladin.soil_depth)['z'])
                     ds_soil_avg = ds_soil[i,j]
                 except:
                     ds_soil_avg = cfg.aladin.soil_depth_default

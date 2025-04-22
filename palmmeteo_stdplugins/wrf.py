@@ -28,14 +28,14 @@ import netCDF4
 from pyproj import transform
 from metpy.interpolate import interpolate_1d
 
-from core.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
-from core.logging import die, warn, log, verbose, log_output
-from core.config import cfg, ConfigError
-from core.runtime import rt
-from core.utils import ensure_dimension
+from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from palmmeteo.logging import die, warn, log, verbose, log_output
+from palmmeteo.config import cfg, ConfigError
+from palmmeteo.runtime import rt
+from palmmeteo.utils import ensure_dimension
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, wrf_t, palm_wrf_gw, WrfPhysics
-from core.library import PalmPhysics
+from palmmeteo.library import PalmPhysics
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
@@ -70,13 +70,10 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Importing WRF data...')
 
         # Process input files
-        wrfglob = os.path.join(rt.paths.base,
-                cfg.paths.wrf_output.format(**rt.paths.expand),
-                cfg.paths.wrf_file_mask)
-        verbose('Parsing WRF files from {}', wrfglob)
+        verbose('Parsing WRF files from {}', rt.paths.wrf.file_mask)
         rt.times = [None] * rt.nt
         first = True
-        for fn in glob.glob(wrfglob):
+        for fn in glob.glob(rt.paths.wrf.file_mask):
             verbose('Parsing WRF file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep
@@ -194,7 +191,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def interpolate_horiz(self, fout, *args, **kwargs):
         log('Performing horizontal interpolation')
 
-        with netCDF4.Dataset(rt.paths.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
             verbose('Preparing output file')
             # Create dimensions
             for d in ['time', 'z_meteo', 'zw_meteo', 'z', 'zsoil_meteo']:
@@ -241,7 +238,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
         log('Performing vertical interpolation')
 
-        with netCDF4.Dataset(rt.paths.hinterp) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.hinterp) as fin:
             verbose('Preparing output file')
             for dimname in ['time', 'y', 'x', 'zsoil_meteo']:
                 ensure_dimension(fout, dimname, len(fin.dimensions[dimname]))
@@ -411,14 +408,11 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 class WRFRadPlugin(ImportPluginMixin):
     def import_data(self, *args, **kwargs):
         log('Importing WRF radiation data...')
-        fglob = os.path.join(rt.paths.base,
-                cfg.paths.wrf_output.format(**rt.paths.expand),
-                cfg.paths.wrf_rad_file_mask)
-        verbose('Parsing WRF radiation files from {}', fglob)
+        verbose('Parsing WRF radiation files from {}', rt.paths.wrf.rad_file_mask)
 
         rad_data = []
         first = True
-        for fn in glob.glob(fglob):
+        for fn in glob.glob(rt.paths.wrf.rad_file_mask):
             verbose('Parsing WRF radiation file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time

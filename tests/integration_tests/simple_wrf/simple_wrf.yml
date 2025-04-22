@@ -1,4 +1,4 @@
-case: simple
+case: simple_wrf
 
 tasks:
     - wrf
@@ -8,10 +8,7 @@ domain:
     nz: 25
 
 paths:
-    base: simple_wrf
-    palm_input: .
-    intermediate: .
-    wrf_output: wrf
+    base: tests/integration_tests/simple_wrf
 
 simulation:
     origin_time: 2018-07-19 10:00:00
@@ -19,9 +16,5 @@ simulation:
 
 output:
     overwrite: true
-    check_mass_balance: true
-
-wrf:
-    vertical_stretching: universal
 
 verbosity: 2
