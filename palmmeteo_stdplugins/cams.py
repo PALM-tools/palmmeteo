@@ -84,8 +84,8 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 verbose('Validating horizontal inteprolation.')
                 llats, llons = np.broadcast_arrays(lats[:,ax_], lons[ax_,:])
                 verify_palm_hinterp(rt.regrid_cams,
-                                    rt.regrid_cams.loader(llats)[()],
-                                    rt.regrid_cams.loader(llons)[()])
+                                    rt.regrid_cams.loader(llats)[...],
+                                    rt.regrid_cams.loader(llons)[...])
                 del llats, llons
 
             convertor = QuantityCalculator(cfg.chem_species,

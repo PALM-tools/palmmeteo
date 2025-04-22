@@ -191,8 +191,8 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
                     if cfg.hinterp.validate:
                         verbose('Validating horizontal inteprolation.')
                         verify_palm_hinterp(rt.regrid_icon,
-                                            rt.regrid_icon.loader(clat)[()],
-                                            rt.regrid_icon.loader(clon)[()])
+                                            rt.regrid_icon.loader(clat)[...],
+                                            rt.regrid_icon.loader(clon)[...])
 
                     # dimensions
                     ensure_dimension(fout, 'time', rt.nt)
@@ -285,16 +285,16 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
                 # ICON netcdf dimension names are just generated, we cannot rely
                 # on the exact names.
                 for varname in cfg.icon.vars_3d:
-                    v_icon = get_3dvar(fin, varname)
-                    fout.variables[varname][it] = v_icon[0][::-1,rt.regrid_icon.ptmask]
+                    v_icon = rt.regrid_icon.loader(get_3dvar(fin, varname))
+                    fout.variables[varname][it] = v_icon[0,...][::-1]
 
                 for varname in cfg.icon.vars_3dw:
-                    v_icon = get_3dvar(fin, varname)
-                    fout.variables[varname][it] = v_icon[0][::-1,rt.regrid_icon.ptmask]
+                    v_icon = rt.regrid_icon.loader(get_3dvar(fin, varname))
+                    fout.variables[varname][it] = v_icon[0,...][::-1]
 
                 if hor_mins == 0.:
-                    hhl = fin.variables['HHL'][0][...,rt.regrid_icon.ptmask]
-                    hsurf = fin.variables['HSURF'][0][...,rt.regrid_icon.ptmask]
+                    hhl = rt.regrid_icon.loader(fin.variables['HHL'])[0,...]
+                    hsurf = rt.regrid_icon.loader(fin.variables['HSURF'])[0,...]
 
                     # Layers in ICON NetCDF are top->bottom. Make sure that
                     # they are not mixed up in convertor, and that terrain
@@ -305,13 +305,13 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
                     hhl_d[tbase] = hhl
 
                 for varname in cfg.icon.vars_2d:
-                    v_icon = fin.variables[varname]
-                    fout.variables[varname][it] = v_icon[0][...,rt.regrid_icon.ptmask]
+                    v_icon = rt.regrid_icon.loader(fin.variables[varname])
+                    fout.variables[varname][it] = v_icon[0,...]
 
                 # soil layers
-                fout.variables['T_SO'][it] = fin.variables['T_SO'][0,:-1,:][...,rt.regrid_icon.ptmask]
+                fout.variables['T_SO'][it] = rt.regrid_icon.loader(fin.variables['T_SO'])[0,:-1,...]
 
-                wso = fin.variables['W_SO'][0,:,:][...,rt.regrid_icon.ptmask]
+                wso = rt.regrid_icon.loader(fin.variables['W_SO'])[0,...]
                 wso_gradient = (wso[1:] - wso[:-1]) / zsoil_dwso # kg/m2 agg -> kg/m3
                 wso_gradient = wso_gradient / 999.0 # -> m3/m3
                 qsoil = wso_gradient[wsoil_coords, :]

@@ -35,7 +35,7 @@ from palmmeteo.runtime import rt
 from palmmeteo.utils import ensure_dimension
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, wrf_t, palm_wrf_gw, WrfPhysics
-from palmmeteo.library import PalmPhysics
+from palmmeteo.library import PalmPhysics, verify_palm_hinterp
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
@@ -97,12 +97,20 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     # coordinate projection
                     verbose('Loading projection and preparing regridder')
                     rt.trans_wrf = WRFCoordTransform(fin)
+                    if cfg.hinterp.validate:
+                        rt.trans_wrf.verify(fin)
+
                     palm_in_wrf_y, palm_in_wrf_x = rt.trans_wrf.latlon_to_ji(
                                                     rt.palm_grid_lat, rt.palm_grid_lon)
                     rt.regrid_wrf = BilinearRegridder(palm_in_wrf_x, palm_in_wrf_y, preloaded=True)
                     rt.regrid_wrf_u = BilinearRegridder(palm_in_wrf_x+.5, palm_in_wrf_y, preloaded=True)
                     rt.regrid_wrf_v = BilinearRegridder(palm_in_wrf_x, palm_in_wrf_y+.5, preloaded=True)
                     del palm_in_wrf_y, palm_in_wrf_x
+                    if cfg.hinterp.validate:
+                        verbose('Validating horizontal inteprolation.')
+                        verify_palm_hinterp(rt.regrid_wrf,
+                                            rt.regrid_wrf.loader(fin.variables['XLAT' ])[0],
+                                            rt.regrid_wrf.loader(fin.variables['XLONG'])[0])
 
                     # dimensions
                     ensure_dimension(fout, 'time', rt.nt)
