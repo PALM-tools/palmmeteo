@@ -3,6 +3,8 @@
 /tests/integration_tests/simple_wrf/METEO/hinterp.nc
 /tests/integration_tests/simple_wrf/METEO/vinterp.nc
 
+/.venv
+
 *.pyc
 __pycache__/
 
