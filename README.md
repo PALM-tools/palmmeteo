@@ -71,6 +71,17 @@ however if you prefer slightly different versions of the libraries specified in
 `requirements.txt`, potentially from your operating system's distribution, you
 may try them as well.
 
+### Testing
+
+Successfull installation can be verified by running the integration tests using
+the command
+```
+tests/integration_tests/integration_tests.sh TESTNAME [TESTNAME [...]]
+```
+
+Currently only one test is available: `simple_wrf` (see the directory above).
+This test can also be used as _tutorial_.
+
 ## Usage
 
 For each dynamic driver, a *YAML* configuration file needs to be prepared. This
@@ -109,14 +120,15 @@ configuration defauls, which may be overwritten within the configuration file.
 With a prepared configuration file such as `myconfig.yaml`, simply run
 
 ```
-./main.py -c myconfig.yaml
+./pmeteo -c myconfig.yaml
 ```
 
-in the project directory. See also the output of `./main.py -h`.
+in the project directory. See also the output of `./pmeteo -h`.
 
 ## License and authors
 
 PALM-METEO is distributed under the GNU GPL v3+ license (see the `LICENSE`
 file).  It was created by the Institute of Computer Science of the Czech
-Academy of Sciences (ICS CAS) with contributions by the Deutsche Wetterdienst
-(DWD) and the Czech Hydrometeorological Institute (CHMI).
+Academy of Sciences (ICS CAS) with contributions by the Charles University
+in Prague (MFF UK), the Czech Hydrometeorological Institute (CHMI) and the Deutsche
+Wetterdienst (DWD).
