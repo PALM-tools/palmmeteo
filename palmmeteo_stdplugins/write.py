@@ -86,11 +86,16 @@ class WritePlugin(WritePluginMixin):
             # Create init variables
             mkvar('init_atmosphere_pt', ('z', 'y', 'x'),     2)
             mkvar('init_atmosphere_qv', ('z', 'y', 'x'),     2)
-            mkvar('init_atmosphere_u',  ('z', 'y', 'xu'),    2)
-            mkvar('init_atmosphere_v',  ('z', 'yv', 'x'),    2)
-            mkvar('init_atmosphere_w',  ('zw', 'y', 'x'),    2)
             mkvar('init_soil_t',        ('zsoil', 'y', 'x'), 2)
             mkvar('init_soil_m',        ('zsoil', 'y', 'x'), 2)
+            if cfg.output.lod_uvw == 2:
+                mkvar('init_atmosphere_u',  ('z', 'y', 'xu'), 2)
+                mkvar('init_atmosphere_v',  ('z', 'yv', 'x'), 2)
+                mkvar('init_atmosphere_w',  ('zw', 'y', 'x'), 2)
+            else:
+                mkvar('init_atmosphere_u',  ('z', ), 1)
+                mkvar('init_atmosphere_v',  ('z', ), 1)
+                mkvar('init_atmosphere_w',  ('zw',), 1)
 
             # Create forcing variables
             if not rt.nested_domain:
@@ -168,12 +173,18 @@ class WritePlugin(WritePluginMixin):
                 # write values for initialization variables
                 fov['init_atmosphere_pt'][:,:,:] = fiv['init_atmosphere_pt'][0, :, :, :]
                 fov['init_atmosphere_qv'][:,:,:] = fiv['init_atmosphere_qv'][0, :, :, :]
-                fov['init_atmosphere_u'][:,:,:] = fiv['init_atmosphere_u'][0, :, :, 1:] #TODO fix stag
-                fov['init_atmosphere_v'][:,:,:] = fiv['init_atmosphere_v'][0, :, 1:, :] #TODO fix stag
-                fov['init_atmosphere_w'][:,:,:] = fiv['init_atmosphere_w'][0, :, :, :]
                 fov['init_soil_t'][:,:,:] = fiv['init_soil_t'][0,:,:,:]
                 fov['init_soil_m'][:,:,:] = (fiv['init_soil_m'][0,:,:,:]
                         * rt.soil_moisture_adjust[ax_,:,:])
+
+                if cfg.output.lod_uvw == 2:
+                    fov['init_atmosphere_u'][:,:,:] = fiv['init_atmosphere_u'][0, :, :, 1:] #TODO fix stag
+                    fov['init_atmosphere_v'][:,:,:] = fiv['init_atmosphere_v'][0, :, 1:, :] #TODO fix stag
+                    fov['init_atmosphere_w'][:,:,:] = fiv['init_atmosphere_w'][0, :, :, :]
+                else:
+                    fov['init_atmosphere_u'][:] = fiv['init_atmosphere_u'][0, :, :, :].mean(axis=(1,2))
+                    fov['init_atmosphere_v'][:] = fiv['init_atmosphere_v'][0, :, :, :].mean(axis=(1,2))
+                    fov['init_atmosphere_w'][:] = fiv['init_atmosphere_w'][0, :, :, :].mean(axis=(1,2))
 
                 # Write values for time dependent values
                 if not rt.nested_domain:
