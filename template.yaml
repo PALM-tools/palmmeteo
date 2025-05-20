@@ -65,9 +65,13 @@ output:
     # numerical suffix
     #overwrite: false
 
-    # LOD for wind components U,V,W. LOD2 = 3D data (default), LOD1 = vertical
-    # profile (via horizontal averaging).
-    #lod_uvw: 2
+    # LODs for output variables:
+    # LOD2 = 3D data (unchanged, default),
+    # LOD1 = vertical profile (via horizontal averaging).
+    lod:
+        #pt: 2
+        #qv: 2
+        #uvw: 2
 
     #default_precision: 'f4'
     #fill_value: -9999.0

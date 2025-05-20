@@ -31,6 +31,9 @@ from palmmeteo.library import PalmPhysics
 
 ax_ = np.newaxis
 
+# Convert LOD2 to LOD1 if requested
+lod2_to_lod = lambda lod, arr: arr.mean(axis=(-2,-1)) if lod == 1 else arr
+
 class WritePlugin(WritePluginMixin):
     def write_data(self, *args, **kwargs):
         log('Writing data to dynamic driver')
@@ -47,7 +50,11 @@ class WritePlugin(WritePluginMixin):
             # shorthands
             fov = fout.variables
             def mkvar(vname, dims, lod=None, units=None, dtype=dtdefault,
-                    fill=filldefault, attrs_from=None):
+                    fill=filldefault, attrs_from=None, orig_lod=None):
+                if orig_lod==2 and lod==1:
+                    # Artificially remove y,x from dimensions
+                    dims = dims[:-2]
+
                 v = fout.createVariable(vname, dtype, dims, fill_value=fill)
                 if attrs_from is None:
                     attrs = {}
@@ -84,18 +91,13 @@ class WritePlugin(WritePluginMixin):
             mkvar('xu',    ('xu',)   )[:] = rt.dx*np.arange(1,rt.nx,dtype=dtdefault)
 
             # Create init variables
-            mkvar('init_atmosphere_pt', ('z', 'y', 'x'),     2)
-            mkvar('init_atmosphere_qv', ('z', 'y', 'x'),     2)
+            mkvar('init_atmosphere_pt', ('z', 'y', 'x'),  cfg.output.lod.pt,  orig_lod=2)
+            mkvar('init_atmosphere_qv', ('z', 'y', 'x'),  cfg.output.lod.qv,  orig_lod=2)
+            mkvar('init_atmosphere_u',  ('z', 'y', 'xu'), cfg.output.lod.uvw, orig_lod=2)
+            mkvar('init_atmosphere_v',  ('z', 'yv', 'x'), cfg.output.lod.uvw, orig_lod=2)
+            mkvar('init_atmosphere_w',  ('zw', 'y', 'x'), cfg.output.lod.uvw, orig_lod=2)
             mkvar('init_soil_t',        ('zsoil', 'y', 'x'), 2)
             mkvar('init_soil_m',        ('zsoil', 'y', 'x'), 2)
-            if cfg.output.lod_uvw == 2:
-                mkvar('init_atmosphere_u',  ('z', 'y', 'xu'), 2)
-                mkvar('init_atmosphere_v',  ('z', 'yv', 'x'), 2)
-                mkvar('init_atmosphere_w',  ('zw', 'y', 'x'), 2)
-            else:
-                mkvar('init_atmosphere_u',  ('z', ), 1)
-                mkvar('init_atmosphere_v',  ('z', ), 1)
-                mkvar('init_atmosphere_w',  ('zw',), 1)
 
             # Create forcing variables
             if not rt.nested_domain:
@@ -171,20 +173,14 @@ class WritePlugin(WritePluginMixin):
                     mkvar('ls_forcing_vg', ('time', 'z'))
 
                 # write values for initialization variables
-                fov['init_atmosphere_pt'][:,:,:] = fiv['init_atmosphere_pt'][0, :, :, :]
-                fov['init_atmosphere_qv'][:,:,:] = fiv['init_atmosphere_qv'][0, :, :, :]
+                fov['init_atmosphere_pt'][:] = lod2_to_lod(cfg.output.lod.pt,  fiv['init_atmosphere_pt'][0, :, :, :])
+                fov['init_atmosphere_qv'][:] = lod2_to_lod(cfg.output.lod.qv,  fiv['init_atmosphere_qv'][0, :, :, :])
+                fov['init_atmosphere_u'][:]  = lod2_to_lod(cfg.output.lod.uvw, fiv['init_atmosphere_u'][0, :, :, 1:]) #TODO fix stag
+                fov['init_atmosphere_v'][:]  = lod2_to_lod(cfg.output.lod.uvw, fiv['init_atmosphere_v'][0, :, 1:, :]) #TODO fix stag
+                fov['init_atmosphere_w'][:]  = lod2_to_lod(cfg.output.lod.uvw, fiv['init_atmosphere_w'][0, :, :, :] )
                 fov['init_soil_t'][:,:,:] = fiv['init_soil_t'][0,:,:,:]
                 fov['init_soil_m'][:,:,:] = (fiv['init_soil_m'][0,:,:,:]
                         * rt.soil_moisture_adjust[ax_,:,:])
-
-                if cfg.output.lod_uvw == 2:
-                    fov['init_atmosphere_u'][:,:,:] = fiv['init_atmosphere_u'][0, :, :, 1:] #TODO fix stag
-                    fov['init_atmosphere_v'][:,:,:] = fiv['init_atmosphere_v'][0, :, 1:, :] #TODO fix stag
-                    fov['init_atmosphere_w'][:,:,:] = fiv['init_atmosphere_w'][0, :, :, :]
-                else:
-                    fov['init_atmosphere_u'][:] = fiv['init_atmosphere_u'][0, :, :, :].mean(axis=(1,2))
-                    fov['init_atmosphere_v'][:] = fiv['init_atmosphere_v'][0, :, :, :].mean(axis=(1,2))
-                    fov['init_atmosphere_w'][:] = fiv['init_atmosphere_w'][0, :, :, :].mean(axis=(1,2))
 
                 # Write values for time dependent values
                 if not rt.nested_domain:
