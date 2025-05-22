@@ -32,7 +32,7 @@ dnum: 1 #1 for root domain, 2 for nested domain *_N02 etc.
 path_strings:
     case: 'case'
     scenario: 'f"_{scenario}" if scenario else ""'
-    domain: 'f"_{dnum:02d}" if dnum != 1 else ""'
+    domain: 'f"_N{dnum:02d}" if dnum != 1 else ""'
 
 # All paths are either absolute or relative to paths.base. They may contain
 # references to entries in path_strings
