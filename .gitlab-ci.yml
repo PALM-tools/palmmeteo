@@ -29,7 +29,7 @@ before_script:
   - python3 -m pip install virtualenv
   - virtualenv palm_env
   - source palm_env/bin/activate
-  - python3 -m pip install -r requirements.txt
+  - python3 -m pip install --editable .
   - echo -e "\e[0Ksection_end:`date +%s`:pip_section\r\e[0K"
 
 unit_tests:
