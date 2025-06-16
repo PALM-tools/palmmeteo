@@ -22,7 +22,7 @@ cache:
 before_script:
   - echo -e "\e[0Ksection_start:`date +%s`:apt_section[collapsed=true]\r\e[0KInstalling apt dependencies"
   - apt-get update
-  - apt-get install -y python3-pip
+  - apt-get install -y python3-pip git
   - echo -e "\e[0Ksection_end:`date +%s`:apt_section\r\e[0K"
   - echo -e "\e[0Ksection_start:`date +%s`:pip_section[collapsed=true]\r\e[0KInstalling pip dependencies"
   - python3 --version

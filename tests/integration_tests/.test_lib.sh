@@ -22,7 +22,7 @@ init_tests() {
 
     # Paths
     basedir="tests/integration_tests"
-    pmeteo="./pmeteo"
+    [ -x ./pmeteo ] && pmeteo=./pmeteo || pmeteo=pmeteo
     ncdiffp="$basedir/ncdiffp"
 
     # Test results
