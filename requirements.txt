@@ -1,5 +1,5 @@
 # Explicit dependency versions
-pint>=0.24
+pint>=0.23
 
 # Project reqs (for py310)
 numpy>=2.1,<2.2

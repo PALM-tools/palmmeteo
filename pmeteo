@@ -21,21 +21,27 @@
 
 """PALM meteo input processor.
 
-Creates PALM dynamic driver from multiple sources.
+Creates PALM dynamic driver from various sources.
 """
 
+import sys
 from argparse import ArgumentParser
 from palmmeteo import run
 
 
 argp = ArgumentParser(description=__doc__)
-argp.add_argument('-c', '--config', help='configuration file')
+argp.add_argument('-c', '--config', nargs='+', help='configuration file (s)', required=True)
+argp.add_argument('-w', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
+argp.add_argument('-W', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
 verbosity = argp.add_mutually_exclusive_group()
 verbosity.add_argument('-v', '--verbose', action='store_const',
         dest='verbosity_arg', const=2, help='increase verbosity')
 verbosity.add_argument('-s', '--silent', action='store_const',
         dest='verbosity_arg', const=0, help='print only errors')
 
-argv = argp.parse_args()
+if len(sys.argv) <= 1:
+    argp.print_help()
+    sys.exit(2)
 
+argv = argp.parse_args()
 run(argv)

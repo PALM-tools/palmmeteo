@@ -26,7 +26,7 @@ from palmmeteo.plugins import SetupPluginMixin
 from palmmeteo.logging import die, warn, log, verbose
 from palmmeteo.config import cfg, ConfigError
 from palmmeteo.runtime import rt
-from palmmeteo.utils import tstep, td0
+from palmmeteo.utils import tstep, td0, DTIndexer
 
 ax_ = np.newaxis
 
@@ -91,7 +91,7 @@ class SetupPlugin(SetupPluginMixin):
 
         # configure times
         rt.simulation.end_time_rad = rt.simulation.start_time + rt.simulation.length
-        rt.tindex = lambda dt: tstep(dt-rt.simulation.start_time, rt.simulation.timestep)
+        rt.tindex = DTIndexer(rt.simulation.start_time, rt.simulation.timestep)
         if rt.nested_domain:
             log('Nested domain - preparing only initialization (1 timestep).')
             rt.nt = 1

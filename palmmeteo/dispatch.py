@@ -38,26 +38,20 @@ def build_exec_queue(event, from_plugins):
     return queue
 
 
-def execute_event(event):
-    queue = build_exec_queue(event, rt.plugins)
+def execute_event(event, from_plugins):
+    queue = build_exec_queue(event, from_plugins)
 
     kwargs = {}
     common_files = []
     try:
         # Prepare common files or other common processing for specific events
-        if event == 'import':
-            assert_dir(rt.paths.intermediate.imported)
-            f = netCDF4.Dataset(rt.paths.intermediate.imported, 'w', format='NETCDF4')
-            common_files.append(f)
-            kwargs['fout'] = f
-        elif event == 'hinterp':
-            assert_dir(rt.paths.intermediate.hinterp)
-            f = netCDF4.Dataset(rt.paths.intermediate.hinterp, 'w', format='NETCDF4')
-            common_files.append(f)
-            kwargs['fout'] = f
-        elif event == 'vinterp':
-            assert_dir(rt.paths.intermediate.vinterp)
-            f = netCDF4.Dataset(rt.paths.intermediate.vinterp, 'w', format='NETCDF4')
+        try:
+            fn_out = getattr(rt.paths.intermediate, event)
+        except AttributeError: pass
+        else:
+            # Output filename is defined for this stage
+            assert_dir(fn_out)
+            f = netCDF4.Dataset(fn_out, 'w', format='NETCDF4')
             common_files.append(f)
             kwargs['fout'] = f
 
@@ -71,6 +65,13 @@ def execute_event(event):
             except:
                 warn('Error closing file {}!', f)
 
+    # Save snapshot if applicable
+    try:
+        fn_snapshot = getattr(rt.paths.snapshot, event)
+    except AttributeError: pass
+    else:
+        assert_dir(fn_snapshot)
+        rt._save(fn_snapshot)
 
 def run(argv):
     # Set initial verbosity from commandline, so that we can log the
@@ -80,7 +81,7 @@ def run(argv):
     configure_log(cfg)
 
     # Load all configfiles and apply commandline config
-    load_config(argv)
+    workflow = load_config(argv)
 
     # Configure logging according to final config
     configure_log(cfg)
@@ -89,10 +90,19 @@ def run(argv):
     basic_init(rt)
 
     # Load plugins as configured
-    rt.plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
+    plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
                       for p in cfg.plugins]
 
+    if workflow.snapshot_from:
+        try:
+            fn_snapshot = getattr(rt.paths.snapshot, workflow.snapshot_from)
+        except AttributeError: pass
+        else:
+            # Workflow not from start - load snapshot
+            rt._load(fn_snapshot)
+
     # Execute all stages in the workflow
-    for event in cfg.workflow:
-        execute_event(event)
+    for event in workflow:
+        execute_event(event, plugins)
+
     log('Finished all stages in the workflow.')

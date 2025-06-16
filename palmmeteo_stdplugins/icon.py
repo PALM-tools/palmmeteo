@@ -76,6 +76,9 @@ def assign_time(coll, key, value):
 
 class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
+        pass
+
+    def setup_model(self, *args, **kwargs):
         rt.icon_cycles = [parse_duration(cfg.icon, 'input_assim_cycles', c)
                 for c in cfg.icon.input_assim_cycles]
 
@@ -107,9 +110,6 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
             raise ConfigError('For radiation with ICON, the static data file '
                     'with surface emissivity must be specified', cfg.path,
                     'icon_static_data')
-
-    def setup_model(self, *args, **kwargs):
-        pass
 
     def import_data(self, fout, *args, **kwargs):
         log('Importing ICON data...')
@@ -391,7 +391,7 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
         log('Performing horizontal interpolation')
 
         verbose('Preparing output file')
-        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.import_data) as fin:
             # Create dimensions
             for d in ['time', 'z_meteo', 'zw_meteo', 'zsoil']:
                 fout.createDimension(d, len(fin.dimensions[d]))

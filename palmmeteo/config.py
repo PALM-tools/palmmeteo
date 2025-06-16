@@ -22,7 +22,7 @@
 import os
 import datetime
 from collections import defaultdict
-import importlib
+import importlib.resources
 import pkgutil
 
 from yaml import load
@@ -32,6 +32,7 @@ except ImportError:
     from yaml import SafeLoader
 
 from .logging import die, warn, log, verbose
+from .utils import Workflow
 
 class ConfigError(Exception):
     def __init__(self, desc, section=None, key=None):
@@ -145,19 +146,18 @@ class ConfigObj(object):
                     if self._settings.get(k, None) is None:
                         self._settings[k] = v
 
-    def _ingest_module_config(self, modname, modpath):
+    def _ingest_module_config(self, modname):
         """Locates the initial configuration file config_init.yaml within module
         code and ingests it.
         """
-        cfg_path = os.path.join(os.path.dirname(os.path.abspath(modpath)),
-                                'config_init.yaml')
+        fpath = importlib.resources.files(modname).joinpath('config_init.yaml')
 
-        if not os.path.isfile(cfg_path):
-            die('Cannot load initial configuration for module {}: file {} '
-                'not found!', modname, cfg_path)
+        if not fpath.is_file():
+            die('Cannot find initial configuration for package {}! Expected at {}.',
+                modname, fpath)
 
-        verbose('Loading {} configuration from {}', modname, cfg_path)
-        with open(cfg_path, 'r') as f:
+        verbose('Loading {} configuration from {}', modname, fpath)
+        with fpath.open('r') as f:
             cfg._ingest_dict(load(f, Loader=SafeLoader))
 
     def _get_path(self):
@@ -227,22 +227,20 @@ def load_config(argv):
     log('Loading configuration')
 
     # Load initial configuration for core palmmeteo
-    cfg._ingest_module_config('palmmeteo', __file__)
+    cfg._ingest_module_config('palmmeteo')
 
     # Standard plugins are mandatory and loaded first
-    cfg._ingest_module_config('palmmeteo_stdplugins',
-                     importlib.util.find_spec('palmmeteo_stdplugins').origin)
+    cfg._ingest_module_config('palmmeteo_stdplugins')
 
     # Load initial configuration for plugins by finding all other modules that
     # start with palmmeteo_
     for modfinder, modname, ispkg in pkgutil.iter_modules():
         if modname.startswith('palmmeteo_') and modname != 'palmmeteo_stdplugins':
-            cfg._ingest_module_config(modname,
-                                      modfinder.find_spec(modname).origin)
+            cfg._ingest_module_config(modname)
 
-    # load settings from selected configfile (if available)
-    if argv.config:
-        with open(argv.config, 'r') as config_file:
+    # load settings from selected configfiles
+    for fn_cfg in argv.config:
+        with open(fn_cfg, 'r') as config_file:
             cfg._ingest_dict(load(config_file, Loader=SafeLoader),
                     check_exist=True)
 
@@ -264,9 +262,21 @@ def load_config(argv):
     if argv.verbosity_arg is not None:
         cfg._settings['verbosity'] = argv.verbosity_arg
 
+    # process workflow
+    workflow = Workflow(cfg.full_workflow)
+
+    if argv.workflow_from or argv.workflow_to:
+        workflow.assign_fromto(argv.workflow_from, argv.workflow_to)
+    elif cfg.workflow:
+        workflow.assign_list(cfg.workflow)
+    else:
+        workflow.assign_all()
+
     # Basic verification
     if not cfg.case:
         raise ConfigError('Case name must be specified', cfg, 'case')
+
+    return workflow
 
 
 cfg = ConfigObj()
