@@ -8,6 +8,12 @@
 /tests/integration_tests/*/METEO/vinterp.pickle
 
 /.venv
+/pmeteo
+/build.sh
+/tags
+/dist/
+/palmmeteo.egg-info/
+/palmmeteo/_version.py
 
 *.pyc
 __pycache__/

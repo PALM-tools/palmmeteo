@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=66", "setuptools_scm[toml]>=7"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "palmmeteo"
+dynamic = ["version", "dependencies"]
+authors = [
+  { name="Pavel Krc", email="krc@cs.cas.cz" },
+]
+description = "PALM-meteo: processor of meteorological input data for the PALM model system."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Development Status :: 4 - Beta",
+]
+
+[project.scripts]
+pmeteo = "palmmeteo:main"
+
+[project.urls]
+Homepage = "https://github.com/rolicot/palmmeteo"
+Issues = "https://github.com/rolicot/palmmeteo/issues"
+
+[tool.setuptools]
+packages = ["palmmeteo", "palmmeteo_stdplugins"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools_scm]
+write_to = "palmmeteo/_version.py"

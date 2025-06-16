@@ -19,8 +19,11 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
+import sys
+from argparse import ArgumentParser
 import netCDF4
 
+from . import __doc__, __version__
 from . import plugins as plg
 from .logging import die, warn, log, verbose, configure_log
 from .config import load_config, cfg
@@ -106,3 +109,22 @@ def run(argv):
         execute_event(event, plugins)
 
     log('Finished all stages in the workflow.')
+
+def main():
+    argp = ArgumentParser(prog='pmeteo', description=__doc__)
+    argp.add_argument('-c', '--config', nargs='+', help='configuration file (s)', required=True)
+    argp.add_argument('-w', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
+    argp.add_argument('-W', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
+    argp.add_argument('--version', action='version', version=f'PALM-meteo version {__version__}')
+    verbosity = argp.add_mutually_exclusive_group()
+    verbosity.add_argument('-v', '--verbose', action='store_const',
+            dest='verbosity_arg', const=2, help='increase verbosity')
+    verbosity.add_argument('-s', '--silent', action='store_const',
+            dest='verbosity_arg', const=0, help='print only errors')
+
+    if len(sys.argv) <= 1:
+        argp.print_help()
+        sys.exit(2)
+
+    argv = argp.parse_args()
+    run(argv)

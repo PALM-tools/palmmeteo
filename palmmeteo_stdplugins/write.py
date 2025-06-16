@@ -19,9 +19,11 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
+from datetime import datetime
 import numpy as np
 import netCDF4
 
+from palmmeteo import __version__
 from palmmeteo.plugins import WritePluginMixin
 from palmmeteo.logging import die, warn, log, verbose
 from palmmeteo.config import cfg
@@ -68,6 +70,9 @@ class WritePlugin(WritePluginMixin):
                 if attrs:
                     v.setncatts(attrs)
                 return v
+
+            fout.creator = f'PALM-meteo version {__version__}'
+            fout.creation_date = datetime.now().isoformat()
 
             # Create dimensions
             fout.createDimension('time',  rt.nt     )
