@@ -199,7 +199,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def interpolate_horiz(self, fout, *args, **kwargs):
         log('Performing horizontal interpolation')
 
-        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.import_data) as fin:
             verbose('Preparing output file')
             # Create dimensions
             for d in ['time', 'z_meteo', 'zw_meteo', 'z', 'zsoil_meteo']:

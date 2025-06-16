@@ -65,11 +65,11 @@ class WRFCoordTransform(object):
         #    ellps='WGS84', datum='WGS84',
         #    no_defs=True) #don't use - WRF datum misuse
 
-        latlon_sphere = pyproj.Proj(proj='latlong',
+        self.latlon_sphere = pyproj.Proj(proj='latlong',
             a=WrfPhysics.radius, b=WrfPhysics.radius,
             towgs84='0,0,0', no_defs=True)
 
-        lambert_grid = pyproj.Proj(proj='lcc',
+        self.lambert_grid = pyproj.Proj(proj='lcc',
             lat_1=attr('TRUELAT1'),
             lat_2=attr('TRUELAT2'),
             lat_0=attr('MOAD_CEN_LAT'),
@@ -90,26 +90,22 @@ class WRFCoordTransform(object):
         extent_y = (ny - 1) * dy
 
         # grid center in lambert
-        center_x, center_y = pyproj.transform(latlon_sphere, lambert_grid,
+        center_x, center_y = pyproj.transform(self.latlon_sphere, self.lambert_grid,
             attr('CEN_LON'), attr('CEN_LAT'))
 
         # grid origin coordinates in lambert
-        i0_x = center_x - extent_x*.5
-        j0_y = center_y - extent_y*.5
+        self.i0_x = center_x - extent_x*.5
+        self.j0_y = center_y - extent_y*.5
 
-        # Define fast transformation methods
+    def latlon_to_ji(self, lat, lon):
+        x, y = pyproj.transform(self.latlon_sphere, self.lambert_grid,
+                lon, lat)
+        return (y-self.j0_y)/self.dy, (x-self.i0_x)/self.dx
 
-        def latlon_to_ji(lat, lon):
-            x, y = pyproj.transform(latlon_sphere, lambert_grid,
-                    lon, lat)
-            return (y-j0_y)/dy, (x-i0_x)/dx
-        self.latlon_to_ji = latlon_to_ji
-
-        def ji_to_latlon(j, i):
-            lon, lat = pyproj.transform(lambert_grid, latlon_sphere,
-                i*dx+i0_x, j*dy+j0_y)
-            return lat, lon
-        self.ji_to_latlon = ji_to_latlon
+    def ji_to_latlon(self, j, i):
+        lon, lat = pyproj.transform(self.lambert_grid, self.latlon_sphere,
+            i*self.dx+self.i0_x, j*self.dy+self.j0_y)
+        return lat, lon
 
     def verify(self, ncf):
         lat = ncf.variables['XLAT'][0]
@@ -132,7 +128,7 @@ class WRFCoordTransform(object):
         d = np.hypot(jj-j, ii-i)
         print('error for U-staggered ll->ji: max {0} m, avg {1} m.'.format(d.max(), d.mean()))
 
-class CAMxCoordTransform(object):
+class CAMxCoordTransform(WRFCoordTransform):
     'Coordinate transformer for CAMx files running from WRF'
 
     def __init__(self, ncf):
@@ -140,11 +136,11 @@ class CAMxCoordTransform(object):
 
         # Define grids
 
-        latlon_sphere = pyproj.Proj(proj='latlong',
+        self.latlon_sphere = pyproj.Proj(proj='latlong',
             a=WrfPhysics.radius, b=WrfPhysics.radius,
             towgs84='0,0,0', no_defs=True)
 
-        lambert_grid = pyproj.Proj(proj='lcc',
+        self.lambert_grid = pyproj.Proj(proj='lcc',
             lat_1=attr('P_ALP'),
             lat_2=attr('P_BET'),
             lat_0=attr('YCENT'),
@@ -153,30 +149,16 @@ class CAMxCoordTransform(object):
             towgs84='0,0,0', no_defs=True)
 
         # resoltion in m
-        self.dx = dx = attr('XCELL')
-        self.dy = dy = attr('YCELL')
+        self.dx = attr('XCELL')
+        self.dy = attr('YCELL')
 
         # number of mass grid points
-        self.nx = nx = attr('NCOLS')
-        self.ny = ny = attr('NROWS')
+        self.nx = attr('NCOLS')
+        self.ny = attr('NROWS')
 
         # grid origin coordinates in lambert
-        i0_x = attr('XORIG')
-        j0_y = attr('YORIG')
-
-        # Define fast transformation methods
-
-        def latlon_to_ji(lat, lon):
-            x, y = pyproj.transform(latlon_sphere, lambert_grid,
-                    lon, lat)
-            return (y-j0_y)/dy, (x-i0_x)/dx
-        self.latlon_to_ji = latlon_to_ji
-
-        def ji_to_latlon(j, i):
-            lon, lat = pyproj.transform(lambert_grid, latlon_sphere,
-                i*dx+i0_x, j*dy+j0_y)
-            return lat, lon
-        self.ji_to_latlon = ji_to_latlon
+        self.i0_x = attr('XORIG')
+        self.j0_y = attr('YORIG')
 
     def verify(self, ncf):
         lat = ncf.variables['latitude'][:]

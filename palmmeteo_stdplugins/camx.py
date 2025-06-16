@@ -176,7 +176,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing CAMx horizontal interpolation')
         hvars = ['height_chem'] + cfg.chem_species
 
-        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.import_data) as fin:
             verbose('Preparing output file')
             # Create dimensions
             for d in ['time', 'z_chem']:

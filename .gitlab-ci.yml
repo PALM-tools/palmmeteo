@@ -47,6 +47,6 @@ integration_tests:
     - cpus1
   script:
     - echo -e "\e[0Ksection_start:`date +%s`:integration_test_section[collapsed=false]\r\e[0KExecuting palm_meteo_test"
-    - tests/integration_tests/integration_tests.sh simple_wrf
+    - tests/integration_tests/all_tests.sh
     - echo -e "\e[0Ksection_end:`date +%s`:integration_test_section\r\e[0K"
 

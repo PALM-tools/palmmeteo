@@ -28,8 +28,10 @@ runtime.
 
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
+from dataclasses import dataclass
 import numpy as np
+
 from .logging import die, warn, log, verbose
 
 ax_ = np.newaxis
@@ -65,6 +67,7 @@ def find_free_fname(fpath, overwrite=False):
     return newpath
 
 def tstep(td, step):
+    """Fully divide datetime td by timedelta step."""
     d, m = divmod(td, step)
     if m != td0:
         raise ValueError('Not a whole timestep!')
@@ -110,6 +113,19 @@ def assert_dir(filepath):
     dn = os.path.dirname(filepath)
     if not os.path.isdir(dn):
         os.makedirs(dn)
+
+@dataclass
+class DTIndexer:
+    """
+    Calculates integral time index from start and origin. Avoids
+    using the unpicklable lambdas.
+    """
+    origin: datetime
+    timestep: timedelta
+
+    def __call__(self, dt):
+        return tstep(dt-self.origin, self.timestep)
+
 class SliceExtender:
     __slots__ = ['slice_obj', 'slices']
 
@@ -137,3 +153,41 @@ class SliceBoolExtender:
         else:
             v = self.slice_obj[(key,)+self.slices]
         return v[...,self.boolindex]
+
+class Workflow:
+    """Indexes and maintains the workflow as a sequence of named stages"""
+
+    def __init__(self, default_stages):
+        self.default_stages = default_stages
+        self.idx = {s:i for i, s in enumerate(default_stages)}
+        self.snapshot_from = None
+
+    def stage_idx(self, s):
+        try:
+            return self.idx[s]
+        except KeyError:
+            raise ValueError(f'Unknown workflow stage: "{s}". '
+                             f'Valid workflow stages are: {self.default_stages}.')
+
+    def assign_all(self):
+        self.workflow = self.default_stages
+
+    def assign_fromto(self, stage_from, stage_to):
+        wf1 = self.stage_idx(stage_from) if stage_from else 0
+        wf2 = self.stage_idx(stage_to)   if stage_to   else -1
+        self.workflow = self.default_stages[wf1:wf2+1]
+        if wf1 > 0:
+            self.snapshot_from = self.default_stages[wf1-1]
+
+    def assign_list(self, stages):
+        workflow = [self.stage_idx(s) for s in stages]
+        wfnext = [si+1 for si in workflow[:-1]]
+        if wfnext != workflow[1:]:
+            raise ValueError(f'Workflow is not contiguous! Selected: {stages}. '
+                             f'Complete workflow: {self.default_stages}.')
+        self.workflow = [self.default_stages[si] for si in workflow]
+        if workflow[0] > 0:
+            self.snapshot_from = self.default_stages[workflow[0]-1]
+
+    def __iter__(self):
+        return iter(self.workflow)

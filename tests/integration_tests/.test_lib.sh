@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018-202% Institute of Computer Science of the Czech Academy of
+# Copyright 2018-2025 Institute of Computer Science of the Czech Academy of
 # Sciences, Prague, Czech Republic. Authors: Pavel Krc
 #
 # This file is part of PALM-METEO.
@@ -17,15 +17,28 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-set -e
+init_tests() {
+    set -e
 
-basedir="tests/integration_tests"
-pmeteo="./pmeteo"
-ncdiffp="$basedir/ncdiffp"
+    # Paths
+    basedir="tests/integration_tests"
+    pmeteo="./pmeteo"
+    ncdiffp="$basedir/ncdiffp"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
+    # Test results
+    ntok=0
+    ntbad=0
+    nfok=0
+    nfbad=0
+    retval=0
+    unset isgroup
+
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    NC='\033[0m'
+
+    pmeteo_integration_tests_initialized=y
+}
 
 compare_file() {
     generated="$1"
@@ -45,42 +58,43 @@ compare_file() {
     fi
 }
 
-ntok=0
-ntbad=0
-nfok=0
-nfbad=0
-retval=0
-for testcase in "$@"; do
-    casedir="$basedir/$testcase"
-    cfgfile="$casedir/$testcase.yml"
-    echo
-    echo ==============================
-    echo "= Running integration test $testcase ($cfgfile)"
-    echo ==============================
-    echo
-    if "$pmeteo" -c "$cfgfile"; then
-        printf "${GREEN}Integration test $testcase executed successfully.${NC}\n"
-        ntok=$(( $ntok + 1 ))
+do_test() {
+    testname="$1"
+    shift 1
 
-        compare_file "$casedir/INPUT/${testcase}_dynamic"
-        compare_file "$casedir/METEO/import.nc"
-        compare_file "$casedir/METEO/hinterp.nc"
-        compare_file "$casedir/METEO/vinterp.nc"
+    echo
+    echo ==============================
+    echo "= Running integration test $testname"
+    echo ==============================
+    echo
+    if "$pmeteo" "$@"; then
+        printf "${GREEN}Integration test $testname executed successfully.${NC}\n"
+        ntok=$(( $ntok + 1 ))
+        return 0
     else
-        printf "${RED}Integration test $testcase failed!${NC}\n"
+        printf "${RED}Integration test $testname failed!${NC}\n"
         ntbad=$(( $ntbad + 1 ))
         retval=1
+        return 1
     fi
-done
+}
 
-echo
-echo ==============================
-echo = Summary
-echo ==============================
-echo
-[ $ntok  -le 0 ] || printf "Tests finished:   $GREEN$ntok$NC\n"
-[ $ntbad -le 0 ] || printf "Tests failed:     $RED$ntbad$NC\n"
-[ $nfok  -le 0 ] || printf "Files matched:    $GREEN$nfok$NC\n"
-[ $nfbad -le 0 ] || printf "Files mismatched: $RED$nfbad$NC\n"
+do_summary() {
+    # Skip if we are doing a group
+    ! [ $isgroup ] || return 0
 
-exit $retval
+    echo
+    echo ==============================
+    echo = Summary
+    echo ==============================
+    echo
+    [ $ntok  -le 0 ] || printf "Tests finished:   $GREEN$ntok$NC\n"
+    [ $ntbad -le 0 ] || printf "Tests failed:     $RED$ntbad$NC\n"
+    [ $nfok  -le 0 ] || printf "Files matched:    $GREEN$nfok$NC\n"
+    [ $nfbad -le 0 ] || printf "Files mismatched: $RED$nfbad$NC\n"
+
+    exit $retval
+}
+
+# Init unless already initialized
+[ $pmeteo_integration_tests_initialized ] || init_tests

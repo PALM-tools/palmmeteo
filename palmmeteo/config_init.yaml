@@ -44,9 +44,15 @@ paths:
         static_driver:  'INPUT/{case}_static{domain}'
 
     intermediate:
-        imported: 'METEO/import{domain}.nc'
-        hinterp:  'METEO/hinterp{domain}.nc'
-        vinterp:  'METEO/vinterp{domain}.nc'
+        import_data: 'METEO/import{domain}.nc'
+        hinterp:     'METEO/hinterp{domain}.nc'
+        vinterp:     'METEO/vinterp{domain}.nc'
+
+    snapshot:
+        setup_model:  'METEO/setup{domain}.pickle'
+        import_data:  'METEO/import{domain}.pickle'
+        hinterp:      'METEO/hinterp{domain}.pickle'
+        vinterp:      'METEO/vinterp{domain}.pickle'
 
 output:
     # Overwrite existing output files? Otherwise create a new file with
@@ -65,6 +71,11 @@ output:
     fill_value: -9999.0
 
     check_mass_balance: false #re-verify final mass balance after balancing
+
+intermediate_files:
+    #netcdf_compression: ~ #TODO
+    #netcdf_complevel: 4
+    pickle_protocol: 5
 
 domain:
     dz: #default=dx
@@ -113,14 +124,17 @@ postproc:
 
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
 
-# Default workflow - all stages
-workflow:
+# The complete workflow - do not change!
+full_workflow:
     - check_config
-    - setup
-    - import
+    - setup_model
+    - import_data
     - hinterp
     - vinterp
     - write
+
+# Workflow: optionally select a subset of stages
+workflow: ~
 
 # Ordered list of selected plugins. Typically extended by selected tasks.
 plugins:

@@ -87,7 +87,7 @@ class Plugin(metaclass=PluginMeta):
 
         Any plugin can optinally implement the check_config method for
         validating configuration. It is not required, so the method is not
-        abstract.
+        abstract. It has to be stateless, runtime data are not stored to disk.
         """
         pass
 
@@ -95,13 +95,13 @@ class Plugin(metaclass=PluginMeta):
 class ImportPluginMixin(Plugin):
     """
     Base class mixin for plugins importing data.
-    Registers 'import_data' method as a handler for event 'import'.
+    Registers 'import_data' method as a handler for event 'import_data'.
 
     Abstract methods required to be implemented by derived classes:
         import_data
     """
     @abstractmethod
-    @eventhandler('import')
+    @eventhandler('import_data')
     def import_data(self, *args, **kwargs):
         pass
 
@@ -137,13 +137,13 @@ class VInterpPluginMixin(Plugin):
 class SetupPluginMixin(Plugin):
     """
     Base class mixin for setup plugins.
-    Registers 'setup_model' method as a handler for event 'setup'.
+    Registers 'setup_model' method as a handler for event 'setup_model'.
 
     Abstract methods required to be implemented by derived classes:
         setup_model
     """
     @abstractmethod
-    @eventhandler('setup')
+    @eventhandler('setup_model')
     def setup_model(self, *args, **kwargs):
         pass
 

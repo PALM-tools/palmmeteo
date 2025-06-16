@@ -1,7 +1,11 @@
-/tests/integration_tests/simple_wrf/INPUT/simple_wrf_dynamic
-/tests/integration_tests/simple_wrf/METEO/import.nc
-/tests/integration_tests/simple_wrf/METEO/hinterp.nc
-/tests/integration_tests/simple_wrf/METEO/vinterp.nc
+/tests/integration_tests/*/INPUT/*_dynamic
+/tests/integration_tests/*/METEO/setup.pickle
+/tests/integration_tests/*/METEO/import.nc
+/tests/integration_tests/*/METEO/import.pickle
+/tests/integration_tests/*/METEO/hinterp.nc
+/tests/integration_tests/*/METEO/hinterp.pickle
+/tests/integration_tests/*/METEO/vinterp.nc
+/tests/integration_tests/*/METEO/vinterp.pickle
 
 /.venv
 

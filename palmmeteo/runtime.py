@@ -20,6 +20,8 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import os
+import pickle
+
 from .logging import die, warn, log, verbose
 from .config import cfg, parse_duration, ConfigObj
 
@@ -28,7 +30,20 @@ class RuntimeObj(object):
 
     May be nested.
     """
-    pass
+
+    def _save(self, fpath):
+        #for n,v in self.__dict__.items():
+        #    print(f'{n}:	{type(v)}')
+        #    pickle.dumps(v)
+        with open(fpath, 'wb') as f:
+            pickle.dump(self.__dict__, f,
+                        protocol=cfg.intermediate_files.pickle_protocol)
+
+    def _load(self, fpath):
+        with open(fpath, 'rb') as f:
+            loaded = pickle.load(f)
+        assert(isinstance(loaded, dict))
+        self.__dict__.update(loaded)
 
 def basic_init(rt):
     """Performs initializaiton of basic values from config."""
