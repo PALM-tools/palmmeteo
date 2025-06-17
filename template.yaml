@@ -1,5 +1,5 @@
 # A template with all user-selectable configuration options. Most options are
-# commented out and the the values shown are the defaults.
+# commented out and the values shown are the defaults.
 
 ############################## GENERIC OPTIONS ##############################
 
@@ -25,7 +25,7 @@ tasks:
 path_strings:
     #case: 'case'
     #scenario: 'f"_{scenario}" if scenario else ""'
-    #domain: 'f"_{dnum:02d}" if dnum != 1 else ""'
+    #domain: 'f"_N{dnum:02d}" if dnum != 1 else ""'
 
 # All paths are either absolute or relative to paths.base. They may contain
 # references to entries in path_strings

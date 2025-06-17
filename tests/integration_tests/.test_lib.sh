@@ -20,9 +20,23 @@
 init_tests() {
     set -e
 
+    # Autodetect pmeteo executable
+    if ./pmeteo --version 2>/dev/null; then
+        echo "Using local ./pmeteo"
+        pmeteo=./pmeteo
+    elif pmeteo --version 2>/dev/null; then
+        echo "Using pmeteo from PATH"
+        pmeteo=pmeteo
+    elif python3 -m palmmeteo --version 2>/dev/null; then
+        echo "Using palmmeteo package execution"
+        pmeteo="python3 -m palmmeteo"
+    else
+        echo "Could not find pmeteo executable!" >&2
+        exit 1
+    fi
+
     # Paths
     basedir="tests/integration_tests"
-    [ -x ./pmeteo ] && pmeteo=./pmeteo || pmeteo=pmeteo
     ncdiffp="$basedir/ncdiffp"
 
     # Test results
@@ -67,7 +81,7 @@ do_test() {
     echo "= Running integration test $testname"
     echo ==============================
     echo
-    if "$pmeteo" "$@"; then
+    if $pmeteo "$@"; then
         printf "${GREEN}Integration test $testname executed successfully.${NC}\n"
         ntok=$(( $ntok + 1 ))
         return 0
