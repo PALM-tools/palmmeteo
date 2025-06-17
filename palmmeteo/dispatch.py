@@ -112,7 +112,7 @@ def run(argv):
 
 def main():
     argp = ArgumentParser(prog='pmeteo', description=__doc__)
-    argp.add_argument('-c', '--config', nargs='+', help='configuration file (s)', required=True)
+    argp.add_argument('-c', '--config', nargs='+', help='configuration file(s)', required=True)
     argp.add_argument('-w', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
     argp.add_argument('-W', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
     argp.add_argument('--version', action='version', version=f'PALM-meteo version {__version__}')

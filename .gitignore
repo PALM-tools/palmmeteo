@@ -7,6 +7,10 @@
 /tests/integration_tests/*/METEO/vinterp.nc
 /tests/integration_tests/*/METEO/vinterp.pickle
 
+/docs/html
+/docs/man
+/docs/latex
+
 /.venv
 /pmeteo
 /build.sh

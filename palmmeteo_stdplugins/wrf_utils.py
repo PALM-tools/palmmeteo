@@ -37,19 +37,19 @@ from metpy.units import units
 
 # User-selectable values FIXME: move to config
 
-# Settings for geostrophic wind
-gw_gfs_margin_deg = 5. #smoothing area in degrees lat/lon
-gw_wrf_margin_km = 10. #smoothing area in km
-#gw_alpha = .143 #GW vertical interpolation by power law
-gw_alpha = 1. #ignore wind power law, interpolate linearly
+## Settings for geostrophic wind
+gw_gfs_margin_deg = 5.  ##< smoothing area in degrees lat/lon
+gw_wrf_margin_km = 10.  ##< smoothing area in km
+#gw_alpha = .143        ##< GW vertical interpolation by power law
+gw_alpha = 1.           ##< ignore wind power law, interpolate linearly
 
 ax_ = np.newaxis
 
 class WrfPhysics(PalmPhysics):
-    # Constants directly equivalent to WRF code
+    ## Constants directly equivalent to WRF code
     radius = 6370000.0
-    base_temp = 300.        # NOT the variable T00 from WRFOUT!
-    rd_d_cp = 2./7.         # from WRF v4 technote (R_d / c_p)
+    base_temp = 300.        ##< NOT the variable T00 from WRFOUT!
+    rd_d_cp = 2./7.         ##< from WRF v4 technote (R_d / c_p)
 
 
 class WRFCoordTransform(object):

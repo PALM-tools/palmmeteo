@@ -1,3 +1,21 @@
+# PALM-meteo developer guide
+
+A PALM-meteo plugin is a Python package whose name starts with `palmmeteo_`.
+The package needs to be available when PALM-meteo is started. For that, you can
+either put in a subdirectory of a current directory from where PALM-meteo is
+started, or it install it in one of your system's Python library paths, or add
+its directory into `sys.path`, e.g. using the environment variable
+`PYTHONPATH`.
+
+## Configuration
+
+Each plugin package needs to have the file `config_init.yaml` placed 
+
+
+
+
+
+
 =================================================
 PALM Meteorogical input processor developer guide
 =================================================
@@ -89,3 +107,7 @@ The ``logging`` module provides four functions:
 * warn: print message to stderr
 * log: print debugging message to stderr unless cfg.silent is set to True
 * verbose: print debugging to stderr if cfg.verbose is set to True
+
+Hi
+[link1](@ref palmmeteo.config.ConfigObj)
+[link2](#palmmeteo.config.ConfigObj)
