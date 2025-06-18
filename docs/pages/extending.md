@@ -51,7 +51,7 @@ Continuing with our Foo example, you want to create a task named `foo` which
 enables `FooPlugin` by adding it to the list of enabled plugins. To do that,
 include this in your `config_init.yaml` file:
 
-```
+~~~~~~~~~{.yaml}
 # Configuration items for selected tasks
 task_config:
     foo:
@@ -63,7 +63,7 @@ task_config:
         extend:
             plugins:
                 - palmmeteo_foo.foo.FooPlugin
-```
+~~~~~~~~~
 
 ## Implementing workflow items
 
@@ -81,9 +81,7 @@ supplied abstract base classes as a base class for your plugin:
 The final configuration based on default and user-configured values is
 accessible in the `cfg` object, which is best imported as
 
-```
-from palmmeteo.config import cfg
-```
+    from palmmeteo.config import cfg
 
 This is an instance of the class #palmmeteo.config.ConfigObj and its
 configuration items may be accessed both with the attribute access (dot
@@ -119,9 +117,7 @@ pickle files. Any auxiliary data which need to persist from one stage to the
 following stages must be stored in the runtime object `rt` (instance of
 #palmmeteo.runtime.RuntimeObj), which is imported as
 
-```
-from palmmeteo.runtime import rt
-```
+    from palmmeteo.runtime import rt
 
 The object supports attribute access (e.g. `rt.myvariable`).
 
