@@ -1,8 +1,15 @@
-# PALM-meteo: processor of meteorological input data for the PALM model system
+# PALM-meteo: processor of meteorological input data for the PALM model system                  {#mainpage}
 
 PALM-meteo is an advanced and modular tool to create PALM's *dynamic driver*
 with initial and boundary conditions (IBC) and other time-varying data,
-typically using (but not limited to) outputs from mesoscale models.
+typically using (but not limited to) outputs from mesoscale models. It is
+a successor to multiple older projects for PALM dynamic drivers, most
+importantly the deprecated
+[WRF-interface](https://gitlab.palm-model.org/dynamic_driver/wrf_interface)
+project.
+
+The documentation to PALM-meteo is available at
+https://rolicot.github.io/palmmeteo/.
 
 ## Functionality
 
@@ -62,7 +69,7 @@ scientific paper.
 
 There are three basic ways to install PALM-meteo.
 
-### 1. Simple minimal installation using PIP
+### Method 1: Simple minimal installation using PIP
 
 PALM-meteo is available in PyPI and it can be installed with the simple
 command:
@@ -80,7 +87,7 @@ However, this method will install only the bare minimum to run PALM-meteo,
 without documentation and tests, so it is only recommended for experienced
 users who want a quick installation.
 
-### 2. Full in-place instalation with a virtual environment
+### Method 2: Full in-place installation with a virtual environment {#method2}
 
 This is the recommended method for most users.
 
@@ -98,18 +105,19 @@ This is the recommended method for most users.
    and create a symlink to the `pmeteo` command (which enables the virtual
    environment automatically).
 
-### 3. Advanced installation for developers
+### Method 3: Advanced installation for developers
 
 1. Clone the PALM-meteo git repository.
 2. Create and enable your own virtual environment if you prefer.
 3. From within the PALM-meteo install directory, run `./setup_novenv`. This will
-   install PALM-meteo dependencies and create the `pmeteo` running script.
+   install PALM-meteo dependencies and create a simple `pmeteo` running script.
 
 ### Testing
 
-When installed using method 2, the install script performs the test at the end
-of a successful instalation. You may also exectute them at any time from the
-PALM-meteo install directory using the command
+PALM-meteo comes with integration tests supplied.  When installed using [Method
+2](#method2), the install script performs the tests at the end of a successful
+instalation. You may also exectute them at any time from the PALM-meteo install
+directory using the command
 
 ```
 tests/integration_tests/all_tests.sh
@@ -121,17 +129,19 @@ or for indivudal tests:
 tests/integration_tests/test_XX_NAMEOFTEST.sh
 ```
 
-You may also use the directory `tests/integration_tests/simple_wrf` as
-a tutorial with an example WRF case for PALM-meteo.
+You may also examine the directory `tests/integration_tests/simple_wrf` as
+a reference WRF case for PALM-meteo.
 
 ## Usage
 
-For each dynamic driver, a *YAML* configuration file needs to be prepared. This
+For each dynamic driver, a *YAML* configuration file needs to be prepared
+(typically one per case, although it is possible to combine more files). This
 file uses sensible defaults for most options, so it does not need to be very
-long, as demonstrated by the `example.yaml` file. However for the beginners it
-is best to start by making a copy of the `template.yaml` file, which contains
-all possible options with their defaults and documentation, and modifying it
-according to your needs.
+long, as is demonstrated by the supplied file `example.yaml`. However for the
+beginners it is best to start by making a copy of the file `template.yaml`,
+which contains all user-selectable options with their defaults and
+documentation, and modifying it accordingly. See
+[PALM-meteo configuration](docs/pages/configuration.md).
 
 ### Basic model configuration
 
@@ -165,7 +175,14 @@ With a prepared configuration file such as `myconfig.yaml`, simply run
 ./pmeteo -c myconfig.yaml
 ```
 
-in the project directory. See also the output of `./pmeteo -h`.
+in the project directory. See [Running PALM-meteo](docs/pages/running.md) for
+more information.
+
+## Extending PALM-meteo
+
+In order to add new input types or processing methods, PALM-meteo can be easily
+extended with user plugins. For documentation, see the
+[Developer guide](docs/pages/extending.md).
 
 ## License and authors
 
@@ -174,3 +191,14 @@ file).  It was created by the Institute of Computer Science of the Czech
 Academy of Sciences (ICS CAS) with contributions by the Charles University
 in Prague (MFF UK), the Czech Hydrometeorological Institute (CHMI) and the Deutsche
 Wetterdienst (DWD).
+
+### Acknowledgenments
+
+PALM-meteo was created with the support of these projects:
+
+- [TURBAN: Turbulent-resolving urban modeling of air quality and thermal comfort](https://project-turban.eu/)
+  (Technology Agency of the Czech Republic
+  [project TO01000219](https://starfos.tacr.cz/en/projekty/TO01000219))
+- [CARMINE – Climate-Resilient Development Pathways in Metropolitan Regions of Europe](https://carmine-project.eu/)
+  (European Commission
+  [project 101137851](https://cordis.europa.eu/projects/101137851))

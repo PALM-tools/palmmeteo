@@ -31,16 +31,12 @@ python3 -m pip install --upgrade --requirement requirements.txt
 if [ -e pmeteo ]; then
     echo "Launcher script pmeteo is already present."
 else
-    echo "Creating launcher script pmeteo and build.sh."
+    echo "Creating launcher script pmeteo."
     cat > pmeteo <<EOT
 #!/bin/sh
 exec python3 -m palmmeteo "\$@"
 EOT
-    cat > build.sh <<EOT
-#!/bin/sh
-python3 -m build -n
-EOT
-    chmod a+x pmeteo build.sh
+    chmod a+x pmeteo
 fi
 
 echo "Setup finished successfully."
