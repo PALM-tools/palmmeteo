@@ -8,8 +8,8 @@ importantly the deprecated
 [WRF-interface](https://gitlab.palm-model.org/dynamic_driver/wrf_interface)
 project.
 
-The documentation to PALM-meteo is available at
-https://rolicot.github.io/palmmeteo/.
+The documentation for PALM-meteo is available at
+https://palm-tools.github.io/palmmeteo/.
 
 ## Functionality
 
@@ -74,9 +74,7 @@ There are three basic ways to install PALM-meteo.
 PALM-meteo is available in PyPI and it can be installed with the simple
 command:
 
-```
-pip3 install palmmeteo
-```
+    pip3 install palmmeteo
 
 This will also install the `pmeteo` command for running PALM-meteo.
 Depending on your operating system and environment, you may want to create
@@ -119,15 +117,11 @@ PALM-meteo comes with integration tests supplied.  When installed using [Method
 instalation. You may also exectute them at any time from the PALM-meteo install
 directory using the command
 
-```
-tests/integration_tests/all_tests.sh
-```
+    tests/integration_tests/all_tests.sh
 
 or for indivudal tests:
 
-```
-tests/integration_tests/test_XX_NAMEOFTEST.sh
-```
+    tests/integration_tests/test_XX_NAMEOFTEST.sh
 
 You may also examine the directory `tests/integration_tests/simple_wrf` as
 a reference WRF case for PALM-meteo.
@@ -171,9 +165,7 @@ configuration defauls, which may be overwritten within the configuration file.
 
 With a prepared configuration file such as `myconfig.yaml`, simply run
 
-```
-./pmeteo -c myconfig.yaml
-```
+    ./pmeteo -c myconfig.yaml
 
 in the project directory. See [Running PALM-meteo](docs/pages/running.md) for
 more information.

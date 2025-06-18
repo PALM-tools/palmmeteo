@@ -1,0 +1,4 @@
+# Generated documentation (git ignored)
+graft docs/html
+graft docs/man
+graft docs/examples/commandline.txt
