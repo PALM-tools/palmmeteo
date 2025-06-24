@@ -29,7 +29,7 @@ from . import plugins as plg
 from .logging import die, warn, log, verbose, configure_log
 from .config import load_config, cfg
 from .runtime import rt, basic_init
-from .utils import assert_dir
+from .utils import find_free_fname, assert_dir
 
 
 last_stage_files = []
@@ -53,11 +53,14 @@ def execute_event(event, from_plugins):
     this_stage_files = []
     try:
         # Prepare common files or other common processing for specific events
-        try:
-            fn_out = getattr(rt.paths.intermediate, event)
-        except AttributeError: pass
+        if event == 'write':
+            # The output filename is the actual dynamic driver
+            fn_out = find_free_fname(rt.paths.palm_input.dynamic_driver,
+                                     cfg.output.overwrite)
         else:
-            # Output filename is defined for this stage
+            fn_out = getattr(rt.paths.intermediate, event, None)
+
+        if fn_out:
             this_stage_files.append(fn_out)
             assert_dir(fn_out)
             f = netCDF4.Dataset(fn_out, 'w', format='NETCDF4')
