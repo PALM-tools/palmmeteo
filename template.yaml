@@ -84,6 +84,10 @@ output:
 
     #check_mass_balance: false #re-verify final mass balance after balancing
 
+intermediate_files:
+    #after a successful stage, delete the intermediate file from the previous stage
+    delete_after_success: false
+
 domain:
     #dz: #default=dx
     nz: #required
