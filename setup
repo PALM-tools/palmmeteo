@@ -45,6 +45,6 @@ fi
 echo "Setup finished successfully."
 
 read -p "Would you like to run the tests now? [y] " ans
-if [ -z "$ans" -o "$ans" = y ]; then
+if [ -z "$ans" -o "$ans" = y ]; then
     tests/integration_tests/all_tests.sh
 fi

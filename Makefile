@@ -59,6 +59,8 @@ show: $(DOCS_INDEX)
 	$(BROWSER) $(DOCS_INDEX)
 
 docs_publish: $(DOCS_INDEX)
+	set -e
+	[ gh-pages = "`git branch --show-current`" ]
 	git add -f docs/html
 	git commit -m "Update github pages"
 	git subtree push --prefix docs/html/ github gh-pages

@@ -23,8 +23,8 @@ license = {text = "GPL-3.0-or-later"}
 pmeteo = "palmmeteo:main"
 
 [project.urls]
-Homepage = "https://github.com/rolicot/palmmeteo"
-Issues = "https://github.com/rolicot/palmmeteo/issues"
+Homepage = "https://github.com/PALM-tools/palmmeteo"
+Issues = "https://github.com/PALM-tools/palmmeteo/issues"
 
 [tool.setuptools]
 packages = ["palmmeteo", "palmmeteo_stdplugins"]

@@ -20,6 +20,7 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import sys
+import os
 from argparse import ArgumentParser
 import netCDF4
 
@@ -30,6 +31,8 @@ from .config import load_config, cfg
 from .runtime import rt, basic_init
 from .utils import assert_dir
 
+
+last_stage_files = []
 
 def build_exec_queue(event, from_plugins):
     # logika vytvareni fronty muze byt slozitejsi nez jen prosty seznam (strom, mozna paralelizace....)
@@ -46,6 +49,8 @@ def execute_event(event, from_plugins):
 
     kwargs = {}
     common_files = []
+    all_ok = True
+    this_stage_files = []
     try:
         # Prepare common files or other common processing for specific events
         try:
@@ -53,6 +58,7 @@ def execute_event(event, from_plugins):
         except AttributeError: pass
         else:
             # Output filename is defined for this stage
+            this_stage_files.append(fn_out)
             assert_dir(fn_out)
             f = netCDF4.Dataset(fn_out, 'w', format='NETCDF4')
             common_files.append(f)
@@ -67,14 +73,26 @@ def execute_event(event, from_plugins):
                 f.close()
             except:
                 warn('Error closing file {}!', f)
+                all_ok = False
 
     # Save snapshot if applicable
     try:
         fn_snapshot = getattr(rt.paths.snapshot, event)
     except AttributeError: pass
     else:
+        this_stage_files.append(fn_snapshot)
         assert_dir(fn_snapshot)
         rt._save(fn_snapshot)
+
+    # Delete intermediate files if asked
+    if cfg.intermediate_files.delete_after_success and all_ok:
+        if last_stage_files:
+            verbose('Deleting files from last stage: {}', last_stage_files)
+            for fn in last_stage_files:
+                os.remove(fn)
+        else:
+            verbose('No files to delete: previous stage was first/restarted/did not write anything.')
+    last_stage_files[:] = this_stage_files
 
 def run(argv):
     # Set initial verbosity from commandline, so that we can log the

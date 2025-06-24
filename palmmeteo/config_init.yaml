@@ -77,6 +77,9 @@ intermediate_files:
     #netcdf_complevel: 4
     pickle_protocol: 5
 
+    #after a successful stage, delete the intermediate file from the previous stage
+    delete_after_success: false
+
 domain:
     dz: #default=dx
     nz: #required

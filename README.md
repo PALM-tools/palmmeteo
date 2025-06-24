@@ -97,7 +97,7 @@ This is the recommended method for most users.
    the newest version. Or you can download PALM-meteo from the
    [PALM gitlab server](https://gitlab.palm-model.org/dynamic_driver/palm_meteo)
    or from
-   [GitHub](https://github.com/rolicot/palmmeteo/releases).
+   [GitHub](https://github.com/PALM-tools/palmmeteo/releases).
 3. From within the PALM-meteo install directory, run `./setup`. This will
    create a new virtual environment, install PALM-meteo with all dependencies
    and create a symlink to the `pmeteo` command (which enables the virtual
@@ -152,7 +152,7 @@ These are the currently supported tasks (obviously many of them are mutually
 - `wrf_rad`: Create PALM radiation inputs from WRF model outputs (typically
   *AUXHIST* outputs with potentially different time step from standard
   *WRFOUT*).
-- `icon2`:   Create IBC from ICON outputs in the *NetCDF* format.
+- `icon`:    Create IBC from ICON outputs in the *NetCDF* format.
 - `aladin`:  Create IBC from Aladin outputs in the *grib* format.
 - `camx`:    Create chemistry IBC from CAMx model outputs.
 - `cams`:    Create chemistry IBC from CAMS model outputs.
