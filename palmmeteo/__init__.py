@@ -5,7 +5,12 @@
 
 Creates PALM dynamic driver from various sources.
 """
-from ._version import __version__, __version_tuple__
+
+try:
+    from ._version import __version__, __version_tuple__
+except:
+    __version__ = 'undetermined'
+
 from .config import cfg
 from .runtime import rt
 from .dispatch import run, main
