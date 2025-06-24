@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import os
 from datetime import datetime, timezone
 import numpy as np
 import netCDF4
@@ -28,8 +27,19 @@ from palmmeteo.config import cfg, ConfigError
 from palmmeteo.runtime import rt
 from palmmeteo.plugins import SetupPluginMixin
 from palmmeteo.logging import die, warn, log, verbose
+from palmmeteo.utils import ax_, where_range
 
-na_ = np.newaxis
+class Building:
+    def __init__(self, bid, bids):
+        self.id = bid
+        building_mask = (bids == bid)
+        self.x0, self.x1 = where_range(np.any(building_mask, axis=0))
+        self.y0, self.y1 = where_range(np.any(building_mask, axis=1))
+        self.slices = (slice(self.y0, self.y1), slice(self.x0, self.x1))
+        self.mask = building_mask[self.slices]
+        verbose('Building ID {}: {} points between [{}:{},{}:{}].',
+                bid, self.mask.sum(),
+                self.y0, self.y1, self.x0, self.x1)
 
 class StaticDriverPlugin(SetupPluginMixin):
     """Default setup plugin for loading domain info from static driver file."""
@@ -99,40 +109,62 @@ class StaticDriverPlugin(SetupPluginMixin):
         # NOTE: PALM assigns terrain to those grid cells whose center lies on
         # or below terrain (assuming that it is not shifted due to the lowest
         # point not being 0).
-        rt.th = np.floor(rt.terrain_rel / rt.dz + 0.5).astype('i8')
-        rt.terrain_mask = np.arange(rt.nz)[:,na_,na_] < rt.th[na_,:,:]
+        rt.th = np.floor(rt.terrain_rel / rt.dz + 0.5).astype('i8') #terrain top
+        rt.terrain_mask = np.arange(rt.nz)[:,ax_,ax_] < rt.th[ax_,:,:]
 
-        # building height
-        if 'buildings_3d' in ncs.variables.keys():
-            #print(np.argmax(a != 0, axis=0)) #### FIXME: what is this?
-            bh3 = ncs.variables['buildings_3d'][:]
-            # minimum index of nonzeo value along inverted z
-            rt.bh = np.argmax(bh3[::-1], axis=0)
-            # inversion back and masking grids with no buildings
-            rt.bh = bh3.shape[0] - rt.bh
-            rt.bh[np.max(bh3, axis=0) == 0] = 0
-        elif 'buildings_2d' in ncs.variables.keys():
-            rt.bh = ncs.variables['buildings_2d'][:]
-            rt.bh[rt.bh.mask] = 0
-            rt.bh = np.ceil(rt.bh / rt.dz)
+        # Detect individual buildings
+        if 'building_id' in ncs.variables:
+            building_ids = []
+            bids = ncs.variables['building_id'][:]
+            building_ids = [Building(bid, bids) for bid
+                            in np.ma.unique(bids).compressed()]
+            del bids
+
+        # Load buildings
+        rt.building_mask = rt.terrain_mask.copy()
+        btop = -1 #global max building top
+        if 'buildings_3d' in ncs.variables:
+            b3ds = ncs.variables['buildings_3d']
+            for bld in building_ids:
+                b3d = b3ds[(slice(None),)+bld.slices]
+                thmax = rt.th[bld.slices][bld.mask].max() #building terrain top
+                bcol = np.any(b3d,axis=(1,2))
+                bmax = len(bcol) - np.argmax(bcol[::-1]) + thmax
+                verbose('Building ID {} top: {}', bld.id, bmax)
+                btop = max(btop, bmax)
+
+                # Put building mask on top of terrain
+                rt.building_mask[(slice(0,thmax),)+bld.slices] = 1
+                rt.building_mask[(slice(thmax),)+bld.slices] = b3d[:-thmax,:,:]
+        elif 'buildings_2d' in ncs.variables:
+            b2ds = ncs.variables['buildings_2d'][:]
+            for bld in building_ids:
+                b2d = b2ds[bld.slices]
+                bh = np.floor(b2d / rt.dz + 0.5).astype('i8')
+                thmax = rt.th[bld.slices][bld.mask].max() #building terrain top
+                bmax = bh.max() + thmax
+                verbose('Building ID {} top: {}', bld.id, bmax)
+                btop = max(btop, bmax)
+
+                # Put building mask on top of terrain
+                rt.building_mask[(slice(None),)+bld.slices] = (np.arange(rt.nz)[:,ax_,ax_] <
+                                                               (bh+thmax)[ax_,:,:])
         else:
-            rt.bh = np.zeros([rt.ny,rt.nx])
+            rt.building_mask = rt.terrain_mask
+            btop = rt.th.max()
 
         # plant canopy height
-        if 'lad' in ncs.variables.keys():
-            lad3 = ncs.variables['lad'][:]
-            # replace non-zero values with 1
-            lad3[lad3 != 0] = 1
+        if 'lad' in ncs.variables:
+            lads = ncs.variables['lad'][:]
+            lad_mask = lads > 0
             # minimum index of nonzeo value along inverted z
-            rt.lad = np.argmax(lad3[::-1], axis=0)
-            # inversion back and masking grids with no buildings
-            rt.lad = lad3.shape[0] - rt.lad
-            rt.lad[np.max(lad3, axis=0) == 0] = 0
+            rt.lad = lads.shape[0] - np.argmax(lad_mask[::-1], axis=0)
+            rt.lad[~np.any(lad_mask, axis=0)] = 0
         else:
             rt.lad = np.zeros([rt.ny,rt.nx])
 
         # calculate maximum of surface canopy layer
-        nscl = max(np.amax(rt.th+rt.bh),np.amax(rt.th+rt.lad))
+        nscl = max(btop, (rt.th+rt.lad).max())
 
         # check nz with ncl
         if rt.nz < nscl + cfg.domain.nscl_free:

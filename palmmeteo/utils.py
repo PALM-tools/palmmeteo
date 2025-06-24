@@ -40,6 +40,10 @@ td0 = timedelta(hours=0)
 
 fext_re = re.compile(r'\.(\d{3})$')
 
+# Returns min and max+1 indices of true values (such that mask[fr:to] is the
+# bounding box)
+where_range = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))
+
 def find_free_fname(fpath, overwrite=False):
     if not os.path.exists(fpath):
         return fpath
