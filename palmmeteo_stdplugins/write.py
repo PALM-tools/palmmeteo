@@ -141,10 +141,10 @@ class WritePlugin(WritePluginMixin):
             areas_yb = (zwidths * rt.dx)[:,ax_]
             areas_zb = rt.dx * rt.dy
 
-            tmask_left  = rt.terrain_mask[:, :, 0]
-            tmask_right = rt.terrain_mask[:, :, rt.nx-1]
-            tmask_south = rt.terrain_mask[:, 0, :]
-            tmask_north = rt.terrain_mask[:, rt.ny-1, :]
+            tmask_left  = rt.building_mask[:, :, 0]
+            tmask_right = rt.building_mask[:, :, rt.nx-1]
+            tmask_south = rt.building_mask[:, 0, :]
+            tmask_north = rt.building_mask[:, rt.ny-1, :]
             ntmask_left  = ~tmask_left
             ntmask_right = ~tmask_right
             ntmask_south = ~tmask_south
