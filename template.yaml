@@ -119,6 +119,10 @@ vinterp:
 postproc:
     #nox_post_sum: false
 
+    # Perform wind damping near walls in the initial conditions. The distance
+    # from the wall is the number of grid points which are gradually damped.
+    wind_damping_dist: 2
+
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
 
 # Workflow: optionally select a subset of stages

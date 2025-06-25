@@ -43,6 +43,11 @@ paths:
     cams:
         file:           'CAMS'
 
+postproc:
+    # Perform wind damping near walls in the initial conditions. The distance
+    # from the wall is the number of grid points which are gradually damped.
+    wind_damping_dist: 2
+
 wrf:
     # Method of stretching vertical levels before vertical interpolation in
     # order to match the target (high-resolution) terrain, while limiting the
@@ -582,3 +587,9 @@ task_config:
         extend:
             plugins:
                 - palmmeteo_stdplugins.icon.IconPlugin
+
+    winddamp:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.winddamp.WindDampPlugin
