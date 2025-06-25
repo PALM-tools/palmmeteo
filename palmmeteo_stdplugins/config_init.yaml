@@ -118,6 +118,8 @@ camx:
     # variables, which may optionally trigger specific preprocessors and/or
     # validations.
     output_var_defs:
+        __user_expandable__: true
+
         'NO': #NO without quotes means False in yaml!
             loaded_vars: ['NO']
             validations:
@@ -499,6 +501,8 @@ cams:
     preprocessors:
     
     output_var_defs:
+        __user_expandable__: true
+
         'NO': #NO without quotes means False in yaml!
             molar_mass: 30.01 #g/mol
             loaded_vars: [no_conc]

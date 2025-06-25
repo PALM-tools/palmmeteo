@@ -45,6 +45,7 @@ def build_exec_queue(event, from_plugins):
 
 
 def execute_event(event, from_plugins):
+    log('========== Starting stage {} ==========', event)
     queue = build_exec_queue(event, from_plugins)
 
     kwargs = {}
@@ -96,6 +97,8 @@ def execute_event(event, from_plugins):
         else:
             verbose('No files to delete: previous stage was first/restarted/did not write anything.')
     last_stage_files[:] = this_stage_files
+
+    log('========== Stage {} finished ==========', event)
 
 def run(argv):
     # Set initial verbosity from commandline, so that we can log the
