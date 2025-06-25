@@ -125,6 +125,7 @@ class StaticDriverPlugin(SetupPluginMixin):
         btop = -1 #global max building top
         if 'buildings_3d' in ncs.variables:
             b3ds = ncs.variables['buildings_3d']
+            nz_b3d = b3ds.shape[0]
             for bld in building_ids:
                 b3d = b3ds[(slice(None),)+bld.slices]
                 thmax = rt.th[bld.slices][bld.mask].max() #building terrain top
@@ -134,8 +135,9 @@ class StaticDriverPlugin(SetupPluginMixin):
                 btop = max(btop, bmax)
 
                 # Put building mask on top of terrain
-                rt.building_mask[(slice(0,thmax),)+bld.slices] = 1
-                rt.building_mask[(slice(thmax),)+bld.slices] = b3d[:-thmax,:,:]
+                rt.building_mask[(slice(0,thmax),)+bld.slices] = 1 #terrain below
+                b3d_height = min(rt.nz-thmax, nz_b3d)
+                rt.building_mask[(slice(thmax,thmax+b3d_height),)+bld.slices] = b3d[:b3d_height,:,:]
         elif 'buildings_2d' in ncs.variables:
             b2ds = ncs.variables['buildings_2d'][:]
             for bld in building_ids:
