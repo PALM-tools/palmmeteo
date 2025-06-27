@@ -117,8 +117,7 @@ def run(argv):
     basic_init(rt)
 
     # Load plugins as configured
-    plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
-                      for p in cfg.plugins]
+    plugins = [plg.plugin_factory(p) for p in cfg.plugins]
 
     if workflow.snapshot_from:
         try:
@@ -137,8 +136,9 @@ def run(argv):
 def main():
     argp = ArgumentParser(prog='pmeteo', description=__doc__)
     argp.add_argument('-c', '--config', nargs='+', help='configuration file(s)', required=True)
-    argp.add_argument('-w', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
-    argp.add_argument('-W', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
+    argp.add_argument('-f', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
+    argp.add_argument('-t', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
+    argp.add_argument('-w', '--workflow', nargs='+', help='execute listed stages', metavar='STAGE')
     argp.add_argument('--version', action='version', version=f'PALM-meteo version {__version__}')
     verbosity = argp.add_mutually_exclusive_group()
     verbosity.add_argument('-v', '--verbose', action='store_const',

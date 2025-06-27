@@ -76,9 +76,6 @@ def assign_time(coll, key, value):
 
 class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
-        pass
-
-    def setup_model(self, *args, **kwargs):
         rt.icon_cycles = [parse_duration(cfg.icon, 'input_assim_cycles', c)
                 for c in cfg.icon.input_assim_cycles]
 

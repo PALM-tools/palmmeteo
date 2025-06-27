@@ -268,7 +268,9 @@ def load_config(argv):
     # process workflow
     workflow = Workflow(cfg.full_workflow)
 
-    if argv.workflow_from or argv.workflow_to:
+    if argv.workflow:
+        workflow.assign_list(argv.workflow)
+    elif argv.workflow_from or argv.workflow_to:
         workflow.assign_fromto(argv.workflow_from, argv.workflow_to)
     elif cfg.workflow:
         workflow.assign_list(cfg.workflow)
