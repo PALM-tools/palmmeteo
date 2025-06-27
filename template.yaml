@@ -119,10 +119,6 @@ vinterp:
 postproc:
     #nox_post_sum: false
 
-    # Perform wind damping near walls in the initial conditions. The distance
-    # from the wall is the number of grid points which are gradually damped.
-    wind_damping_dist: 2
-
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
 
 # Workflow: optionally select a subset of stages
@@ -226,6 +222,20 @@ icon:
     # horizontal gradients. Sigma value in grid points.
     #terrain_smoothing: off
 
-
 cams:
+
+winddamp:
+    # Distance in number of grid cells from the wall which have some wind
+    # damping. Cells further from the wall will have no damping.
+    #damping_dist: 2
+
+    # Distance in number of grid cells from the wall which are damped to zero.
+    # The next cells further from the wall have a damping factor which
+    # increases linearly to 1.
+    #num_zeroed: 1
+
+    # Method of staggering the damping factor for the U, V and W wind
+    # components by taking adjacent cells in the respective dimension.
+    #stagger_method: average
+    #stagger_method: minimum
 
