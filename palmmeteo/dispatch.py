@@ -29,7 +29,7 @@ from . import plugins as plg
 from .logging import die, warn, log, verbose, configure_log
 from .config import load_config, cfg
 from .runtime import rt, basic_init
-from .utils import assert_dir
+from .utils import find_free_fname, assert_dir
 
 
 last_stage_files = []
@@ -45,6 +45,7 @@ def build_exec_queue(event, from_plugins):
 
 
 def execute_event(event, from_plugins):
+    log('========== Starting stage {} ==========', event)
     queue = build_exec_queue(event, from_plugins)
 
     kwargs = {}
@@ -53,11 +54,14 @@ def execute_event(event, from_plugins):
     this_stage_files = []
     try:
         # Prepare common files or other common processing for specific events
-        try:
-            fn_out = getattr(rt.paths.intermediate, event)
-        except AttributeError: pass
+        if event == 'write':
+            # The output filename is the actual dynamic driver
+            fn_out = find_free_fname(rt.paths.palm_input.dynamic_driver,
+                                     cfg.output.overwrite)
         else:
-            # Output filename is defined for this stage
+            fn_out = getattr(rt.paths.intermediate, event, None)
+
+        if fn_out:
             this_stage_files.append(fn_out)
             assert_dir(fn_out)
             f = netCDF4.Dataset(fn_out, 'w', format='NETCDF4')
@@ -94,6 +98,8 @@ def execute_event(event, from_plugins):
             verbose('No files to delete: previous stage was first/restarted/did not write anything.')
     last_stage_files[:] = this_stage_files
 
+    log('========== Stage {} finished ==========', event)
+
 def run(argv):
     # Set initial verbosity from commandline, so that we can log the
     # configuration progress appropriately.
@@ -111,8 +117,7 @@ def run(argv):
     basic_init(rt)
 
     # Load plugins as configured
-    plugins = [plg.plugin_factory(p, cfg=cfg, rt=rt)
-                      for p in cfg.plugins]
+    plugins = [plg.plugin_factory(p) for p in cfg.plugins]
 
     if workflow.snapshot_from:
         try:
@@ -131,8 +136,9 @@ def run(argv):
 def main():
     argp = ArgumentParser(prog='pmeteo', description=__doc__)
     argp.add_argument('-c', '--config', nargs='+', help='configuration file(s)', required=True)
-    argp.add_argument('-w', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
-    argp.add_argument('-W', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
+    argp.add_argument('-f', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
+    argp.add_argument('-t', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
+    argp.add_argument('-w', '--workflow', nargs='+', help='execute listed stages', metavar='STAGE')
     argp.add_argument('--version', action='version', version=f'PALM-meteo version {__version__}')
     verbosity = argp.add_mutually_exclusive_group()
     verbosity.add_argument('-v', '--verbose', action='store_const',

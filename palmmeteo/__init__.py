@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""PALM-meteo: processor of meteorological input data for the PALM model system
+"""
+PALM-meteo: processor of meteorological input data for the PALM model system.
 
 Creates PALM dynamic driver from various sources.
 """

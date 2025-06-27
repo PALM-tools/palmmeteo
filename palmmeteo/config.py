@@ -104,14 +104,17 @@ class ConfigObj(object):
             if isinstance(v, dict):
                 # For a dictionary (top-level or with only dictionaries above,
                 # i.e. a subsection), we recurse
+                do_check_exist = check_exist
                 try:
                     vl = self._settings[k]
                 except KeyError:
                     # not yet present: create a new empty child node
                     vl = ConfigObj(self, k)
                     self._settings[k] = vl
+                    if self._settings.get('__user_expandable__', False):
+                        do_check_exist = False
                 try:
-                    vl._ingest_dict(v, overwrite, extend, check_exist)
+                    vl._ingest_dict(v, overwrite, extend, do_check_exist)
                 except AttributeError:
                     raise ConfigError('Trying to replace a non-dictionary '
                             'setting with a dictionary', self, k)
@@ -265,7 +268,9 @@ def load_config(argv):
     # process workflow
     workflow = Workflow(cfg.full_workflow)
 
-    if argv.workflow_from or argv.workflow_to:
+    if argv.workflow:
+        workflow.assign_list(argv.workflow)
+    elif argv.workflow_from or argv.workflow_to:
         workflow.assign_fromto(argv.workflow_from, argv.workflow_to)
     elif cfg.workflow:
         workflow.assign_list(cfg.workflow)

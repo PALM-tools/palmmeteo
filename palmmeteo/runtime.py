@@ -40,6 +40,7 @@ class RuntimeObj(object):
                         protocol=cfg.intermediate_files.pickle_protocol)
 
     def _load(self, fpath):
+        log('Loading snapshot from {}.', fpath)
         with open(fpath, 'rb') as f:
             loaded = pickle.load(f)
         assert(isinstance(loaded, dict))

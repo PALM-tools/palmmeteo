@@ -40,6 +40,10 @@ td0 = timedelta(hours=0)
 
 fext_re = re.compile(r'\.(\d{3})$')
 
+# Returns min and max+1 indices of true values (such that mask[fr:to] is the
+# bounding box)
+where_range = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))
+
 def find_free_fname(fpath, overwrite=False):
     if not os.path.exists(fpath):
         return fpath
@@ -173,21 +177,43 @@ class Workflow:
         self.workflow = self.default_stages
 
     def assign_fromto(self, stage_from, stage_to):
-        wf1 = self.stage_idx(stage_from) if stage_from else 0
-        wf2 = self.stage_idx(stage_to)   if stage_to   else -1
+        try:
+            wf1 = self.stage_idx(stage_from) if stage_from else 0
+            wf2 = self.stage_idx(stage_to)   if stage_to   else -1
+        except KeyError as e:
+            die('Unknown stage: {}', e.args[0])
+
         self.workflow = self.default_stages[wf1:wf2+1]
         if wf1 > 0:
             self.snapshot_from = self.default_stages[wf1-1]
 
     def assign_list(self, stages):
-        workflow = [self.stage_idx(s) for s in stages]
-        wfnext = [si+1 for si in workflow[:-1]]
-        if wfnext != workflow[1:]:
-            raise ValueError(f'Workflow is not contiguous! Selected: {stages}. '
-                             f'Complete workflow: {self.default_stages}.')
+        try:
+            workflow = [self.stage_idx(s) for s in stages]
+        except KeyError as e:
+            die('Unknown stage: {}', e.args[0])
+
+        gaps = [i for i in range(1, len(workflow))
+                if workflow[i-1]+1 != workflow[i]]
+        if len(gaps) == 1:
+            before = workflow[:gaps[0]]
+            after = workflow[gaps[0]]
+            if before in ([0], [0,1]) and after >= 2:
+                self.snapshot_from = self.default_stages[after-1]
+                warn('Partially supported non-continuous workflow. Snapshot '
+                     'will be loaded from stage {}. Success is not '
+                     'guaranteed.', self.snapshot_from)
+                gaps = None
+        else:
+            if workflow[0] > 0:
+                self.snapshot_from = self.default_stages[workflow[0]-1]
+
+        if gaps:
+            # Apart from supported case above
+            die('Unsupported non-contiguous workflow! Selected stages {}. '
+                'Complete workflow: {}.', stages, self.default_stages)
+
         self.workflow = [self.default_stages[si] for si in workflow]
-        if workflow[0] > 0:
-            self.snapshot_from = self.default_stages[workflow[0]-1]
 
     def __iter__(self):
         return iter(self.workflow)

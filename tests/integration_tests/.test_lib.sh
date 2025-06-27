@@ -62,7 +62,7 @@ compare_file() {
     echo "= Comparing generated $generated to $reference"
     echo ==============================
     echo
-    if "$ncdiffp" "$reference" "$generated" -c -p -s -a ; then
+    if "$ncdiffp" "$reference" "$generated" -c -p -s ; then
         printf "${GREEN}File $generated matched successully.${NC}\n"
         nfok=$(( $nfok + 1 ))
     else

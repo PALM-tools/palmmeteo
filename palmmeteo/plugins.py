@@ -72,22 +72,18 @@ class Plugin(metaclass=PluginMeta):
     """
     Base class for plugins
 
-    Expects to receive configuration object in cfg argument.
+    The objects are not persistent across multiple runs, so their members (if
+    any) should be created by the constructor and any stage should not expect
+    members to be created by the preceding stages. Use rt to store persistent
+    data.
     """
-    def __init__(self, *args, **kwargs):
-        if 'cfg' in kwargs:
-            self.cfg = kwargs['cfg']
-
-        if 'rt' in kwargs:
-            self.rt = kwargs['rt']
-
     @eventhandler('check_config')
     def check_config(self, *args, **kwargs):
-        """Validate plugin-related configuration.
+        """(Load and) validate plugin-related configuration.
 
         Any plugin can optinally implement the check_config method for
         validating configuration. It is not required, so the method is not
-        abstract. It has to be stateless, runtime data are not stored to disk.
+        abstract.
         """
         pass
 
