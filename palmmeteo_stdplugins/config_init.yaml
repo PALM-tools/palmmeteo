@@ -44,12 +44,15 @@ paths:
         file:           'CAMS'
 
 wrf:
-    # Method of stretching vertical levels before vertical interpolation in
-    # order to match the target (high-resolution) terrain, while limiting the
-    # propagation of surface features to higher levels. May be one of:
-    # universal:    A universal method where levels above transition_level are
-    #               kept unmodified while the levels below are stretched
-    #               gradually
+    # Method of stretching or squeezing of the intermediate-height levels
+    # before vertical interpolation in order to match the target
+    # (high-resolution) terrain, while limiting the propagation of
+    # surface-reltaed effects to higher levels. (Do not confuse with PALM's
+    # vertically stretched grid as in dz_stretch_level and dz_stretch_factor.)
+    # May be one of:
+    # universal:    A universal method where levels above
+    #               vinterp:transition_level are kept unmodified while the
+    #               levels below are stretched/squeezed gradually.
     # hybrid:       Use the WRF hybrid vertical coordinate system from the
     #               WRFOUT input files to stretch the levels. WARNING: the WRF
     #               model must be configured to using hybrid levels, not sigma
@@ -58,8 +61,7 @@ wrf:
     #               files to stretch the levels. WARNING: the WRF model must be
     #               configured to using sigma levels, not hybrid leves, there
     #               is no check for this!
-    vertical_stretching: universal
-    transition_level: 2000.0 #m above origin_z
+    vertical_adaptation: universal
 
     radiation_smoothing_distance: 10000.0
 
@@ -414,8 +416,6 @@ camx:
     #    H2O
 
 synthetic:
-    transition_level: 2000.0 #m above origin_z
-
     prof_vars:
         u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
         v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
@@ -432,8 +432,7 @@ srid_palm: 32633
 srid_wgs84: 4326
 aladin:
     load_gribs: true
-    vertical_stretching: universal
-    transition_level: 2000.0 #m above origin_z
+    vertical_adaptation: universal
 
     radiation_smoothing_distance: 10000.0
 
@@ -476,16 +475,10 @@ icon:
 
     radiation_smoothing_distance: 30.0 #km
 
-    transition_level: 2000.0 #m above origin_z
-
     vars_2d: [PS]
     vars_3d: [P, T, U, V, QV]
     vars_3dw: [W] #HHL is special
     vars_soil: [T_SO, QSOIL]
-
-    # Smoothing of PALM terrain for vertical interpolation to avoid sharp
-    # horizontal gradients. Sigma value in grid points.
-    terrain_smoothing: off
 
 cams:
     validations: [ ]

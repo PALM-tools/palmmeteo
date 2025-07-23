@@ -122,6 +122,10 @@ vinterp:
     # horizontal gradients. Sigma value in grid points.
     terrain_smoothing: off
 
+    # Upper limit of vertical adaptation for terrain matching
+    # [metres above origin_z]
+    transition_level: 2000.0
+
 postproc:
     nox_post_sum: false
 
@@ -149,9 +153,12 @@ plugins:
 # necessary options. Tasks typically select input meteo and/or chemistry data
 # sources.
 tasks:
-    - wrf     # WRF meteo inputs
-    #- wrf_rad # WRF radiation inputs
-    #- icon    # ICON inputs
-    #- aladin  # Aladin inputs
-    #- camx    # CAMx chemistry inputs
-    #- cams    # CAMS chemistry inputs
+    - wrf         # WRF meteo inputs
+    #- wrf_rad    # WRF radiation inputs
+    #- icon       # ICON inputs
+    #- aladin     # Aladin inputs
+    #- aladin_rad # Aladin inputs
+    #- camx       # CAMx chemistry inputs
+    #- cams       # CAMS chemistry inputs
+    #- synthetic  # Profiles and other synthetic inputs
+    #- winddamp   # Postprocessor for wind damping near walls

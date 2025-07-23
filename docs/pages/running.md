@@ -22,7 +22,10 @@ Here is the complete list of command line options:
 
 \verbinclude commandline.txt
 
-## Running a subset of stages
+## Running a subset of workflow stages
+
+You may run a selected subset of stages from the full workflow, either using
+the configuration file, or using the command line options above.
 
 To generate the PALM dynamic driver, all stages of the workflow need to be
 executed sequentially, which is the default. PALM-meteo also fully supports

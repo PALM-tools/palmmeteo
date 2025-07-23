@@ -57,14 +57,14 @@ def log_dstat_off(desc, delta):
 
 class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
-        if cfg.wrf.vertical_stretching in ['hybrid', 'sigma']:
-            warn('The configuration setting wrf.vertical_stretching="{}" is '
+        if cfg.wrf.vertical_adaptation in ['hybrid', 'sigma']:
+            warn('The configuration setting wrf.vertical_adaptation="{}" is '
                  'deprecated, the "universal" vertical stretching provides '
                  'smoother upper level values. For the "hybrid" or "sigma" '
                  'settings, the user must also manually verify that the '
                  'selected method matches the vertical coordinate system '
                  'used in the provided WRFOUT files.',
-                 cfg.wrf.vertical_stretching)
+                 cfg.wrf.vertical_adaptation)
 
     def import_data(self, fout, *args, **kwargs):
         log('Importing WRF data...')
@@ -312,10 +312,10 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 gp_new_surf = target_terrain * g
 
-                if cfg.wrf.vertical_stretching == 'universal':
+                if cfg.wrf.vertical_adaptation == 'universal':
                     # Calculate transition pressure level using horizontal
                     # domain-wide pressure average
-                    gp_trans = (rt.origin_z + cfg.wrf.transition_level) * g
+                    gp_trans = (rt.origin_z + cfg.vinterp.transition_level) * g
                     p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
                     verbose('Vertical stretching transition level: {} Pa', p_trans)
 
@@ -352,7 +352,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     mu2 = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf) - p_top
 
                     # Calculate original and shifted 3D dry air pressure
-                    if cfg.wrf.vertical_stretching == 'hybrid':
+                    if cfg.wrf.vertical_adaptation == 'hybrid':
                         p_orig_w, p_orig_u = calc_ph_hybrid(fin, it, mu)
                         p_new_w, p_new_u = calc_ph_hybrid(fin, it, mu2)
                     else:
