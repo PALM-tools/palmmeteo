@@ -94,7 +94,7 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             target_terrain = rt.terrain
 
         gp0 = rt.origin_z*g
-        gp_trans = (rt.origin_z + cfg.synthetic.transition_level) * g
+        gp_trans = (rt.origin_z + cfg.vinterp.transition_level) * g
         gp_new_surf = target_terrain * g
 
         for it in range(rt.nt):

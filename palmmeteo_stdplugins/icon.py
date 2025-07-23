@@ -483,7 +483,7 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
 
                 # Calculate transition pressure level using horizontal
                 # domain-wide pressure average
-                gp_trans = (rt.origin_z + cfg.icon.transition_level) * g
+                gp_trans = (rt.origin_z + cfg.vinterp.transition_level) * g
                 p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
                 verbose('Vertical stretching transition level: {} Pa', p_trans)
 
