@@ -51,11 +51,17 @@ def log_on(s, *args, **kwargs):
     else:
         log_output(s + '\n')
 
+# For detecting whether specified verbosity level is enabled
+log_on.level_on = True
+
 
 def log_off(s, *args, **kwargs):
     """Do nothing (logging is disabled)."""
 
     pass
+
+# For detecting whether specified verbosity level is enabled
+log_off.level_on = False
 
 
 log_output = sys.stdout.write

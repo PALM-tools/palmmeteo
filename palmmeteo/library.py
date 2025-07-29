@@ -21,17 +21,13 @@
 
 """Library functions for plugins"""
 
-import datetime
 import re
 import numpy as np
 from .logging import die, warn, log, verbose
-from .config import cfg
+from .config import cfg, parse_duration
 from .runtime import rt
-from .utils import ax_, rad, SliceBoolExtender
+from .utils import ax_, rad, SliceBoolExtender, midnight_of, DTIndexer, NotWholeTimestep
 from scipy.spatial import Delaunay
-
-utc = datetime.timezone.utc
-utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
 
 class PalmPhysics:
     """Physics calculations with defined constants
@@ -397,4 +393,61 @@ class LatLonRegularGrid:
 
         self.latlon_to_ji = lambda lat, lon: ((lat-lat_base)*lat_dstep, (lon-lon_base)*lon_dstep)
         self.ji_to_latlon = lambda j, i: (j*lat_step+lat_base, i*lon_step+lon_base)
+
+class AssimCycle:
+    """List of selected assimilation cycles based on configuration"""
+
+    def __init__(self, cfgsect):
+        self.cycle_int = parse_duration(cfgsect.cycle_interval)
+        self.cycle_ref = cfgsect.reference_cycle
+        if not self.cycle_ref:
+            # Use 00:00 UTC of the first day of simulation
+            self.cycle_ref = midnight_of(rt.simulation.start_time)
+
+    def __call__(self, cycle_dt):
+        """Test whether the cycle is among the selected cycles"""
+        return not cycle_dt % self.cycle_ref # True if remainder is timedelta(0)
+
+class HorizonSelection:
+    """
+    Represents a continous selection of forecast horizons for
+    a given selection of cycles (AssimCycle)
+    """
+    def __init__(self, cycles, earliest_horizon, idx_start=None, idx_stop=None):
+        self.cycles = cycles
+        self.horiz_first = earliest_horizon
+        self.horiz_last = earliest_horizon + cycles.cycle_int - rt.simulation.timestep
+        self.idx0 = 0 if idx_start is None else idx_start
+        self.idx1 = rt.nt if idx_stop is None else idx_stop
+
+    def get_idx(self, horizon, dt_idx):
+        if dt_idx < self.idx0:
+            return False
+        if dt_idx >= self.idx1:
+            return False
+        if horizon < self.horiz_first:
+            return False
+        if horizon > self.horiz_last:
+            return False
+
+        return dt_idx - self.idx0
+
+    def locate(self, cycle, horizon):
+        if not self.cycles(cycle):
+            verbose('Cycle {} not included', cycle)
+            return False
+
+        try:
+            dt_idx = rt.tindex(cycle+horizon)
+        except NotWholeTimestep:
+            return False
+
+        return self.get_idx(horizon, dt_idx)
+
+    def dt_from_idx(self, idx):
+        dt = rt.simulation.start_time + rt.simulation.timestep*(idx+self.idx0)
+        horizon = (dt - self.cycles.cycle_ref - self.horiz_first) % self.cycles.cycle_int
+        horizon += self.horiz_first
+        cycle = dt - horizon
+        return cycle, horizon, dt
 
