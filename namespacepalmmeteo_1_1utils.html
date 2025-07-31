@@ -78,6 +78,8 @@ $(function() {
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1utils_1_1DTIndexer.html">DTIndexer</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1utils_1_1NotWholeTimestep.html">NotWholeTimestep</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1utils_1_1SliceBoolExtender.html">SliceBoolExtender</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1utils_1_1SliceExtender.html">SliceExtender</a></td></tr>
@@ -104,8 +106,16 @@ Variables</h2></td></tr>
 <tr class="separator:a5e88dfd8203a37ac74c315fc9aff30b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aad8da821a8e11cb72800b4fcc1f39f1c"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aad8da821a8e11cb72800b4fcc1f39f1c">rad</a> = np.pi / 180.</td></tr>
 <tr class="separator:aad8da821a8e11cb72800b4fcc1f39f1c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6845ca1aa92ebbc25bf06014373d6a76"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a6845ca1aa92ebbc25bf06014373d6a76">td0</a> = timedelta(hours=0)</td></tr>
+<tr class="memitem:a6845ca1aa92ebbc25bf06014373d6a76"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a6845ca1aa92ebbc25bf06014373d6a76">td0</a> = datetime.timedelta(0)</td></tr>
 <tr class="separator:a6845ca1aa92ebbc25bf06014373d6a76"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a699bd0a042aebd023517a5bdb7cc0c18"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a699bd0a042aebd023517a5bdb7cc0c18">utc</a> = datetime.timezone.utc</td></tr>
+<tr class="separator:a699bd0a042aebd023517a5bdb7cc0c18"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acd633f3dae1ccc9de58f08d10bb2969f"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#acd633f3dae1ccc9de58f08d10bb2969f">midnight</a> = datetime.time(0)</td></tr>
+<tr class="separator:acd633f3dae1ccc9de58f08d10bb2969f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a18687593f37f5b74de4b7cc5482cdac8"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a18687593f37f5b74de4b7cc5482cdac8">utcdefault</a> = lambda dt: dt.replace(tzinfo=<a class="el" href="namespacepalmmeteo_1_1utils.html#a699bd0a042aebd023517a5bdb7cc0c18">utc</a>) if dt.tzinfo is None else dt</td></tr>
+<tr class="separator:a18687593f37f5b74de4b7cc5482cdac8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a143f12fd597ad8fb3782ecf06368a366"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a143f12fd597ad8fb3782ecf06368a366">midnight_of</a> = lambda dt: datetime.datetime.combine(dt.date(), <a class="el" href="namespacepalmmeteo_1_1utils.html#acd633f3dae1ccc9de58f08d10bb2969f">midnight</a>, dt.tzinfo)</td></tr>
+<tr class="separator:a143f12fd597ad8fb3782ecf06368a366"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aff96e3b8da73a2c2c4d00e1b47d63528">fext_re</a> = re.compile(r'\.(\d{3})$')</td></tr>
 <tr class="separator:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a58eafaeaa5ecd11b3d3484580c88db6d"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a58eafaeaa5ecd11b3d3484580c88db6d">where_range</a> = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))</td></tr>
@@ -293,6 +303,34 @@ Does NOT verify its parameters.
 
 </div>
 </div>
+<a id="acd633f3dae1ccc9de58f08d10bb2969f" name="acd633f3dae1ccc9de58f08d10bb2969f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acd633f3dae1ccc9de58f08d10bb2969f">&#9670;&nbsp;</a></span>midnight</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo.utils.midnight = datetime.time(0)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a143f12fd597ad8fb3782ecf06368a366" name="a143f12fd597ad8fb3782ecf06368a366"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a143f12fd597ad8fb3782ecf06368a366">&#9670;&nbsp;</a></span>midnight_of</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo.utils.midnight_of = lambda dt: datetime.datetime.combine(dt.date(), <a class="el" href="namespacepalmmeteo_1_1utils.html#acd633f3dae1ccc9de58f08d10bb2969f">midnight</a>, dt.tzinfo)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aad8da821a8e11cb72800b4fcc1f39f1c" name="aad8da821a8e11cb72800b4fcc1f39f1c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aad8da821a8e11cb72800b4fcc1f39f1c">&#9670;&nbsp;</a></span>rad</h2>
 
@@ -314,7 +352,35 @@ Does NOT verify its parameters.
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">palmmeteo.utils.td0 = timedelta(hours=0)</td>
+          <td class="memname">palmmeteo.utils.td0 = datetime.timedelta(0)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a699bd0a042aebd023517a5bdb7cc0c18" name="a699bd0a042aebd023517a5bdb7cc0c18"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a699bd0a042aebd023517a5bdb7cc0c18">&#9670;&nbsp;</a></span>utc</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo.utils.utc = datetime.timezone.utc</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a18687593f37f5b74de4b7cc5482cdac8" name="a18687593f37f5b74de4b7cc5482cdac8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a18687593f37f5b74de4b7cc5482cdac8">&#9670;&nbsp;</a></span>utcdefault</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo.utils.utcdefault = lambda dt: dt.replace(tzinfo=<a class="el" href="namespacepalmmeteo_1_1utils.html#a699bd0a042aebd023517a5bdb7cc0c18">utc</a>) if dt.tzinfo is None else dt</td>
         </tr>
       </table>
 </div><div class="memdoc">

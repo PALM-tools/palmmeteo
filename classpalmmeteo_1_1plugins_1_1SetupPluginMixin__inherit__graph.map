@@ -1,10 +1,9 @@
 <map id="palmmeteo.plugins.SetupPluginMixin" name="palmmeteo.plugins.SetupPluginMixin">
-<area shape="rect" id="node1" title=" " alt="" coords="649,71,879,112"/>
-<area shape="rect" id="node6" href="$classpalmmeteo__stdplugins_1_1icon_1_1IconPlugin.html" title=" " alt="" coords="935,5,1141,47"/>
-<area shape="rect" id="node7" href="$classpalmmeteo__stdplugins_1_1setup_1_1SetupPlugin.html" title=" " alt="" coords="931,71,1145,112"/>
-<area shape="rect" id="node8" href="$classpalmmeteo__stdplugins_1_1setup__staticdriver_1_1StaticDriverPlugin.html" title=" " alt="" coords="927,136,1149,177"/>
-<area shape="rect" id="node2" href="$classpalmmeteo_1_1plugins_1_1Plugin.html" title=" " alt="" coords="409,78,601,105"/>
-<area shape="rect" id="node3" title=" " alt="" coords="204,53,293,79"/>
-<area shape="rect" id="node4" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="136,103,361,130"/>
-<area shape="rect" id="node5" title=" " alt="" coords="5,103,88,130"/>
+<area shape="rect" id="node1" title=" " alt="" coords="649,39,879,80"/>
+<area shape="rect" id="node6" href="$classpalmmeteo__stdplugins_1_1setup_1_1SetupPlugin.html" title=" " alt="" coords="931,5,1145,47"/>
+<area shape="rect" id="node7" href="$classpalmmeteo__stdplugins_1_1setup__staticdriver_1_1StaticDriverPlugin.html" title=" " alt="" coords="927,71,1149,112"/>
+<area shape="rect" id="node2" href="$classpalmmeteo_1_1plugins_1_1Plugin.html" title=" " alt="" coords="409,46,601,73"/>
+<area shape="rect" id="node3" title=" " alt="" coords="204,21,293,47"/>
+<area shape="rect" id="node4" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="136,71,361,98"/>
+<area shape="rect" id="node5" title=" " alt="" coords="5,71,88,98"/>
 </map>

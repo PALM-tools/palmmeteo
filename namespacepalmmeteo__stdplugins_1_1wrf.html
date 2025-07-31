@@ -89,6 +89,8 @@ Functions</h2></td></tr>
 <tr class="separator:a293e920d9acd98f153dd4032d644de87"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff2cd651e744cb9710b6ab9f20bcee8a"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1wrf.html#aff2cd651e744cb9710b6ab9f20bcee8a">log_dstat_off</a> (desc, delta)</td></tr>
 <tr class="separator:aff2cd651e744cb9710b6ab9f20bcee8a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a011cb79129b3404217798538304f7a72"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1wrf.html#a011cb79129b3404217798538304f7a72">wrfout_dt</a> (fin)</td></tr>
+<tr class="separator:a011cb79129b3404217798538304f7a72"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
 Variables</h2></td></tr>
@@ -98,6 +100,8 @@ Variables</h2></td></tr>
 <tr class="separator:a8432d3ff72339704493c13e083f51f43"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acadd00010e891b885b2b22c8f4912cc9"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1wrf.html#acadd00010e891b885b2b22c8f4912cc9">g</a> = PalmPhysics.g</td></tr>
 <tr class="separator:acadd00010e891b885b2b22c8f4912cc9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af7256549a0435111278539d00b8eceb6"><td class="memItemLeft" align="right" valign="top">string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1wrf.html#af7256549a0435111278539d00b8eceb6">dtformat_wrf</a> = '%Y-%m-%d_%H:%M:%S'</td></tr>
+<tr class="separator:af7256549a0435111278539d00b8eceb6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="aff2cd651e744cb9710b6ab9f20bcee8a" name="aff2cd651e744cb9710b6ab9f20bcee8a"></a>
@@ -174,6 +178,24 @@ Variables</h2></td></tr>
 <pre class="fragment">Pad variable in first dimension by repeating lowest layer twice</pre> 
 </div>
 </div>
+<a id="a011cb79129b3404217798538304f7a72" name="a011cb79129b3404217798538304f7a72"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a011cb79129b3404217798538304f7a72">&#9670;&nbsp;</a></span>wrfout_dt()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">def palmmeteo_stdplugins.wrf.wrfout_dt </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>fin</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<pre class="fragment">Return cycle time and time for the specific wrfout</pre> 
+</div>
+</div>
 <h2 class="groupheader">Variable Documentation</h2>
 <a id="a8432d3ff72339704493c13e083f51f43" name="a8432d3ff72339704493c13e083f51f43"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8432d3ff72339704493c13e083f51f43">&#9670;&nbsp;</a></span>barom_gp</h2>
@@ -197,6 +219,20 @@ Variables</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">palmmeteo_stdplugins.wrf.barom_pres = <a class="el" href="classpalmmeteo_1_1library_1_1PalmPhysics.html#a9184068966707ffc56152ab7885b4d98">PalmPhysics.barom_lapse0_pres</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="af7256549a0435111278539d00b8eceb6" name="af7256549a0435111278539d00b8eceb6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af7256549a0435111278539d00b8eceb6">&#9670;&nbsp;</a></span>dtformat_wrf</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">string palmmeteo_stdplugins.wrf.dtformat_wrf = '%Y-%m-%d_%H:%M:%S'</td>
         </tr>
       </table>
 </div><div class="memdoc">

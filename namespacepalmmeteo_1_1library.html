@@ -68,14 +68,17 @@ $(function() {
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
-<a href="#func-members">Functions</a> &#124;
-<a href="#var-members">Variables</a>  </div>
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">palmmeteo.library Namespace Reference</div></div>
 </div><!--header-->
 <div class="contents">
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1library_1_1AssimCycle.html">AssimCycle</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1library_1_1HorizonSelection.html">HorizonSelection</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1library_1_1InputUnitsInfo.html">InputUnitsInfo</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1library_1_1LatLonRegularGrid.html">LatLonRegularGrid</a></td></tr>
@@ -99,13 +102,6 @@ Functions</h2></td></tr>
 <tr class="separator:a53f02baed1a7c4388fb3b55f2d3653ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a844fdc530874c0a903d738a2c6b95334"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1library.html#a844fdc530874c0a903d738a2c6b95334">parse_linspace</a> (space, name, maxerr)</td></tr>
 <tr class="separator:a844fdc530874c0a903d738a2c6b95334"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
-Variables</h2></td></tr>
-<tr class="memitem:a4908ebfa6357a76d5c331b1521549bf1"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1library.html#a4908ebfa6357a76d5c331b1521549bf1">utc</a> = datetime.timezone.utc</td></tr>
-<tr class="separator:a4908ebfa6357a76d5c331b1521549bf1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1b67e004a3e9446d17df68645d44bfea"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1library.html#a1b67e004a3e9446d17df68645d44bfea">utcdefault</a> = lambda dt: dt.replace(tzinfo=<a class="el" href="namespacepalmmeteo_1_1library.html#a4908ebfa6357a76d5c331b1521549bf1">utc</a>) if dt.tzinfo is None else dt</td></tr>
-<tr class="separator:a1b67e004a3e9446d17df68645d44bfea"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="a120d3c824eadb22bf78de81aeb3ec378" name="a120d3c824eadb22bf78de81aeb3ec378"></a>
@@ -215,35 +211,6 @@ of such spacing.
       </table>
 </div><div class="memdoc">
 <pre class="fragment">Regrids source lat+lon coordinates to PALM coordinates using the regridder and verifies the result.</pre> 
-</div>
-</div>
-<h2 class="groupheader">Variable Documentation</h2>
-<a id="a4908ebfa6357a76d5c331b1521549bf1" name="a4908ebfa6357a76d5c331b1521549bf1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4908ebfa6357a76d5c331b1521549bf1">&#9670;&nbsp;</a></span>utc</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">palmmeteo.library.utc = datetime.timezone.utc</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a1b67e004a3e9446d17df68645d44bfea" name="a1b67e004a3e9446d17df68645d44bfea"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1b67e004a3e9446d17df68645d44bfea">&#9670;&nbsp;</a></span>utcdefault</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">palmmeteo.library.utcdefault = lambda dt: dt.replace(tzinfo=<a class="el" href="namespacepalmmeteo_1_1library.html#a4908ebfa6357a76d5c331b1521549bf1">utc</a>) if dt.tzinfo is None else dt</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
 </div>
 </div>
 </div><!-- contents -->

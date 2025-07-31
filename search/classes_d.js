@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['unitconverter_0',['UnitConverter',['../classpalmmeteo_1_1library_1_1UnitConverter.html',1,'palmmeteo::library']]]
+  ['triregridder_0',['TriRegridder',['../classpalmmeteo_1_1library_1_1TriRegridder.html',1,'palmmeteo::library']]]
 ];

@@ -177,6 +177,9 @@ Configuration options</h1>
 <div class="line">    #timestep: 1 h</div>
 <div class="line">    #length: 1 d</div>
 <div class="line"> </div>
+<div class="line">    #timestep_rad: auto # default: detect from input files (if possible)</div>
+<div class="line">    #timestep_rad: 10 m # explicit</div>
+<div class="line"> </div>
 <div class="line">#radiation: false #off by default, switched on by tasks or manually</div>
 <div class="line"> </div>
 <div class="line">#chem_species: [] #empty list = disabled chemistry</div>
@@ -211,6 +214,25 @@ Configuration options</h1>
 <div class="line">######################### PLUGIN-SPECIFIC OPTIONS #########################</div>
 <div class="line"> </div>
 <div class="line">wrf:</div>
+<div class="line">    # Compose continuous timeseries for the simululation using one or more</div>
+<div class="line">    # forecast/assimilation cycles from the set of input files</div>
+<div class="line">    assim_cycles:</div>
+<div class="line">        # Interval between assimilation cycles to be used (a larger time</div>
+<div class="line">        # interval can be specified in order to use every nth cycle).</div>
+<div class="line">        #cycles_used: 3 h    # time interval</div>
+<div class="line">        #cycles_used: single # use one specified cycle</div>
+<div class="line">        #cycles_used: all    # default: use all files, assume they are continuous</div>
+<div class="line"> </div>
+<div class="line">        # Datetime for the reference cycle from which the selected cycle</div>
+<div class="line">        # intervals are counted, or the selected cycle if cycles_used=single.</div>
+<div class="line">        # Default: 00:00 UTC from the first day of simulation.</div>
+<div class="line">        #reference_cycle:</div>
+<div class="line"> </div>
+<div class="line">        # Earliest horizon (time since cycle time) to be used in the</div>
+<div class="line">        # simulation. If set to higher than 0, the 0th file of each cycle must</div>
+<div class="line">        # still be available to load the level heights (HHL).</div>
+<div class="line">        #earliest_horizon: 0 h</div>
+<div class="line"> </div>
 <div class="line">    # Method of stretching or squeezing of the intermediate-height levels</div>
 <div class="line">    # before vertical interpolation in order to match the target</div>
 <div class="line">    # (high-resolution) terrain, while limiting the propagation of</div>
@@ -279,13 +301,30 @@ Configuration options</h1>
 <div class="line">    #soil_avg_point: [ 14.418540, 50.073658 ]</div>
 <div class="line"> </div>
 <div class="line">icon:</div>
-<div class="line">    # List of assimilation cycles specified as timedeltas after midnight UTC</div>
-<div class="line">    #input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]</div>
+<div class="line">    # Compose continuous timeseries for the simululation using one or more</div>
+<div class="line">    # forecast/assimilation cycles from the set of input files</div>
+<div class="line">    assim_cycles:</div>
+<div class="line">        # Interval between assimilation cycles to be used (a larger time</div>
+<div class="line">        # interval can be specified in order to use every nth cycle).</div>
+<div class="line">        #cycles_used: 3 h    # default: time interval</div>
+<div class="line">        #cycles_used: single # use one specified cycle</div>
 <div class="line"> </div>
-<div class="line">    # First and last forecast horizon taken from each cycle. Must match</div>
-<div class="line">    # assimilation cycles in such a way that a full, continuous day is formed.</div>
-<div class="line">    # For aggregated values, the last horizon is exactly 1 timestep further.</div>
-<div class="line">    #input_fcst_horizon_range: [0 h, 2 h]</div>
+<div class="line">        # Datetime for the reference cycle from which the selected cycle</div>
+<div class="line">        # intervals are counted, or the selected cycle if cycles_used=single.</div>
+<div class="line">        # Default: 00:00 UTC from the first day of simulation.</div>
+<div class="line">        #reference_cycle:</div>
+<div class="line"> </div>
+<div class="line">        # Earliest horizon (time since cycle time) to be used in the</div>
+<div class="line">        # simulation. If set to higher than 0, the 0th file of each cycle must</div>
+<div class="line">        # still be available to load the level heights (HHL).</div>
+<div class="line">        #earliest_horizon: 0 h</div>
+<div class="line"> </div>
+<div class="line">    # The disaggregated values (radiation) represent centres of intervals</div>
+<div class="line">    # between timesteps, therefore to cover the full duration of the</div>
+<div class="line">    # simulation, one more time interval before and after the simulation are</div>
+<div class="line">    # required. Enable this to allow skipping them using extrapolation.</div>
+<div class="line">    #allow_skip_first_disaggr: true</div>
+<div class="line">    #allow_skip_last_disaggr: true</div>
 <div class="line"> </div>
 <div class="line">    # Distance [km] for selecting nearby grid points usable for interpolation.</div>
 <div class="line">    # Recommended value: original grid resolution × 3</div>
@@ -307,7 +346,7 @@ Configuration options</h1>
 <div class="line"> </div>
 <div class="line">    # Method of staggering the damping factor for the U, V and W wind</div>
 <div class="line">    # components by taking adjacent cells in the respective dimension.</div>
-<div class="line">    #stagger_method: average</div>
+<div class="line">    #stagger_method: average #default</div>
 <div class="line">    #stagger_method: minimum</div>
 <div class="line"> </div>
 </div><!-- fragment --><p >This file may be used as a template for a new PALM-meteo configuration by uncommenting the values that the user wants to change.</p>

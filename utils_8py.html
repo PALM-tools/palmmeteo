@@ -77,6 +77,8 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1utils_1_1NotWholeTimestep.html">palmmeteo.utils.NotWholeTimestep</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1utils_1_1DTIndexer.html">palmmeteo.utils.DTIndexer</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1utils_1_1SliceExtender.html">palmmeteo.utils.SliceExtender</a></td></tr>
@@ -112,8 +114,16 @@ Variables</h2></td></tr>
 <tr class="separator:a5e88dfd8203a37ac74c315fc9aff30b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aad8da821a8e11cb72800b4fcc1f39f1c"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aad8da821a8e11cb72800b4fcc1f39f1c">palmmeteo.utils.rad</a> = np.pi / 180.</td></tr>
 <tr class="separator:aad8da821a8e11cb72800b4fcc1f39f1c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6845ca1aa92ebbc25bf06014373d6a76"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a6845ca1aa92ebbc25bf06014373d6a76">palmmeteo.utils.td0</a> = timedelta(hours=0)</td></tr>
+<tr class="memitem:a6845ca1aa92ebbc25bf06014373d6a76"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a6845ca1aa92ebbc25bf06014373d6a76">palmmeteo.utils.td0</a> = datetime.timedelta(0)</td></tr>
 <tr class="separator:a6845ca1aa92ebbc25bf06014373d6a76"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a699bd0a042aebd023517a5bdb7cc0c18"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a699bd0a042aebd023517a5bdb7cc0c18">palmmeteo.utils.utc</a> = datetime.timezone.utc</td></tr>
+<tr class="separator:a699bd0a042aebd023517a5bdb7cc0c18"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acd633f3dae1ccc9de58f08d10bb2969f"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#acd633f3dae1ccc9de58f08d10bb2969f">palmmeteo.utils.midnight</a> = datetime.time(0)</td></tr>
+<tr class="separator:acd633f3dae1ccc9de58f08d10bb2969f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a18687593f37f5b74de4b7cc5482cdac8"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a18687593f37f5b74de4b7cc5482cdac8">palmmeteo.utils.utcdefault</a> = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt</td></tr>
+<tr class="separator:a18687593f37f5b74de4b7cc5482cdac8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a143f12fd597ad8fb3782ecf06368a366"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a143f12fd597ad8fb3782ecf06368a366">palmmeteo.utils.midnight_of</a> = lambda dt: datetime.datetime.combine(dt.date(), midnight, dt.tzinfo)</td></tr>
+<tr class="separator:a143f12fd597ad8fb3782ecf06368a366"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aff96e3b8da73a2c2c4d00e1b47d63528">palmmeteo.utils.fext_re</a> = re.compile(r'\.(\d{3})$')</td></tr>
 <tr class="separator:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a58eafaeaa5ecd11b3d3484580c88db6d"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a58eafaeaa5ecd11b3d3484580c88db6d">palmmeteo.utils.where_range</a> = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))</td></tr>
