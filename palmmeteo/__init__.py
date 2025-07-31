@@ -12,6 +12,8 @@ try:
 except:
     __version__ = 'undetermined'
 
+signature = f'PALM-meteo version {__version__}'
+
 from .config import cfg
 from .runtime import rt
 from .dispatch import run, main

@@ -22,6 +22,7 @@
 import os
 import pickle
 
+from . import signature
 from .logging import die, warn, log, verbose
 from .config import cfg, parse_duration, ConfigObj
 
@@ -32,17 +33,23 @@ class RuntimeObj(object):
     """
 
     def _save(self, fpath):
-        #for n,v in self.__dict__.items():
-        #    print(f'{n}:	{type(v)}')
-        #    pickle.dumps(v)
         with open(fpath, 'wb') as f:
-            pickle.dump(self.__dict__, f,
-                        protocol=cfg.intermediate_files.pickle_protocol)
+            p = pickle.Pickler(f, protocol=cfg.intermediate_files.pickle_protocol,
+                    fix_imports=False)
+            p.dump(signature)
+            p.dump(self.__dict__)
 
     def _load(self, fpath):
         log('Loading snapshot from {}.', fpath)
         with open(fpath, 'rb') as f:
-            loaded = pickle.load(f)
+            p = pickle.Unpickler(f, fix_imports=False)
+            sig_loaded = p.load()
+            loaded = p.load()
+        if sig_loaded == signature:
+            verbose('Loaded snapshot version: {}', sig_loaded)
+        else:
+            warn('Loaded snapshot version "{}" does not match current '
+                 'version "{}", errors may come!', sig_loaded, signature)
         assert(isinstance(loaded, dict))
         self.__dict__.update(loaded)
 
@@ -53,6 +60,10 @@ def basic_init(rt):
     rt.simulation = RuntimeObj()
     rt.simulation.timestep = parse_duration(cfg.simulation, 'timestep')
     rt.simulation.length = parse_duration(cfg.simulation, 'length')
+    if cfg.simulation.timestep_rad == 'auto':
+        rt.timestep_rad = None
+    else:
+        rt.timestep_rad = parse_duration(cfg.simulation, 'timestep_rad')
 
     # Paths
     rt.path_strings = {}

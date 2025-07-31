@@ -75,17 +75,26 @@ def assign_time(coll, key, value):
 
 class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
+        if cfg.icon.assim_cycles.cycles_used == 'all':
+            raise ConfigError('ICON must use either cycle interval or a '
+                    'single cycle, not all cycles', cfg.icon.assim_cycles,
+                    'cycles_used')
         if cfg.radiation and not rt.paths.icon.static_data:
             raise ConfigError('For radiation with ICON, the static data file '
                     'with surface emissivity must be specified', cfg.path,
                     'icon_static_data')
+        if (rt.timestep_rad is not None
+                and rt.timestep_rad != rt.simulation.timestep):
+            raise ConfigError('For radiation with ICON, the radiation timestep '
+                    'can not be configured to a different value than the main '
+                    'timestep', cfg.simulation, 'timestep_rad')
 
     def import_data(self, fout, *args, **kwargs):
         log('Importing ICON data...')
 
         # Prepare time indices
         cycles = AssimCycle(cfg.icon.assim_cycles)
-        hor0 = parse_duration(cfg.icon.assim_cycles.earliest_horizon)
+        hor0 = parse_duration(cfg.icon.assim_cycles, 'earliest_horizon')
         hselect = HorizonSelection(cycles, hor0)
         cycle_first_wanted = hselect.dt_from_idx(0)[0]
         cycle_last_wanted = hselect.dt_from_idx(rt.nt)[0]
@@ -99,16 +108,17 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             rt.timestep_rad = rt.simulation.timestep
             rt.nt_rad = rt.tindex(rt.simulation.end_time_rad) + 2 #=nt+1 unless nested
 
-            # Because we de-aggregate into time intervals between timesteps,
-            # the values represent centres of timesteps. We start with half
-            # timestep before simulation (PALM deals with this correctly).
+            # Because we disaggregate the time intervals between timesteps, the
+            # values represent the centres of the intervals. We start with half
+            # a timestep before the simulation and end with half a timestep
+            # after (PALM deals with this correctly).
             rt.times_rad_sec = np.arange(-0.5, rt.nt_rad-1) * rt.timestep_rad.total_seconds()
 
             # Prepare aggregated values
             aggr_start = [None] * (rt.nt_rad)
             aggr_end   = [None] * (rt.nt_rad)
-            hselect_rad_left = HorizonSelection(cycles, hor0, -1, rt.nt_rad)
-            hselect_rad_right = HorizonSelection(cycles, hor0+1, 0, rt.nt_rad)
+            hselect_rad_left = HorizonSelection(cycles, hor0, -1, rt.nt_rad-1)
+            hselect_rad_right = HorizonSelection(cycles, hor0+rt.timestep_rad, 0, rt.nt_rad)
 
             verbose('ICON horizon range for aggregated values: {}...{}',
                     hselect_rad_left.horiz_first, hselect_rad_right.horiz_last)
@@ -128,20 +138,20 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 tcycle = utcdefault(cftime.num2date(0, tvar.units, tvar.calendar,
                                                     only_use_cftime_datetimes=False,
                                                     only_use_python_datetimes=True))
-                if not cycles(tcycle):
+                if not cycles.is_selected(tcycle):
                     verbose('Cycle {} not among selected ICON cycles - skipping', tcycle)
+                    continue
 
                 assert tvar.shape == (1,)
                 t = utcdefault(cftime.num2date(tvar[0], tvar.units, tvar.calendar,
                                                only_use_cftime_datetimes=False,
                                                only_use_python_datetimes=True))
-                thoriz = t - tcycle
-
                 try:
                     it = rt.tindex(t)
                 except NotWholeTimestep:
                     verbose('Time {} is not within timestep intervals - skipping', t)
                     continue
+                thoriz = t - tcycle
 
                 # Find indices, decide on using
                 use = False
@@ -258,9 +268,9 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     lwnet = fin.variables['ATHB_S'][0][rad_mask]
                     tsurf = fin.variables['T_SO'][0,0,:][rad_mask] # zero-height soil layer
                     h = thoriz.total_seconds()
-                    if it_rad_left is not None:
+                    if it_rad_left is not False:
                         assign_time(aggr_start, it_rad_left, (h, swdir, swdif, lwnet, tsurf))
-                    if it_rad_right is not None:
+                    if it_rad_right is not False:
                         assign_time(aggr_end, it_rad_right, (h, swdir, swdif, lwnet, tsurf))
 
                 # Save HHL
@@ -326,6 +336,18 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         # De-aggregate values
         if cfg.radiation:
             verbose('De-aggregating SW+LW radiation.')
+            if aggr_start[0] is None and cfg.icon.allow_skip_first_disaggr:
+                log('Extrapolating ICON disaggregated radiation values for '
+                    'the first timestep!')
+                aggr_start[0] = aggr_start[1]
+                aggr_end[0] = aggr_end[1]
+                rt.times_rad_sec[0] = 0.
+            if aggr_end[-1] is None and cfg.icon.allow_skip_last_disaggr:
+                log('Extrapolating ICON disaggregated radiation values for '
+                    'the last timestep!')
+                aggr_start[-1] = aggr_start[-2]
+                aggr_end[-1] = aggr_end[-2]
+                rt.times_rad_sec[-1] = rt.timestep_rad.total_seconds()
             swdown = []
             swdif = []
             lwdown = []

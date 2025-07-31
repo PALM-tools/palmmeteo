@@ -106,6 +106,9 @@ simulation:
     #timestep: 1 h
     #length: 1 d
 
+    #timestep_rad: auto # default: detect from input files (if possible)
+    #timestep_rad: 10 m # explicit
+
 #radiation: false #off by default, switched on by tasks or manually
 
 #chem_species: [] #empty list = disabled chemistry
@@ -140,6 +143,25 @@ verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
 ######################### PLUGIN-SPECIFIC OPTIONS #########################
 
 wrf:
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # time interval
+        #cycles_used: single # use one specified cycle
+        #cycles_used: all    # default: use all files, assume they are continuous
+
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        #reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        #earliest_horizon: 0 h
+
     # Method of stretching or squeezing of the intermediate-height levels
     # before vertical interpolation in order to match the target
     # (high-resolution) terrain, while limiting the propagation of
@@ -209,20 +231,29 @@ aladin:
 
 icon:
     # Compose continuous timeseries for the simululation using one or more
-    # assimilation cycles from the set of input files
+    # forecast/assimilation cycles from the set of input files
     assim_cycles:
-        # Interval between assimilation cycles to be used (ICON is run every
-        # 3 hours, change if you want a subset of cycles).
-        #cycle_interval: 3 h
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # default: time interval
+        #cycles_used: single # use one specified cycle
 
-        # Datetime for the reference cycle from which the selected cycles are
-        # counted. Default: 00:00 UTC from the first day of simulation.
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
         #reference_cycle:
 
-        # Earliest horizon (time since assimilation) to be used in the
+        # Earliest horizon (time since cycle time) to be used in the
         # simulation. If set to higher than 0, the 0th file of each cycle must
         # still be available to load the level heights (HHL).
         #earliest_horizon: 0 h
+
+    # The disaggregated values (radiation) represent centres of intervals
+    # between timesteps, therefore to cover the full duration of the
+    # simulation, one more time interval before and after the simulation are
+    # required. Enable this to allow skipping them using extrapolation.
+    #allow_skip_first_disaggr: true
+    #allow_skip_last_disaggr: true
 
     # Distance [km] for selecting nearby grid points usable for interpolation.
     # Recommended value: original grid resolution × 3
@@ -244,6 +275,6 @@ winddamp:
 
     # Method of staggering the damping factor for the U, V and W wind
     # components by taking adjacent cells in the respective dimension.
-    #stagger_method: average
+    #stagger_method: average #default
     #stagger_method: minimum
 

@@ -23,8 +23,9 @@
 
 import re
 import numpy as np
+import datetime
 from .logging import die, warn, log, verbose
-from .config import cfg, parse_duration
+from .config import cfg, parse_duration, ConfigError
 from .runtime import rt
 from .utils import ax_, rad, SliceBoolExtender, midnight_of, DTIndexer, NotWholeTimestep
 from scipy.spatial import Delaunay
@@ -398,51 +399,84 @@ class AssimCycle:
     """List of selected assimilation cycles based on configuration"""
 
     def __init__(self, cfgsect):
-        self.cycle_int = parse_duration(cfgsect.cycle_interval)
-        self.cycle_ref = cfgsect.reference_cycle
-        if not self.cycle_ref:
-            # Use 00:00 UTC of the first day of simulation
-            self.cycle_ref = midnight_of(rt.simulation.start_time)
+        cint = cfgsect.cycles_used
+        cref = cfgsect.reference_cycle
 
-    def __call__(self, cycle_dt):
+        if cint == 'all':
+            self.cycle_int = False
+            if cref:
+                raise ConfigError('Reference cycle cannot be specified for '
+                        'cycles_used=all', cfgsect, 'reference_cycle')
+            self.is_selected = self._is_selected_all
+        else:
+            self.cycle_ref = cref
+            if not self.cycle_ref:
+                # Use 00:00 UTC of the first day of simulation
+                self.cycle_ref = midnight_of(rt.simulation.start_time)
+
+            if cint == 'single':
+                self.cycle_int = None
+                self.is_selected = self._is_selected_single
+                verbose('Using forecast/assimilaton cycle {}',
+                        self.cycle_ref)
+            else:
+                self.cycle_int = parse_duration(cfgsect, 'reference_cycle', cint)
+                self.is_selected = self._is_selected_interval
+                verbose('Using forecast/assimilation cycles every {} '
+                        '(with reference to {})', self.cycle_int, self.cycle_ref)
+
+    def _is_selected_interval(self, cycle_dt):
         """Test whether the cycle is among the selected cycles"""
-        return not cycle_dt % self.cycle_ref # True if remainder is timedelta(0)
+        return not (cycle_dt - self.cycle_ref) % self.cycle_int # remainder is timedelta(0)
+
+    def _is_selected_single(self, cycle_dt):
+        """Test whether the cycle is among the selected cycles"""
+        return cycle_dt == self.cycle_ref
+
+    def _is_selected_all(self, cycle_dt):
+        """Test whether the cycle is among the selected cycles"""
+        return True
 
 class HorizonSelection:
     """
     Represents a continous selection of forecast horizons for
     a given selection of cycles (AssimCycle)
     """
-    def __init__(self, cycles, earliest_horizon, idx_start=None, idx_stop=None):
+    def __init__(self, cycles, earliest_horizon, idx_start=None, idx_stop=None, tindex=None):
         self.cycles = cycles
         self.horiz_first = earliest_horizon
-        self.horiz_last = earliest_horizon + cycles.cycle_int - rt.simulation.timestep
+        if not cycles.cycle_int:
+            self.horiz_last = datetime.timedelta(days=999999)
+        else:
+            self.horiz_last = earliest_horizon + cycles.cycle_int - rt.simulation.timestep
         self.idx0 = 0 if idx_start is None else idx_start
         self.idx1 = rt.nt if idx_stop is None else idx_stop
+        self.tindex = rt.tindex if tindex is None else tindex
+
+    @classmethod
+    def from_cfg(cls, cfgsect, idx_start=None, idx_stop=None):
+        cycles = AssimCycle(cfgsect)
+        hor0 = parse_duration(cfgsect, 'earliest_horizon')
+        return cls(cycles, hor0, idx_start, idx_stop)
 
     def get_idx(self, horizon, dt_idx):
-        if dt_idx < self.idx0:
+        if not self.idx0 <= dt_idx < self.idx1:
             return False
-        if dt_idx >= self.idx1:
+        if not self.horiz_first <= horizon <= self.horiz_last:
             return False
-        if horizon < self.horiz_first:
-            return False
-        if horizon > self.horiz_last:
-            return False
-
         return dt_idx - self.idx0
 
-    def locate(self, cycle, horizon):
-        if not self.cycles(cycle):
+    def locate(self, cycle, horizon=None, dt=None):
+        if not self.cycles.is_selected(cycle):
             verbose('Cycle {} not included', cycle)
             return False
 
         try:
-            dt_idx = rt.tindex(cycle+horizon)
+            dt_idx = self.tindex(cycle+horizon if dt is None else dt)
         except NotWholeTimestep:
             return False
 
-        return self.get_idx(horizon, dt_idx)
+        return self.get_idx(dt-cycle if horizon is None else horizon, dt_idx)
 
     def dt_from_idx(self, idx):
         dt = rt.simulation.start_time + rt.simulation.timestep*(idx+self.idx0)

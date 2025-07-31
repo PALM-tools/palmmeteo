@@ -261,7 +261,6 @@ def load_config(argv):
             cfg._ingest_dict(task_set.extend._settings, overwrite=False, extend=True)
 
     # load extra settings from commandline
-    cfg._ingest_dict(vars(argv))
     if argv.verbosity_arg is not None:
         cfg._settings['verbosity'] = argv.verbosity_arg
 

@@ -21,10 +21,11 @@
 
 import sys
 import os
+from datetime import datetime
 from argparse import ArgumentParser
 import netCDF4
 
-from . import __doc__, __version__
+from . import __doc__, __version__, signature
 from . import plugins as plg
 from .logging import die, warn, log, verbose, configure_log
 from .config import load_config, cfg
@@ -65,6 +66,8 @@ def execute_event(event, from_plugins):
             this_stage_files.append(fn_out)
             assert_dir(fn_out)
             f = netCDF4.Dataset(fn_out, 'w', format='NETCDF4')
+            f.creator = signature
+            f.creation_date = datetime.now().isoformat()
             common_files.append(f)
             kwargs['fout'] = f
 
@@ -139,7 +142,7 @@ def main():
     argp.add_argument('-f', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
     argp.add_argument('-t', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
     argp.add_argument('-w', '--workflow', nargs='+', help='execute listed stages', metavar='STAGE')
-    argp.add_argument('--version', action='version', version=f'PALM-meteo version {__version__}')
+    argp.add_argument('--version', action='version', version=signature)
     verbosity = argp.add_mutually_exclusive_group()
     verbosity.add_argument('-v', '--verbose', action='store_const',
             dest='verbosity_arg', const=2, help='increase verbosity')
