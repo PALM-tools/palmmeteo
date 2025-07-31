@@ -44,6 +44,25 @@ paths:
         file:           'CAMS'
 
 wrf:
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # time interval
+        #cycles_used: single # use one specified cycle
+        cycles_used: all    # default: use all files, assume they are continuous
+
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        earliest_horizon: 0 h
+
     # Method of stretching or squeezing of the intermediate-height levels
     # before vertical interpolation in order to match the target
     # (high-resolution) terrain, while limiting the propagation of
@@ -461,13 +480,30 @@ aladin:
     vars_1d: [ ]
 
 icon:
-    # List of assimilation cycles specified as timedeltas after midnight UTC
-    input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        cycles_used: 3 h    # default: time interval
+        #cycles_used: single # use one specified cycle
 
-    # First and last forecast horizon taken from each cycle. Must match
-    # assimilation cycles in such a way that a full, continuous day is formed.
-    # For aggregated values, the last horizon is exactly 1 timestep further.
-    input_fcst_horizon_range: [0 h, 2 h]
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        earliest_horizon: 0 h
+
+    # The disaggregated values (radiation) represent centres of intervals
+    # between timesteps, therefore to cover the full duration of the
+    # simulation, one more time interval before and after the simulation are
+    # required. Enable this to allow skipping them using extrapolation.
+    allow_skip_first_disaggr: true
+    allow_skip_last_disaggr: true
 
     # Distance [km] for selecting nearby grid points usable for interpolation.
     # Recommended value: original grid resolution × 3
@@ -535,7 +571,8 @@ winddamp:
 
     # Method of staggering the damping factor for the U, V and W wind
     # components by taking adjacent cells in the respective dimension.
-    stagger_method: average
+    stagger_method: average #default
+    #stagger_method: minimum
 
 
 # Configuration items for selected tasks

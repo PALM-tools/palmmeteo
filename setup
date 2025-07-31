@@ -20,7 +20,7 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 set -e
-cd "$(dirname "$(which "$1")")"
+cd "$(dirname "$(which "$0")")"
 
 if [ -e .venv ]; then
     echo "Virtual environment directory already present, skipping creation."

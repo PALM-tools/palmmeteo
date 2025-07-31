@@ -26,19 +26,18 @@ import numpy as np
 import scipy.ndimage as ndimage
 import netCDF4
 from metpy.interpolate import interpolate_1d
+import cftime
 
-from palmmeteo.plugins import SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from palmmeteo.logging import die, warn, log, verbose, log_output
 from palmmeteo.config import cfg, ConfigError, parse_duration
 from palmmeteo.runtime import rt
-from palmmeteo.utils import ensure_dimension, ax_, rad
-from palmmeteo.library import PalmPhysics, TriRegridder, verify_palm_hinterp
+from palmmeteo.utils import ensure_dimension, ax_, rad, NotWholeTimestep, utcdefault
+from palmmeteo.library import PalmPhysics, TriRegridder, verify_palm_hinterp, AssimCycle, HorizonSelection
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
-
-tstr0 = 'minutes since '
 
 def lpad(var):
     """Pad variable in first dimension by repeating lowest layer twice"""
@@ -74,106 +73,109 @@ def assign_time(coll, key, value):
         raise RuntimeError(f'Time index {key} was already loaded!')
     coll[key] = value
 
-class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
+class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
-        rt.icon_cycles = [parse_duration(cfg.icon, 'input_assim_cycles', c)
-                for c in cfg.icon.input_assim_cycles]
-
-        if len(cfg.icon.input_fcst_horizon_range) != 2:
-            raise ConfigError('Must specify exactly two horizon values [first, last]',
-                    cfg.icon, 'input_fcst_horizon_range')
-        rt.icon_horz0 = parse_duration(cfg.icon, 'input_fcst_horizon_range',
-                cfg.icon.input_fcst_horizon_range[0])
-        rt.icon_horz1 = parse_duration(cfg.icon, 'input_fcst_horizon_range',
-                cfg.icon.input_fcst_horizon_range[1])
-        rt.icon_horz1aggr = rt.icon_horz1 + rt.simulation.timestep
-        verbose('ICON horizon range for instantaneous values: {}...{}',
-                rt.icon_horz0, rt.icon_horz1)
-        verbose('ICON horizon range for aggregated values: {}...{}',
-                rt.icon_horz0, rt.icon_horz1aggr)
-
-        # Make sure that the cycles together with horizon ranges form
-        # a continuous 1-day long timeseries (using timestep)
-        delta0 = rt.icon_horz0
-        delta1 = rt.icon_horz1 + rt.simulation.timestep
-        for c1, c2 in zip(rt.icon_cycles,
-                [rt.icon_cycles[-1] - timedelta(days=1)] + rt.icon_cycles[:-1]):
-            if c1 + delta0 != c2 + delta1:
-                die('Input forecast horizon ranges do not conform: '
-                    'cycle {} + horizon {} != cycle {} + horizon {}.',
-                    c1, delta0, c2, delta1)
-
+        if cfg.icon.assim_cycles.cycles_used == 'all':
+            raise ConfigError('ICON must use either cycle interval or a '
+                    'single cycle, not all cycles', cfg.icon.assim_cycles,
+                    'cycles_used')
         if cfg.radiation and not rt.paths.icon.static_data:
             raise ConfigError('For radiation with ICON, the static data file '
                     'with surface emissivity must be specified', cfg.path,
                     'icon_static_data')
+        if (rt.timestep_rad is not None
+                and rt.timestep_rad != rt.simulation.timestep):
+            raise ConfigError('For radiation with ICON, the radiation timestep '
+                    'can not be configured to a different value than the main '
+                    'timestep', cfg.simulation, 'timestep_rad')
 
     def import_data(self, fout, *args, **kwargs):
         log('Importing ICON data...')
 
-        # Process input files
-        verbose('Parsing ICON files from {}', rt.paths.icon.file_mask)
+        # Prepare time indices
+        cycles = AssimCycle(cfg.icon.assim_cycles)
+        hor0 = parse_duration(cfg.icon.assim_cycles, 'earliest_horizon')
+        hselect = HorizonSelection(cycles, hor0)
+        cycle_first_wanted = hselect.dt_from_idx(0)[0]
+        cycle_last_wanted = hselect.dt_from_idx(rt.nt)[0]
         rt.times = [None] * rt.nt
+
+        verbose('ICON horizon range for instantaneous values: {}...{}',
+                hselect.horiz_first, hselect.horiz_last)
 
         if cfg.radiation:
             # Radiation uses same timestep as IBC in ICON
             rt.timestep_rad = rt.simulation.timestep
-            rt.nt_rad = rt.tindex(rt.simulation.end_time_rad) + 1
-            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+            rt.nt_rad = rt.tindex(rt.simulation.end_time_rad) + 2 #=nt+1 unless nested
+
+            # Because we disaggregate the time intervals between timesteps, the
+            # values represent the centres of the intervals. We start with half
+            # a timestep before the simulation and end with half a timestep
+            # after (PALM deals with this correctly).
+            rt.times_rad_sec = np.arange(-0.5, rt.nt_rad-1) * rt.timestep_rad.total_seconds()
 
             # Prepare aggregated values
-            aggr_start = [None] * (rt.nt_rad+1)
-            aggr_end   = [None] * (rt.nt_rad+1)
+            aggr_start = [None] * (rt.nt_rad)
+            aggr_end   = [None] * (rt.nt_rad)
+            hselect_rad_left = HorizonSelection(cycles, hor0, -1, rt.nt_rad-1)
+            hselect_rad_right = HorizonSelection(cycles, hor0+rt.timestep_rad, 0, rt.nt_rad)
+
+            verbose('ICON horizon range for aggregated values: {}...{}',
+                    hselect_rad_left.horiz_first, hselect_rad_right.horiz_last)
 
         # HHL is only present at time 0 of the run, so we need to cache it
         hhl_d = {}
         run_d = {}
-        #TODO: select assim cycles, load HHL if horiz 0 not in selection
 
+        # Process input files
+        verbose('Parsing ICON files from {}', rt.paths.icon.file_mask)
         first = True
         for fn in sorted(glob.glob(rt.paths.icon.file_mask)):
             verbose('Parsing ICON file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep
                 tvar = fin.variables['time']
-                tbase = tvar.units
-                assert tbase.startswith(tstr0)
-                tcycle = datetime.strptime(tbase[len(tstr0):], '%Y-%m-%d %H:%M:%S')
-                tcycle = tcycle.replace(tzinfo=timezone.utc)
+                tcycle = utcdefault(cftime.num2date(0, tvar.units, tvar.calendar,
+                                                    only_use_cftime_datetimes=False,
+                                                    only_use_python_datetimes=True))
+                if not cycles.is_selected(tcycle):
+                    verbose('Cycle {} not among selected ICON cycles - skipping', tcycle)
+                    continue
+
                 assert tvar.shape == (1,)
-                hor_mins = float(tvar[0])
-                thoriz = timedelta(minutes=hor_mins)
-                t = tcycle + thoriz
-                if thoriz < rt.icon_horz0:
-                    verbose('Horizon {} before first forecast horizon - skipping', thoriz)
-                    continue
-                if thoriz > rt.icon_horz1aggr:
-                    verbose('Horizon {} after last forecast horizon - skipping', thoriz)
-                    continue
-
-                if thoriz > rt.icon_horz1:
-                    verbose('Horizon {} after last forecast horizon but used for aggregated values', thoriz)
-                    aggr_only = True
-                else:
-                    aggr_only = False
-
+                t = utcdefault(cftime.num2date(tvar[0], tvar.units, tvar.calendar,
+                                               only_use_cftime_datetimes=False,
+                                               only_use_python_datetimes=True))
                 try:
                     it = rt.tindex(t)
-                except ValueError:
+                except NotWholeTimestep:
                     verbose('Time {} is not within timestep intervals - skipping', t)
                     continue
-                if not (0 <= it < rt.nt):
-                    if (it == -1 and thoriz < rt.icon_horz1aggr) or (
-                            it == rt.nt and thoriz > rt.icon_horz1):
-                        verbose('Using time {} only for aggregated values', t)
-                        aggr_only = True
-                    elif cfg.radiation and (0 < it < rt.nt_rad
-                                            or (it == rt.nt_rad and thoriz > rt.icon_horz1)):
-                        verbose('Using time {} only for radiation', t)
-                        aggr_only = True
-                    else:
-                        verbose('Time {} is out of range - skipping', t)
-                        continue
+                thoriz = t - tcycle
+
+                # Find indices, decide on using
+                use = False
+                it_main = hselect.get_idx(thoriz, it)
+                if it_main is not False:
+                    verbose('File is used for meteorology.')
+                    use = True
+                if (cycle_first_wanted <= tcycle <= cycle_last_wanted) and not thoriz:
+                    verbose('File is used for HHL.')
+                    use = True
+
+                if cfg.radiation:
+                    it_rad_left = hselect_rad_left.get_idx(thoriz, it)
+                    if it_rad_left is not False:
+                        verbose('File is used for left-side deaggregation of radiation.')
+                        use = True
+                    it_rad_right = hselect_rad_right.get_idx(thoriz, it)
+                    if it_rad_right is not False:
+                        verbose('File is used for right-side deaggregation of radiation.')
+                        use = True
+
+                if not use:
+                    verbose('File is not used for anything.')
+                    continue
 
                 if first:
                     # coordinate projection
@@ -266,18 +268,31 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
                     lwnet = fin.variables['ATHB_S'][0][rad_mask]
                     tsurf = fin.variables['T_SO'][0,0,:][rad_mask] # zero-height soil layer
                     h = thoriz.total_seconds()
-                    if thoriz < rt.icon_horz1aggr:
-                        assign_time(aggr_start, it+1, (h, swdir, swdif, lwnet, tsurf))
-                    if thoriz > rt.icon_horz0:
-                        assign_time(aggr_end, it, (h, swdir, swdif, lwnet, tsurf))
+                    if it_rad_left is not False:
+                        assign_time(aggr_start, it_rad_left, (h, swdir, swdif, lwnet, tsurf))
+                    if it_rad_right is not False:
+                        assign_time(aggr_end, it_rad_right, (h, swdir, swdif, lwnet, tsurf))
 
-                if aggr_only:
+                # Save HHL
+                if not thoriz: #zero horizon
+                    hhl = rt.regrid_icon.loader(fin.variables['HHL'])[0,...]
+                    hsurf = rt.regrid_icon.loader(fin.variables['HSURF'])[0,...]
+
+                    # Layers in ICON NetCDF are top->bottom. Make sure that
+                    # they are not mixed up in convertor, and that terrain
+                    # matches lowest boundary
+                    hhld = hhl[1:] - hhl[:-1]
+                    assert hhld.max() < 0.
+                    assert np.abs(hsurf - hhl[-1]).max() < 0.1 #10 cm
+                    hhl_d[tcycle] = hhl
+
+                if it_main is False:
                     continue
 
                 assign_time(rt.times, it, t)
                 verbose('Importing time {}, timestep {}', t, it)
 
-                run_d[it] = tbase
+                run_d[it] = tcycle
 
                 # ICON netcdf dimension names are just generated, we cannot rely
                 # on the exact names.
@@ -288,18 +303,6 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
                 for varname in cfg.icon.vars_3dw:
                     v_icon = rt.regrid_icon.loader(get_3dvar(fin, varname))
                     fout.variables[varname][it] = v_icon[0,...][::-1]
-
-                if hor_mins == 0.:
-                    hhl = rt.regrid_icon.loader(fin.variables['HHL'])[0,...]
-                    hsurf = rt.regrid_icon.loader(fin.variables['HSURF'])[0,...]
-
-                    # Layers in ICON NetCDF are top->bottom. Make sure that
-                    # they are not mixed up in convertor, and that terrain
-                    # matches lowest boundary
-                    hhld = hhl[1:] - hhl[:-1]
-                    assert hhld.max() < 0.
-                    assert np.abs(hsurf - hhl[-1]).max() < 0.1 #10 cm
-                    hhl_d[tbase] = hhl
 
                 for varname in cfg.icon.vars_2d:
                     v_icon = rt.regrid_icon.loader(fin.variables[varname])
@@ -314,7 +317,7 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
                 qsoil = wso_gradient[wsoil_coords, :]
                 fout.variables['QSOIL'][it] = qsoil
 
-        verbose('All ICON files imported.')
+        verbose('All provided ICON files imported.')
 
         # write cached HHL
         v_out = fout.variables['HHL']
@@ -322,8 +325,9 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
             try:
                 dtrun = run_d[it]
             except KeyError:
-                die('Missing timestep #{} ({}) in loaded data!', it,
-                        rt.simulation.start_time+rt.simulation.timestep*it)
+                c, h, dt = hselect.dt_from_idx(it)
+                die('Missing timestep #{} ({}, cycle {}, horizon {}) in loaded data!',
+                    it, dt, c, h)
             try:
                 v_out[it] = hhl_d[dtrun][::-1]
             except KeyError:
@@ -332,16 +336,34 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
         # De-aggregate values
         if cfg.radiation:
             verbose('De-aggregating SW+LW radiation.')
-            if None in aggr_start:
-                die('Missing some start times for aggregiation: {}', list(map(bool, aggr_start)))
-            if None in aggr_end:
-                die('Missing some end times for aggregiation: {}', list(map(bool, aggr_end)))
-            rt.has_rad_diffuse = True
-
+            if aggr_start[0] is None and cfg.icon.allow_skip_first_disaggr:
+                log('Extrapolating ICON disaggregated radiation values for '
+                    'the first timestep!')
+                aggr_start[0] = aggr_start[1]
+                aggr_end[0] = aggr_end[1]
+                rt.times_rad_sec[0] = 0.
+            if aggr_end[-1] is None and cfg.icon.allow_skip_last_disaggr:
+                log('Extrapolating ICON disaggregated radiation values for '
+                    'the last timestep!')
+                aggr_start[-1] = aggr_start[-2]
+                aggr_end[-1] = aggr_end[-2]
+                rt.times_rad_sec[-1] = rt.timestep_rad.total_seconds()
             swdown = []
             swdif = []
             lwdown = []
-            for (h0, sr0, sf0, l0, t0), (h1, sr1, sf1, l1, t1) in zip(aggr_start, aggr_end):
+            for i in range(rt.nt_rad):
+                if aggr_start[i] is None:
+                    c, h, dt = hselect_rad_left.dt_from_idx(i)
+                    die('Missing time {}, cycle {}, horizon {} for left side of radiation deaggregation!',
+                        dt, c, h)
+                h0, sr0, sf0, l0, t0 = aggr_start[i]
+
+                if aggr_end[i] is None:
+                    c, h, dt = hselect_rad_right.dt_from_idx(i)
+                    die('Missing time {}, cycle {}, horizon {} for right side of radiation deaggregation!',
+                        dt, c, h)
+                h1, sr1, sf1, l1, t1 = aggr_end[i]
+
                 # We need to de-aggregate the temporal average. Since:
                 # mean_end = mean_start * horiz_start / horiz_end
                 #            + mean_cur * (horiz_end - horiz_start) / horiz_end
@@ -365,22 +387,9 @@ class IconPlugin(SetupPluginMixin, ImportPluginMixin, HInterpPluginMixin, VInter
                 # Ldown = (Lnet + emis*sigma*T^4) / emis
                 lwdown.append(((deag_lwnet + mean_tsurf**4 * emis_sigma) * emis_r).mean())
 
-            # TODO: use solar zenith for better temporal disaggregation of SW
-            # TODO: or write rad times at interval centers instead of averaging
-            swdown = np.array(swdown)
-            rt.rad_swdown = ((swdown[:-1] + swdown[1:]) * 0.5).tolist()
-            swdif = np.array(swdif)
-            rt.rad_swdiff = ((swdif[:-1] + swdif[1:]) * 0.5).tolist()
-
-            # The de-aggregated values now represent intra-timestep averages
-            # (e.g. between two full hours).  Using avereages of each two
-            # consecutive values, we get a value representative for the
-            # specific timestep (e.g. full hour).
-            lwdown = np.array(lwdown)
-            rt.rad_lwdown = ((lwdown[:-1] + lwdown[1:]) * 0.5).tolist()
-
-        if None in rt.times:
-            die('Some times are missing: {}', rt.times)
+            rt.rad_swdown = swdown
+            rt.rad_swdiff = swdif
+            rt.rad_lwdown = lwdown
 
         log('ICON import finished.')
 

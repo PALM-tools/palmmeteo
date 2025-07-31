@@ -97,6 +97,9 @@ simulation:
     timestep: 1 h
     length: 1 d
 
+    timestep_rad: auto # default: detect from input files (if possible)
+    #timestep_rad: 10 m # explicit
+
 #Off by default (empty so that tasks may overwrite), switched on by tasks or manually
 radiation:
 

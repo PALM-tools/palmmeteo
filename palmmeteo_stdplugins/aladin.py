@@ -153,7 +153,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
         with netCDF4.Dataset(fn, "r", format='NETCDF4') as fin:
             verbose('Parsing Aladin file {}', fn)
-            for ta, ts in enumerate(fin.variables['Times']):
+            for ta, ts in enumerate(fin.variables['Times'][:]):
                 # Decode time and locate timestep
                 # ts = fin.variables['Times'][it]
                 t = datetime.utcfromtimestamp(ts)
@@ -275,7 +275,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         log('Performing horizontal interpolation')
 
         verbose('Preparing output file')
-        with netCDF4.Dataset(rt.paths.intermediate.imported) as fin:
+        with netCDF4.Dataset(rt.paths.intermediate.import_data) as fin:
             # Create dimensions
             for d in ['time', 'z_meteo', 'zw_meteo', 'z', 'zsoil_meteo']:
                 ensure_dimension(fout, d, len(fin.dimensions[d]))
@@ -638,7 +638,7 @@ class AladinRadPlugin(ImportPluginMixin):
 
                 if first:
                     first = False
-                    dt64 = ds['valid_time']
+                    dt64 = ds['valid_time'].values
                     # attr = ds[shortname].attrs
                     ts = (dt64 - np.datetime64('1970-01-01T00:00:00Z')) / np.timedelta64(1, 's')
                     t = datetime.utcfromtimestamp(ts)

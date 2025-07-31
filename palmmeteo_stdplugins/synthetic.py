@@ -28,8 +28,8 @@ from palmmeteo.plugins import ImportPluginMixin, VInterpPluginMixin
 from palmmeteo.logging import die, warn, log, verbose, log_output
 from palmmeteo.config import cfg, ConfigError
 from palmmeteo.runtime import rt
-from palmmeteo.utils import ensure_dimension
-from palmmeteo.library import PalmPhysics, utcdefault
+from palmmeteo.utils import ensure_dimension, utcdefault
+from palmmeteo.library import PalmPhysics
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp

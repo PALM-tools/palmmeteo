@@ -35,12 +35,12 @@ from palmmeteo.runtime import rt
 from palmmeteo.utils import ensure_dimension
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, wrf_t, palm_wrf_gw, WrfPhysics
-from palmmeteo.library import PalmPhysics, verify_palm_hinterp
+from palmmeteo.library import PalmPhysics, verify_palm_hinterp, HorizonSelection
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
-
+dtformat_wrf = '%Y-%m-%d_%H:%M:%S'
 
 def lpad(var):
     """Pad variable in first dimension by repeating lowest layer twice"""
@@ -55,6 +55,16 @@ def log_dstat_off(desc, delta):
     """Do nothing (log disabled)"""
     pass
 
+def wrfout_dt(fin):
+    """Return cycle time and time for the specific wrfout"""
+
+    ts = fin.variables['Times'][:].tobytes().decode('utf-8')
+    t = datetime.strptime(ts, dtformat_wrf)
+    t = t.replace(tzinfo=timezone.utc)
+    cycle = datetime.strptime(fin.START_DATE, dtformat_wrf)
+    cycle = cycle.replace(tzinfo=timezone.utc)
+    return cycle, t
+
 class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
         if cfg.wrf.vertical_adaptation in ['hybrid', 'sigma']:
@@ -68,6 +78,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
     def import_data(self, fout, *args, **kwargs):
         log('Importing WRF data...')
+        hselect = HorizonSelection.from_cfg(cfg.wrf.assim_cycles)
 
         # Process input files
         verbose('Parsing WRF files from {}', rt.paths.wrf.file_mask)
@@ -77,17 +88,13 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             verbose('Parsing WRF file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep
-                ts = fin.variables['Times'][:].tobytes().decode('utf-8')
-                t = datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S')
-                t = t.replace(tzinfo=timezone.utc)
-                try:
-                    it = rt.tindex(t)
-                except ValueError:
-                    verbose('Time {} is not within timestep intervals - skipping', t)
+                cycle, t = wrfout_dt(fin)
+
+                it = hselect.locate(cycle, dt=t)
+                if it is False:
+                    verbose('File is not used.')
                     continue
-                if not (0 <= it < rt.nt):
-                    verbose('Time {} is out of range - skipping', t)
-                    continue
+
                 if rt.times[it] is not None:
                     die('Time {} has been already loaded!', t)
                 rt.times[it] = t
@@ -414,26 +421,53 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
 
 class WRFRadPlugin(ImportPluginMixin):
+    def check_config(self, *args, **kwargs):
+        if (rt.timestep_rad is None
+                and cfg.wrf.assim_cycles.cycles_used != 'all'):
+            die('Automatic radiation timestep length '
+                '(simulation:timestep_rad=auto) cannot be combined with '
+                'explicit cycles (wrf:assim_cycles:cycles_used other than '
+                '"all")!')
+
     def import_data(self, *args, **kwargs):
         log('Importing WRF radiation data...')
         verbose('Parsing WRF radiation files from {}', rt.paths.wrf.rad_file_mask)
 
-        rad_data = []
+        detect_timestep = (rt.timestep_rad is None)
+        if detect_timestep:
+            rad_data = []
+        else:
+            hselect = HorizonSelection.from_cfg(cfg.wrf.assim_cycles)
+
+            ts_sec = rt.timestep_rad.total_seconds()
+            rt.nt_rad = floor((rt.simulation.end_time_rad - rt.simulation.start_time).total_seconds()
+                              / ts_sec) + 1
+            rt.times_rad_sec = np.arange(rt.nt_rad) * ts_sec
+
+            rad_data = [None] * rt.nt_rad
+
         first = True
         for fn in glob.glob(rt.paths.wrf.rad_file_mask):
             verbose('Parsing WRF radiation file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time
-                ts = fin.variables['Times'][:].tobytes().decode('utf-8')
-                t = datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S')
-                t = t.replace(tzinfo=timezone.utc)
-                if not (rt.simulation.start_time <= t <= rt.simulation.end_time_rad):
-                    verbose('Time {} is out of range - skipping', t)
-                    continue
+                cycle, t = wrfout_dt(fin)
+
+                if detect_timestep:
+                    if not (rt.simulation.start_time <= t <= rt.simulation.end_time_rad):
+                        verbose('Time {} is out of range - skipping', t)
+                        continue
+                else:
+                    it = hselect.locate(cycle, dt=t)
+                    if it is False:
+                        verbose('File is not used.')
+                        continue
+                    if rad_data[it] is not None:
+                        die('Time {} has been already loaded!', t)
 
                 verbose('Importing radiation for time {}', t)
                 if not rad_data:
-                    verbose('Building list of indices for radiation smoothig.')
+                    verbose('Building list of indices for radiation smoothing.')
 
                     # Find mask using PALM projection
                     lons = fin.variables['XLONG'][0]
@@ -478,32 +512,40 @@ class WRFRadPlugin(ImportPluginMixin):
                     arr = fin.variables[varname][0,yfrom:yto,xfrom:xto]
                     arr.mask &= mask
                     entry.append(arr.mean())
-                rad_data.append(entry)
+                if detect_timestep:
+                    rad_data.append(entry)
+                else:
+                    rad_data[it] = entry
             first = False
 
         verbose('Processing loaded radiation values')
-        rad_data.sort()
-        rad_data_uz = list(zip(*rad_data)) #unzip/transpose
-        rad_times = rad_data_uz[0]
+        if detect_timestep:
+            rad_data.sort()
+            rad_data_uz = list(zip(*rad_data)) #unzip/transpose
+        else:
+            rad_data_uz = rad_data
 
-        # Determine timestep and check consistency
+        rad_times = rad_data_uz[0]
         rt.times_rad = list(rad_times)
-        rt.nt_rad = len(rt.times_rad)
-        if rt.times_rad[0] != rt.simulation.start_time:
-            die('Radiation must start with start time ({}), but they start with '
-                    '{}!', rt.simulation.start_time, rt.times_rad[0])
-        if rt.times_rad[-1] != rt.simulation.end_time_rad:
-            die('Radiation must start with end time ({}), but they end with '
-                    '{}!', rt.simulation.end_time_rad, rt.times_rad[-1])
-        rt.timestep_rad = rt.times_rad[1] - rt.times_rad[0]
-        for i in range(1, rt.nt_rad-1):
-            step = rt.times_rad[i+1] - rt.times_rad[i]
-            if step != rt.timestep_rad:
-                die('Time delta between steps {} and {} ({}) is different from '
-                        'radiation timestep ({})!', i, i+1, step, rt.timestep_rad)
-        rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
-        verbose('Using detected radiation timestep {} with {} times.',
-                rt.timestep_rad, rt.nt_rad)
+
+        if detect_timestep:
+            # Determine timestep and check consistency
+            rt.nt_rad = len(rt.times_rad)
+            if rt.times_rad[0] != rt.simulation.start_time:
+                die('Radiation must start with start time ({}), but they start with '
+                        '{}!', rt.simulation.start_time, rt.times_rad[0])
+            if rt.times_rad[-1] != rt.simulation.end_time_rad:
+                die('Radiation must start with end time ({}), but they end with '
+                        '{}!', rt.simulation.end_time_rad, rt.times_rad[-1])
+            rt.timestep_rad = rt.times_rad[1] - rt.times_rad[0]
+            for i in range(1, rt.nt_rad-1):
+                step = rt.times_rad[i+1] - rt.times_rad[i]
+                if step != rt.timestep_rad:
+                    die('Time delta between steps {} and {} ({}) is different from '
+                            'radiation timestep ({})!', i, i+1, step, rt.timestep_rad)
+            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+            verbose('Using detected radiation timestep {} with {} times.',
+                    rt.timestep_rad, rt.nt_rad)
 
         # Store loaded data
         # TODO: move to netCDF (opened once among plugins)

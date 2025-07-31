@@ -28,16 +28,25 @@ runtime.
 
 import os
 import re
-from datetime import datetime, timedelta
+import datetime
 from dataclasses import dataclass
 import numpy as np
 
 from .logging import die, warn, log, verbose
 
+# Numeric constants
 ax_ = np.newaxis
 rad = np.pi / 180.
-td0 = timedelta(hours=0)
 
+# Time-related constants
+td0 = datetime.timedelta(0)
+utc = datetime.timezone.utc
+midnight = datetime.time(0)
+
+utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
+midnight_of = lambda dt: datetime.datetime.combine(dt.date(), midnight, dt.tzinfo)
+
+# Other
 fext_re = re.compile(r'\.(\d{3})$')
 
 # Returns min and max+1 indices of true values (such that mask[fr:to] is the
@@ -70,11 +79,14 @@ def find_free_fname(fpath, overwrite=False):
     log('Filename {} exists, using {}.', fpath, newpath)
     return newpath
 
+class NotWholeTimestep(ValueError):
+    pass
+
 def tstep(td, step):
     """Fully divide datetime td by timedelta step."""
     d, m = divmod(td, step)
-    if m != td0:
-        raise ValueError('Not a whole timestep!')
+    if m:
+        raise NotWholeTimestep(f'{td} is not a whole timestep of {step}!')
     return d
 
 def ensure_dimension(f, dimname, dimsize):
@@ -124,8 +136,8 @@ class DTIndexer:
     Calculates integral time index from start and origin. Avoids
     using the unpicklable lambdas.
     """
-    origin: datetime
-    timestep: timedelta
+    origin: datetime.datetime
+    timestep: datetime.timedelta
 
     def __call__(self, dt):
         return tstep(dt-self.origin, self.timestep)
