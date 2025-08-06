@@ -162,7 +162,7 @@ class WritePlugin(WritePluginMixin):
             fiv = fin.variables
 
             # geostrophic wind (1D)
-            if 'ls_forcing_ug' in fiv:
+            if cfg.output.geostrophic_wind:
                 mkvar('ls_forcing_ug', ('time', 'z'))
                 mkvar('ls_forcing_vg', ('time', 'z'))
 
@@ -252,7 +252,7 @@ class WritePlugin(WritePluginMixin):
                     fov['ls_forcing_top_w'  ][it,:,:] = wztop
 
                     # geostrophic wind (1D)
-                    if 'ls_forcing_ug' in fiv:
+                    if cfg.output.geostrophic_wind:
                         fov['ls_forcing_ug'][it] = fiv['ls_forcing_ug'][it]
                         fov['ls_forcing_vg'][it] = fiv['ls_forcing_vg'][it]
 
