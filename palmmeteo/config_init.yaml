@@ -137,7 +137,7 @@ vinterp:
     #interpolator: fortran   #Fortran-based interpolator (fastest, must be compiled using f2py)
 
     wind_power_law: false #off by default
-    #wind_power_law: 0.147
+    #wind_power_law: 0.143
 
 postproc:
     nox_post_sum: false

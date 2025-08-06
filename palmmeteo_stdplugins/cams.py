@@ -19,13 +19,10 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import re
-import glob
 from datetime import datetime, timedelta, timezone
 import numpy as np
 import netCDF4
-from metpy.interpolate import interpolate_1d
 
 from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from palmmeteo.logging import die, warn, log, verbose
@@ -33,8 +30,8 @@ from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
 from palmmeteo.utils import ensure_dimension
 from palmmeteo.library import QuantityCalculator, LatLonRegularGrid, verify_palm_hinterp
+from palmmeteo.vinterp import get_vinterp
 from .wrf_utils import BilinearRegridder, WrfPhysics
-import pyproj
 
 ax_ = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
@@ -198,9 +195,9 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     vardata.append(data)
 
                 # Perform vertical interpolation on all currently loaded vars at once
-                vinterp = interpolate_1d(rt.z_levels, chem_heights, *vardata,
-                        return_list_always=True)
-                del vardata
+                vinterpolator, = get_vinterp(rt.z_levels, chem_heights, True, False)
+                vinterp = vinterpolator(*vardata)
+                del vardata, vinterpolator
 
                 for vn, vd in zip(cfg.chem_species, vinterp):
                     v = fout.variables[vn]
