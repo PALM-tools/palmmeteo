@@ -26,14 +26,8 @@ import numpy as np
 import pyproj
 import scipy.ndimage as ndimage
 import netCDF4
-from palmmeteo.utils import SliceExtender
+from palmmeteo.utils import SliceExtender, ax_
 from palmmeteo.library import PalmPhysics
-
-import metpy
-metpy_version_master = int(metpy.__version__.split('.', 1)[0])
-import metpy.calc as mpcalc
-from metpy.interpolate import log_interpolate_1d
-from metpy.units import units
 
 # User-selectable values FIXME: move to config
 
@@ -42,8 +36,6 @@ gw_gfs_margin_deg = 5.  ##< smoothing area in degrees lat/lon
 gw_wrf_margin_km = 10.  ##< smoothing area in km
 #gw_alpha = .143        ##< GW vertical interpolation by power law
 gw_alpha = 1.           ##< ignore wind power law, interpolate linearly
-
-ax_ = np.newaxis
 
 class WrfPhysics(PalmPhysics):
     ## Constants directly equivalent to WRF code
@@ -329,6 +321,12 @@ def get_wrf_dims(f, lat, lon, xlat, xlong):
     return coords, (slice(y0, y1+1), slice(x0, x1+1)), (ymargin, xmargin)
 
 def calcgw_wrf(f, lat, lon, levels, tidx=0):
+    import metpy
+    metpy_version_master = int(metpy.__version__.split('.', 1)[0])
+    import metpy.calc as mpcalc
+    from metpy.interpolate import log_interpolate_1d
+    from metpy.units import units
+
     # MFDataset removes the time dimension from XLAT, XLONG
     xlat = f.variables['XLAT']
     xlslice = (0,) * (len(xlat.shape)-2) + (slice(None), slice(None))
@@ -391,6 +389,12 @@ def calcgw_wrf(f, lat, lon, levels, tidx=0):
 # script
 
 def calcgw_gfs(v, lat, lon):
+    import metpy
+    metpy_version_master = int(metpy.__version__.split('.', 1)[0])
+    import metpy.calc as mpcalc
+    from metpy.interpolate import log_interpolate_1d
+    from metpy.units import units
+
     height, lats, lons = v.data(lat1=lat-gw_gfs_margin_deg ,lat2=lat+gw_gfs_margin_deg,
             lon1=lon-gw_gfs_margin_deg, lon2=lon+gw_gfs_margin_deg)
     i = np.searchsorted(lats[:,0], lat)

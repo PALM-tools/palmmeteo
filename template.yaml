@@ -74,6 +74,8 @@ output:
     # numerical suffix
     #overwrite: false
 
+    #geostrophic_wind: false #not available with all plugins
+
     # LODs for output variables:
     # LOD2 = 3D data (unchanged, default),
     # LOD1 = vertical profile (via horizontal averaging).
@@ -125,6 +127,14 @@ vinterp:
     # Upper limit of vertical adaptation for terrain matching
     # [metres above origin_z]
     #transition_level: 2000.0
+
+    # code used for the interpolation
+    #interpolator: prepared  #pure-Python interpolator with prepared weights (default)
+    #interpolator: metpy     #legacy interpolator from the MetPy library (slow)
+    #interpolator: fortran   #Fortran-based interpolator (fastest, must be compiled using f2py)
+
+    #wind_power_law: false #off by default
+    #wind_power_law: 0.147
 
 postproc:
     #nox_post_sum: false

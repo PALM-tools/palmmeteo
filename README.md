@@ -130,6 +130,24 @@ or for indivudal tests:
 You may also examine the directory `tests/integration_tests/simple_wrf` as
 a reference WRF case for PALM-meteo.
 
+### Optional dependencies
+
+Some plugins or extra functionalities have optional dependencies which are not
+part of the main installation as they are often not used. In the Method 1,
+you may enable them by using
+`pip3 install palmmeteo[extra_functionality]`
+for these extra functionalities: `vinterp_metpy` for the legacy MetPy vertical
+interpolation, `geostrophic_wind` or `aladin`. With the other install methods
+you need to manually install the Python packages listed in
+`pyproject.toml`.
+
+It is also possible to use the fastest method for vertical interpolation
+(see [configuration](docs/pages/configuration.md)) which uses natively compiled
+Fortran code. To do this, you must first compile it by running this command
+within the `palmmeteo` directory:
+
+    f2py -c -m vinterp_native vinterp_native.f90
+
 ## Usage
 
 For each dynamic driver, a *YAML* configuration file needs to be prepared

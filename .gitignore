@@ -19,6 +19,8 @@
 /dist/
 /palmmeteo.egg-info/
 /palmmeteo/_version.py
+/palmmeteo/vinterp_native.*.so
+/palmmeteo/zinterp.mod
 
 *.pyc
 __pycache__/

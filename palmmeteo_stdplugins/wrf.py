@@ -19,20 +19,20 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import glob
 from datetime import datetime, timezone
+import math
 import numpy as np
 import scipy.ndimage as ndimage
 import netCDF4
 from pyproj import transform
-from metpy.interpolate import interpolate_1d
 
 from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from palmmeteo.logging import die, warn, log, verbose, log_output
-from palmmeteo.config import cfg, ConfigError
+from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
 from palmmeteo.utils import ensure_dimension
+from palmmeteo.vinterp import get_vinterp
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, wrf_t, palm_wrf_gw, WrfPhysics
 from palmmeteo.library import PalmPhysics, verify_palm_hinterp, HorizonSelection
@@ -41,10 +41,6 @@ barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
 dtformat_wrf = '%Y-%m-%d_%H:%M:%S'
-
-def lpad(var):
-    """Pad variable in first dimension by repeating lowest layer twice"""
-    return np.r_[var[0:1], var]
 
 def log_dstat_on(desc, delta):
     """Calculate and log delta statistics if enabled."""
@@ -180,13 +176,14 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 del vdata
 
                 # calculated geostrophic wind
-                ug, vg = palm_wrf_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels, 0)
-                v_out = (fout.createVariable('UG', 'f4', ('time', 'z')) if first
-                    else fout.variables['UG'])
-                v_out[it] = ug
-                v_out = (fout.createVariable('VG', 'f4', ('time', 'z')) if first
-                    else fout.variables['VG'])
-                v_out[it] = vg
+                if cfg.output.geostrophic_wind:
+                    ug, vg = palm_wrf_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels, 0)
+                    v_out = (fout.createVariable('UG', 'f4', ('time', 'z')) if first
+                        else fout.variables['UG'])
+                    v_out[it] = ug
+                    v_out = (fout.createVariable('VG', 'f4', ('time', 'z')) if first
+                        else fout.variables['VG'])
+                    v_out[it] = vg
 
                 # soil layers
                 if first:
@@ -225,7 +222,8 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         + ('y', 'x'))
             fout.createVariable('U', 'f4', ('time', 'z_meteo', 'y', 'x'))
             fout.createVariable('V', 'f4', ('time', 'z_meteo', 'y', 'x'))
-            for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
+            for varname in cfg.wrf.vars_1d + (['UG', 'VG'] if cfg.output.geostrophic_wind
+                                              else []):
                 v_wrf = fin.variables[varname]
                 fout.createVariable(varname, 'f4', v_wrf.dimensions)
 
@@ -245,7 +243,8 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         fin.variables['V'][it])
 
                 # direct copy
-                for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
+                for varname in cfg.wrf.vars_1d + (['UG', 'VG'] if cfg.output.geostrophic_wind
+                                                  else []):
                     fout.variables[varname][it] = fin.variables[varname][it]
 
     def interpolate_vert(self, fout, *args, **kwargs):
@@ -270,11 +269,12 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             fout.createVariable('palm_hydrostatic_pressure_stag', 'f4', ('time', 'zw'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
-            fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
-            fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
             fout.createVariable('zsoil', 'f4', ('zsoil',))
             fout.createVariable('z', 'f4', ('z',))
             fout.createVariable('zw', 'f4', ('zw',))
+            if cfg.output.geostrophic_wind:
+                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
+                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
 
             fout.variables['z'][:] = rt.z_levels
             fout.variables['zw'][:] = rt.z_levels_stag
@@ -382,30 +382,32 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 for k in range(gp_w.shape[0]):
                     verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
 
-                # Because we require levels below the lowest level from WRF, we will always
-                # add one layer at zero level with repeated values from the lowest level.
-                # WRF-python had some special treatment for theta in this case.
-                height = np.zeros((z_u.shape[0]+1,) + z_u.shape[1:], dtype=z_u.dtype)
-                height[0,:,:] = -999. #always below terrain
-                height[1:,:,:] = z_u
-                heightw = np.zeros((z_w.shape[0]+1,) + z_w.shape[1:], dtype=z_w.dtype)
-                heightw[0,:,:] = -999. #always below terrain
-                heightw[1:,:,:] = z_w
+                # Standard heights
+                vinterp, vinterp_wind = get_vinterp(rt.z_levels, z_u, True, True)
 
-                var = lpad(fin.variables['SPECHUM'][it])
-                fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['SPECHUM'][it]
+                fout.variables['init_atmosphere_qv'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['T'][it] + WrfPhysics.base_temp) #from perturbation pt to standard
-                fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['T'][it] + WrfPhysics.base_temp #from perturbation pt to standard
+                fout.variables['init_atmosphere_pt'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['U'][it])
-                fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['U'][it]
+                fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp_wind(var)
 
-                var = lpad(fin.variables['V'][it])
-                fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['V'][it]
+                fout.variables['init_atmosphere_v'][it,:,:,:],  = vinterp_wind(var)
 
-                var = lpad(fin.variables['W'][it]) #z staggered!
-                fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
+                del vinterp, vinterp_wind
+
+                # Z staggered
+                vinterp_wind, = get_vinterp(rt.z_levels_stag, z_w, False, True)
+
+                var = fin.variables['W'][it] #z staggered!
+                fout.variables['init_atmosphere_w'][it,:,:,:], = vinterp_wind(var)
+
+                del vinterp_wind
+
+                # Other vars w/o vinterp
 
                 var = fin.variables['TSLB'][it] #soil temperature
                 fout.variables['init_soil_t'][it,:,:,:] = var
@@ -413,11 +415,12 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 var = fin.variables['SMOIS'][it] #soil moisture
                 fout.variables['init_soil_m'][it,:,:,:] = var
 
-                var = fin.variables['UG'][it]
-                fout.variables['ls_forcing_ug'][it,:] = var
+                if cfg.output.geostrophic_wind:
+                    var = fin.variables['UG'][it]
+                    fout.variables['ls_forcing_ug'][it,:] = var
 
-                var = fin.variables['VG'][it]
-                fout.variables['ls_forcing_vg'][it,:] = var
+                    var = fin.variables['VG'][it]
+                    fout.variables['ls_forcing_vg'][it,:] = var
 
 
 class WRFRadPlugin(ImportPluginMixin):
@@ -440,8 +443,8 @@ class WRFRadPlugin(ImportPluginMixin):
             hselect = HorizonSelection.from_cfg(cfg.wrf.assim_cycles)
 
             ts_sec = rt.timestep_rad.total_seconds()
-            rt.nt_rad = floor((rt.simulation.end_time_rad - rt.simulation.start_time).total_seconds()
-                              / ts_sec) + 1
+            rt.nt_rad = math.floor((rt.simulation.end_time_rad - rt.simulation.start_time).total_seconds()
+                                   / ts_sec) + 1
             rt.times_rad_sec = np.arange(rt.nt_rad) * ts_sec
 
             rad_data = [None] * rt.nt_rad

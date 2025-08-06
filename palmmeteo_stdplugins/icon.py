@@ -19,13 +19,10 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import glob
-from datetime import datetime, timedelta, timezone
 import numpy as np
 import scipy.ndimage as ndimage
 import netCDF4
-from metpy.interpolate import interpolate_1d
 import cftime
 
 from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
@@ -34,14 +31,11 @@ from palmmeteo.config import cfg, ConfigError, parse_duration
 from palmmeteo.runtime import rt
 from palmmeteo.utils import ensure_dimension, ax_, rad, NotWholeTimestep, utcdefault
 from palmmeteo.library import PalmPhysics, TriRegridder, verify_palm_hinterp, AssimCycle, HorizonSelection
+from palmmeteo.vinterp import get_vinterp
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
-
-def lpad(var):
-    """Pad variable in first dimension by repeating lowest layer twice"""
-    return np.r_[var[0:1], var]
 
 def log_dstat_on(desc, delta):
     """Calculate and log delta statistics if enabled."""
@@ -88,6 +82,9 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             raise ConfigError('For radiation with ICON, the radiation timestep '
                     'can not be configured to a different value than the main '
                     'timestep', cfg.simulation, 'timestep_rad')
+        if cfg.output.geostrophic_wind:
+            raise ConfigError('The ICON plugin does not support geostrophic wind',
+                              cfg.output, 'geostrophic_wind')
 
     def import_data(self, fout, *args, **kwargs):
         log('Importing ICON data...')
@@ -532,29 +529,32 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 for k in range(gp_w.shape[0]):
                     verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
 
-                # Because we require levels below the lowest level from ICON, we will always
-                # add one layer at zero level with repeated values from the lowest level.
-                height = np.zeros((z_u.shape[0]+1,) + z_u.shape[1:], dtype=z_u.dtype)
-                height[0,:,:] = -999. #always below terrain
-                height[1:,:,:] = z_u
-                heightw = np.zeros((z_w.shape[0]+1,) + z_w.shape[1:], dtype=z_w.dtype)
-                heightw[0,:,:] = -999. #always below terrain
-                heightw[1:,:,:] = z_w
+                # Standard heights
+                vinterp, vinterp_wind = get_vinterp(rt.z_levels, z_u, True, True)
 
-                var = lpad(fin.variables['QV'][it])
-                fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['QV'][it]
+                fout.variables['init_atmosphere_qv'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['T'][it]*PalmPhysics.exner_inv(p))
-                fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['T'][it]*PalmPhysics.exner_inv(p)
+                fout.variables['init_atmosphere_pt'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['U'][it])
-                fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['U'][it]
+                fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp_wind(var)
 
-                var = lpad(fin.variables['V'][it])
-                fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['V'][it]
+                fout.variables['init_atmosphere_v'][it,:,:,:],  = vinterp_wind(var)
 
-                var = lpad(fin.variables['W'][it]) #z staggered!
-                fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
+                del vinterp, vinterp_wind
+
+                # Z staggered
+                vinterp_wind, = get_vinterp(rt.z_levels_stag, z_w, False, True)
+
+                var = fin.variables['W'][it] #z staggered!
+                fout.variables['init_atmosphere_w'][it,:,:,:], = vinterp_wind(var)
+
+                del vinterp_wind
+
+                # Other vars w/o vinterp
 
                 var = fin.variables['T_SO'][it] #soil temperature
                 fout.variables['init_soil_t'][it,:,:,:] = var
