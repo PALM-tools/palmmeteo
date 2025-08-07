@@ -66,7 +66,7 @@ $(function() {
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p >Each case for PALM-meteo is configured using one or more <em>YAML</em> configuration files. If more than one files is used, the latter files extend and overwrite the prior files.</p>
-<h1><a class="anchor" id="autotoc_md15"></a>
+<h1><a class="anchor" id="autotoc_md16"></a>
 Configuration options</h1>
 <p >The list of all options which are considered user-configurable is supplied in the file <code>template.yaml</code>. This file contains the options with their default values and documentation as comments:</p>
 <div class="fragment"><div class="line"># A template with all user-selectable configuration options. Most options are</div>
@@ -145,6 +145,8 @@ Configuration options</h1>
 <div class="line">    # numerical suffix</div>
 <div class="line">    #overwrite: false</div>
 <div class="line"> </div>
+<div class="line">    #geostrophic_wind: false #not available with all plugins</div>
+<div class="line"> </div>
 <div class="line">    # LODs for output variables:</div>
 <div class="line">    # LOD2 = 3D data (unchanged, default),</div>
 <div class="line">    # LOD1 = vertical profile (via horizontal averaging).</div>
@@ -196,6 +198,14 @@ Configuration options</h1>
 <div class="line">    # Upper limit of vertical adaptation for terrain matching</div>
 <div class="line">    # [metres above origin_z]</div>
 <div class="line">    #transition_level: 2000.0</div>
+<div class="line"> </div>
+<div class="line">    # code used for the interpolation</div>
+<div class="line">    #interpolator: prepared  #pure-Python interpolator with prepared weights (default)</div>
+<div class="line">    #interpolator: metpy     #legacy interpolator from the MetPy library (slow)</div>
+<div class="line">    #interpolator: fortran   #Fortran-based interpolator (fastest, must be compiled using f2py)</div>
+<div class="line"> </div>
+<div class="line">    #wind_power_law: false #off by default</div>
+<div class="line">    #wind_power_law: 0.147</div>
 <div class="line"> </div>
 <div class="line">postproc:</div>
 <div class="line">    #nox_post_sum: false</div>
@@ -351,13 +361,13 @@ Configuration options</h1>
 <div class="line"> </div>
 </div><!-- fragment --><p >This file may be used as a template for a new PALM-meteo configuration by uncommenting the values that the user wants to change.</p>
 <p >Any valid options not listed in the file <code>template.yaml</code> are intended for developers only.</p>
-<h2><a class="anchor" id="autotoc_md16"></a>
+<h2><a class="anchor" id="autotoc_md17"></a>
 Specifying paths</h2>
 <p >The option <code>paths.base</code> specifies the base path for all other paths. It may be either an absolute path or a path relative to the current directory (the directory from which PALM-meteo was started). All other paths are either absolute or relative to <code>paths.base</code>.</p>
 <p >Any path option may contain <b>replacement strings</b> in curly braces. These are used to simplify the specification of typical paths. For example, the string <code>{domain}</code> is (by default) replaced either with <code>_N02</code>, <code>_N03</code> etc. or with an empty string for domain number 1, so that it represents a typical file suffix for PALM input and output files (such as the dynamic or static driver).</p>
 <p >Even the replacement strings may be customized using the configuration section <code>path_strings:</code>; each item specifies a Python expression which gets evaluated as a replacement string and it may reference other configuration options.</p>
 <p >The default configuration of paths expects a typical PALM setup: the <code>JOBS</code> directory placed next to the PALM-meteo instalation directory, within which there are input and output files for individual jobs. Apart from PALM's standard per-job subdirectories such as <code>INPUT</code>, PALM-meteo adds the subdirectory <code>METEO</code> with its intermediate files. In addition to that, some standard plugins expect other directories with their inputs (such as the <code>WRF</code> directory with WRFOUT files, unless configured otherwise).</p>
-<h2><a class="anchor" id="autotoc_md17"></a>
+<h2><a class="anchor" id="autotoc_md18"></a>
 Specifying time durations</h2>
 <p >The configuration options which expect duration (not absolute time), such as <code>simulation.length</code> and <code>simulation.timestep</code>, are specified as a number and unit, which is one of: <code>d</code> (days), <code>h</code> (hours), <code>m</code> (minutes) or <code>s</code> (seconds).</p>
 <p >The number and unit are separated by space(s). You may also use decimal numbers or combine multiple units, so the string <code>1 d 3.5 h</code> translates to 27.5 hours. </p>

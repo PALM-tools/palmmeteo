@@ -66,14 +66,14 @@ $(function() {
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p >The core of the PALM-meteo program is implemented within the Python package <a class="el" href="namespacepalmmeteo.html">palmmeteo</a>. All plugins are placed in separate Python packages with names starting with with <code>palmmeteo_</code>. When PALM-meteo starts, it locates all available packages of such names and treats them as plugins. The included Python package <a class="el" href="namespacepalmmeteo__stdplugins.html">palmmeteo_stdplugins</a> contains the built-in plugins for the standard PALM-meteo functionality.</p>
-<h1><a class="anchor" id="autotoc_md19"></a>
+<h1><a class="anchor" id="autotoc_md20"></a>
 Creating new plugins</h1>
 <p >In order to create a new PALM-meteo plugin, you need to create a Python package whose name starts with <code>palmmeteo_</code>. The package needs to be available when PALM-meteo is started. For that, you can either put in a subdirectory of the current directory from which PALM-meteo is started, or install it in one of your system's Python library paths, or add its parent directory into <code>sys.path</code>, e.g. using the environment variable <code>PYTHONPATH</code>.</p>
-<h2><a class="anchor" id="autotoc_md20"></a>
+<h2><a class="anchor" id="autotoc_md21"></a>
 Plugin code</h2>
 <p >Suppose you want to enable PALM-meteo to process inputs from a new meteorological model called Foo. You can place the code within Python package <code>palmmeteo_foo</code>. Inside that, you will create a single Python module <code>foo.py</code> which contains the class FooPlugin. This class will implement data import from the Foo model and use PALM-meteo's library functions for the next stages (horizontal and vertical interpolation).</p>
 <p >If you are unsure about the implementation, you may also check the class <a class="el" href="classpalmmeteo__stdplugins_1_1wrf_1_1WRFPlugin.html">palmmeteo_stdplugins.wrf.WRFPlugin</a> as your reference.</p>
-<h2><a class="anchor" id="autotoc_md21"></a>
+<h2><a class="anchor" id="autotoc_md22"></a>
 Basic configuration</h2>
 <p >Each plugin package must contain the file <code>config_init.yaml</code> placed in its directory. This configuration file contains all plugin-relevant configuration options with their default values. The user configuration files can then replace the default values with their own.</p>
 <p >From the user perspective, a plugin's functionality is typically enabled by selecting a <code>task</code>. Each task represents a configuration subtree with options which are set or list items which are appended when the user enables the task.</p>
@@ -90,7 +90,7 @@ Basic configuration</h2>
 <div class="line">        extend:</div>
 <div class="line">            plugins:</div>
 <div class="line">                - palmmeteo_foo.foo.FooPlugin</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md22"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md23"></a>
 Implementing workflow items</h1>
 <p >In order to implement actual functionality, it is best to add one or more of the supplied abstract base classes as a base class for your plugin:</p>
 <ul>
@@ -100,12 +100,12 @@ Implementing workflow items</h1>
 <li><a class="el" href="classpalmmeteo_1_1plugins_1_1VInterpPluginMixin.html">palmmeteo.plugins.VInterpPluginMixin</a></li>
 <li><a class="el" href="classpalmmeteo_1_1plugins_1_1WritePluginMixin.html">palmmeteo.plugins.WritePluginMixin</a></li>
 </ul>
-<h2><a class="anchor" id="autotoc_md23"></a>
+<h2><a class="anchor" id="autotoc_md24"></a>
 Accessing configuration</h2>
 <p >The final configuration based on default and user-configured values is accessible in the <code>cfg</code> object, which is best imported as </p><pre class="fragment">from palmmeteo.config import cfg
 </pre><p> This is an instance of the class <a class="el" href="classpalmmeteo_1_1config_1_1ConfigObj.html">palmmeteo.config.ConfigObj</a> and its configuration items may be accessed both with the attribute access (dot notation, e.g. <code>cfg.mysection.myoption</code>) and with the item access (bracket notation, e.g. <code>cfg.mysection["myoption"]</code>). It also supports iteration of key-value pairs and testing of item presence (e.g. <code>if "myoption" in cfg.mysection</code>).</p>
 <p >After the configuration is loaded, the <code>cfg</code> object is set as read-only.</p>
-<h2><a class="anchor" id="autotoc_md24"></a>
+<h2><a class="anchor" id="autotoc_md25"></a>
 Logging</h2>
 <p >The <a class="el" href="namespacepalmmeteo_1_1logging.html">palmmeteo.logging</a> module provides these logging functions:</p>
 <ul>
@@ -115,14 +115,14 @@ Logging</h2>
 <li><a class="el" href="namespacepalmmeteo_1_1logging.html#adb13c9e3d8fbda81d3358e95a752ca58">die</a>: Prints an error message into <code>sys.stderr</code> and terminates the progam immediately.</li>
 </ul>
 <p >All of these functions accept the message as their first argument and optional positional and/or keyword arguments which are used as formatting arguments. A newline is always added at the end.</p>
-<h2><a class="anchor" id="autotoc_md25"></a>
+<h2><a class="anchor" id="autotoc_md26"></a>
 Data persistence</h2>
 <p >PALM-meteo supports restarting individual workflow stages by storing the intermediate meteorological data in NetCDF files and other auxiliary data in pickle files. Any auxiliary data which need to persist from one stage to the following stages must be stored in the runtime object <code>rt</code> (instance of <a class="el" href="classpalmmeteo_1_1runtime_1_1RuntimeObj.html">palmmeteo.runtime.RuntimeObj</a>), which is imported as </p><pre class="fragment">from palmmeteo.runtime import rt
 </pre><p> The object supports attribute access (e.g. <code>rt.myvariable</code>).</p>
 <p >Although the plugin objects themselves do persist between the stages of a single PALM-meteo execution, they are not stored for restarting of stages.</p>
 <p >The <code>rt</code> object is shared among all plugins and it is often used to exchange data among plugins. For other cases, plugin developers are encouraged to use names which are not likely to conflict with other plugins.</p>
 <p >Because the configured paths undergo processing after the configuration is loaded, the processed paths are accessible under <code>rt.paths</code>.</p>
-<h2><a class="anchor" id="autotoc_md26"></a>
+<h2><a class="anchor" id="autotoc_md27"></a>
 Using the PALM-meteo library</h2>
 <p >Most common tasks are already implemented and they are provided within the module <a class="el" href="namespacepalmmeteo_1_1library.html">palmmeteo.library</a>. See the code of standard plugins as an example. </p>
 </div></div><!-- contents -->

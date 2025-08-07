@@ -129,10 +129,14 @@ Testing</h2>
 <p >PALM-meteo comes with integration tests supplied. When installed using <a class="el" href="index.html#method2">Method 2</a>, the install script performs the tests at the end of a successful instalation. You may also exectute them at any time from the PALM-meteo install directory using the command </p><pre class="fragment">tests/integration_tests/all_tests.sh
 </pre><p> or for indivudal tests: </p><pre class="fragment">tests/integration_tests/test_XX_NAMEOFTEST.sh
 </pre><p> You may also examine the directory <code>tests/integration_tests/simple_wrf</code> as a reference WRF case for PALM-meteo.</p>
-<h1><a class="anchor" id="autotoc_md8"></a>
+<h2><a class="anchor" id="autotoc_md8"></a>
+Optional dependencies</h2>
+<p >Some plugins or extra functionalities have optional dependencies which are not part of the main installation as they are often not used. In the Method 1, you may enable them by using <code>pip3 install palmmeteo[extra_functionality]</code> for these extra functionalities: <code>vinterp_metpy</code> for the legacy MetPy vertical interpolation, <code>geostrophic_wind</code> or <code>aladin</code>. With the other install methods you need to manually install the Python packages listed in <code>pyproject.toml</code>.</p>
+<p >It is also possible to use the fastest method for vertical interpolation (see <a class="el" href="md_docs_pages_configuration.html">configuration</a>) which uses natively compiled Fortran code. To do this, you must first compile it by running this command within the <code>palmmeteo</code> directory: </p><pre class="fragment">f2py -c -m vinterp_native vinterp_native.f90
+</pre> <h1><a class="anchor" id="autotoc_md9"></a>
 Usage</h1>
 <p >For each dynamic driver, a <em>YAML</em> configuration file needs to be prepared (typically one per case, although it is possible to combine more files). This file uses sensible defaults for most options, so it does not need to be very long, as is demonstrated by the supplied file <code>example.yaml</code>. However for the beginners it is best to start by making a copy of the file <code>template.yaml</code>, which contains all user-selectable options with their defaults and documentation, and modifying it accordingly. See <a class="el" href="md_docs_pages_configuration.html">PALM-meteo configuration</a>.</p>
-<h2><a class="anchor" id="autotoc_md9"></a>
+<h2><a class="anchor" id="autotoc_md10"></a>
 Basic model configuration</h2>
 <p >The main part of configuration is selecting a single or multiple <em>tasks</em> by adding a list item in the <code>tasks:</code> configuration section. Selecting a task means just telling what PALM-meteo what it has to do, which typically involves creating IBC and/or other PALM inputs using the selected method, such as using a specific input model.</p>
 <p >These are the currently supported tasks (obviously many of them are mutually exclusive):</p>
@@ -145,17 +149,17 @@ Basic model configuration</h2>
 <li><code>cams</code>: Create chemistry IBC from CAMS model outputs.</li>
 </ul>
 <p >When the specified task(s) are selected, the task configuration mechanism enables the required plugins and pulls in the respective task-specific configuration defauls, which may be overwritten within the configuration file.</p>
-<h2><a class="anchor" id="autotoc_md10"></a>
+<h2><a class="anchor" id="autotoc_md11"></a>
 Running the model</h2>
 <p >With a prepared configuration file such as <code>myconfig.yaml</code>, simply run </p><pre class="fragment">./pmeteo -c myconfig.yaml
 </pre><p> in the project directory. See <a class="el" href="md_docs_pages_running.html">Running PALM-meteo</a> for more information.</p>
-<h1><a class="anchor" id="autotoc_md11"></a>
+<h1><a class="anchor" id="autotoc_md12"></a>
 Extending PALM-meteo</h1>
 <p >In order to add new input types or processing methods, PALM-meteo can be easily extended with user plugins. For documentation, see the <a class="el" href="md_docs_pages_extending.html">Developer guide</a>.</p>
-<h1><a class="anchor" id="autotoc_md12"></a>
+<h1><a class="anchor" id="autotoc_md13"></a>
 License and authors</h1>
 <p >PALM-meteo is distributed under the GNU GPL v3+ license (see the <code>LICENSE</code> file). It was created by the Institute of Computer Science of the Czech Academy of Sciences (ICS CAS) with contributions by the Charles University in Prague (MFF UK), the Czech Hydrometeorological Institute (CHMI) and the Deutsche Wetterdienst (DWD).</p>
-<h2><a class="anchor" id="autotoc_md13"></a>
+<h2><a class="anchor" id="autotoc_md14"></a>
 Acknowledgenments</h2>
 <p >PALM-meteo was created with the support of these projects:</p>
 <ul>

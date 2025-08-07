@@ -97,8 +97,6 @@ Functions</h2></td></tr>
 <tr class="separator:acf3417a5580ae8a2c7de05d70f4dcf91"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7ddf4dec15205355e3391346d6a95330"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1aladin.html#a7ddf4dec15205355e3391346d6a95330">log_dstat_off</a> (desc, delta)</td></tr>
 <tr class="separator:a7ddf4dec15205355e3391346d6a95330"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aadf76e8e197d58fb1c8f64f36432e98b"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1aladin.html#aadf76e8e197d58fb1c8f64f36432e98b">lpad</a> (var)</td></tr>
-<tr class="separator:aadf76e8e197d58fb1c8f64f36432e98b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a04b2ae0af71315cc98c1b90ecc899003"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1aladin.html#a04b2ae0af71315cc98c1b90ecc899003">palm_alad_gw</a> (f, lon, lat, levels, tidx=0)</td></tr>
 <tr class="separator:a04b2ae0af71315cc98c1b90ecc899003"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa11833030f2464ec916d40bdfc130b08"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1aladin.html#aa11833030f2464ec916d40bdfc130b08">minterp</a> (interp_heights, data_heights, u, v)</td></tr>
@@ -114,8 +112,6 @@ Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
 Variables</h2></td></tr>
-<tr class="memitem:acb50abf4070b2baef95c5cbb62d7ce80"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1aladin.html#acb50abf4070b2baef95c5cbb62d7ce80">metpy_version_master</a> = int(metpy.__version__.split('.', 1)[0])</td></tr>
-<tr class="separator:acb50abf4070b2baef95c5cbb62d7ce80"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4a6ba2783e6b73fdf49f30bbfaf9ffb4"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1aladin.html#a4a6ba2783e6b73fdf49f30bbfaf9ffb4">barom_pres</a> = <a class="el" href="classpalmmeteo_1_1library_1_1PalmPhysics.html#a9184068966707ffc56152ab7885b4d98">PalmPhysics.barom_lapse0_pres</a></td></tr>
 <tr class="separator:a4a6ba2783e6b73fdf49f30bbfaf9ffb4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9b6c49019b58e9c698f9ad514ea4a5ea"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo__stdplugins_1_1aladin.html#a9b6c49019b58e9c698f9ad514ea4a5ea">barom_gp</a> = <a class="el" href="classpalmmeteo_1_1library_1_1PalmPhysics.html#a5f8ff6ced05bd97563de1c361f091ed9">PalmPhysics.barom_lapse0_gp</a></td></tr>
@@ -359,24 +355,6 @@ Variables</h2></td></tr>
 <pre class="fragment">Calculate and log delta statistics if enabled.</pre> 
 </div>
 </div>
-<a id="aadf76e8e197d58fb1c8f64f36432e98b" name="aadf76e8e197d58fb1c8f64f36432e98b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aadf76e8e197d58fb1c8f64f36432e98b">&#9670;&nbsp;</a></span>lpad()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">def palmmeteo_stdplugins.aladin.lpad </td>
-          <td>(</td>
-          <td class="paramtype">&#160;</td>
-          <td class="paramname"><em>var</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<pre class="fragment">Pad variable in first dimension by repeating lowest layer twice</pre> 
-</div>
-</div>
 <a id="aa11833030f2464ec916d40bdfc130b08" name="aa11833030f2464ec916d40bdfc130b08"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa11833030f2464ec916d40bdfc130b08">&#9670;&nbsp;</a></span>minterp()</h2>
 
@@ -613,20 +591,6 @@ Variables</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">int palmmeteo_stdplugins.aladin.gw_wrf_margin_km = 10.</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="acb50abf4070b2baef95c5cbb62d7ce80" name="acb50abf4070b2baef95c5cbb62d7ce80"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#acb50abf4070b2baef95c5cbb62d7ce80">&#9670;&nbsp;</a></span>metpy_version_master</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">palmmeteo_stdplugins.aladin.metpy_version_master = int(metpy.__version__.split('.', 1)[0])</td>
         </tr>
       </table>
 </div><div class="memdoc">
