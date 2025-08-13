@@ -88,9 +88,14 @@ domain:
     dz_stretch_level: -1.0 #in metres
     dz_stretch_factor: 1.0
     dz_max: -1.0 #in metres
-    # minimal number of free surface canopy layers above top of terrain with
-    # building and plant canopy
+
+    # Check minimum number of free surface canopy layers above the top of
+    # terrain, buildings and plant canopy
     nscl_free: 3
+
+    # Ignore buildings in the static driver (for nscl_free and wind damping)
+    ignore_buildings: false
+
     proj_palm: 'EPSG:32633' #reference coordinate system of PALM simulation
     proj_wgs84: 'EPSG:4326' #projection lon-lat
 

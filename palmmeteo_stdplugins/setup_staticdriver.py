@@ -30,13 +30,15 @@ from palmmeteo.logging import die, warn, log, verbose
 from palmmeteo.utils import ax_, where_range
 
 class Building:
+    __slots__ = 'id x0 x1 y0 y1 slices mask'.split()
+
     def __init__(self, bid, bids):
         self.id = bid
         building_mask = (bids == bid)
         self.x0, self.x1 = where_range(np.any(building_mask, axis=0))
         self.y0, self.y1 = where_range(np.any(building_mask, axis=1))
         self.slices = (slice(self.y0, self.y1), slice(self.x0, self.x1))
-        self.mask = building_mask[self.slices]
+        self.mask = building_mask[self.slices].copy() #a view would keep full array!
         verbose('Building ID {}: {} points between [{}:{},{}:{}].',
                 bid, self.mask.sum(),
                 self.y0, self.y1, self.x0, self.x1)
@@ -110,7 +112,7 @@ class StaticDriverPlugin(SetupPluginMixin):
         # or below terrain (assuming that it is not shifted due to the lowest
         # point not being 0).
         rt.th = np.floor(rt.terrain_rel / rt.dz + 0.5).astype('i8') #terrain top
-        rt.terrain_mask = np.arange(rt.nz)[:,ax_,ax_] < rt.th[ax_,:,:]
+        terrain_mask = np.arange(rt.nz)[:,ax_,ax_] < rt.th[ax_,:,:]
 
         # Detect individual buildings
         if 'building_id' in ncs.variables:
@@ -121,9 +123,9 @@ class StaticDriverPlugin(SetupPluginMixin):
             del bids
 
         # Load buildings
-        rt.building_mask = rt.terrain_mask.copy()
+        rt.obstacle_mask = terrain_mask.copy()
         btop = -1 #global max building top
-        if 'buildings_3d' in ncs.variables:
+        if 'buildings_3d' in ncs.variables and not cfg.domain.ignore_buildings:
             b3ds = ncs.variables['buildings_3d']
             nz_b3d = b3ds.shape[0]
             for bld in building_ids:
@@ -135,10 +137,10 @@ class StaticDriverPlugin(SetupPluginMixin):
                 btop = max(btop, bmax)
 
                 # Put building mask on top of terrain
-                rt.building_mask[(slice(0,thmax),)+bld.slices] = 1 #terrain below
+                rt.obstacle_mask[(slice(0,thmax),)+bld.slices] = 1 #terrain below
                 b3d_height = min(rt.nz-thmax, nz_b3d)
-                rt.building_mask[(slice(thmax,thmax+b3d_height),)+bld.slices] = b3d[:b3d_height,:,:]
-        elif 'buildings_2d' in ncs.variables:
+                rt.obstacle_mask[(slice(thmax,thmax+b3d_height),)+bld.slices] = b3d[:b3d_height,:,:]
+        elif 'buildings_2d' in ncs.variables and not cfg.domain.ignore_buildings:
             b2ds = ncs.variables['buildings_2d'][:]
             for bld in building_ids:
                 b2d = b2ds[bld.slices]
@@ -149,24 +151,23 @@ class StaticDriverPlugin(SetupPluginMixin):
                 btop = max(btop, bmax)
 
                 # Put building mask on top of terrain
-                rt.building_mask[(slice(None),)+bld.slices] = (np.arange(rt.nz)[:,ax_,ax_] <
+                rt.obstacle_mask[(slice(None),)+bld.slices] = (np.arange(rt.nz)[:,ax_,ax_] <
                                                                (bh+thmax)[ax_,:,:])
         else:
-            rt.building_mask = rt.terrain_mask
             btop = rt.th.max()
 
         # plant canopy height
         if 'lad' in ncs.variables:
-            lads = ncs.variables['lad'][:]
-            lad_mask = lads > 0
+            lad = ncs.variables['lad'][:]
+            lad_mask = lad > 0
             # minimum index of nonzeo value along inverted z
-            rt.lad = lads.shape[0] - np.argmax(lad_mask[::-1], axis=0)
-            rt.lad[~np.any(lad_mask, axis=0)] = 0
+            lad_top = lad.shape[0] - np.argmax(lad_mask[::-1], axis=0)
+            lad_top[~np.any(lad_mask, axis=0)] = 0
         else:
-            rt.lad = np.zeros([rt.ny,rt.nx])
+            lad_top = np.zeros([rt.ny,rt.nx])
 
         # calculate maximum of surface canopy layer
-        nscl = max(btop, (rt.th+rt.lad).max())
+        nscl = max(btop, (rt.th+lad_top).max())
 
         # check nz with ncl
         if rt.nz < nscl + cfg.domain.nscl_free:

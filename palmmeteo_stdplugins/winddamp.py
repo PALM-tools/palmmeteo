@@ -70,7 +70,7 @@ class WindDampPlugin(WritePluginMixin):
 
         distances = np.empty((rt.nz, rt.ny, rt.nx), dtype=defint)
         distances[:] = maxval
-        distances[rt.building_mask] = inside
+        distances[rt.obstacle_mask] = inside
 
         # Iteratively find distance to nearest building
         for i in range(ddist):
