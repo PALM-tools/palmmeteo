@@ -387,6 +387,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             rt.rad_swdown = swdown
             rt.rad_swdiff = swdif
             rt.rad_lwdown = lwdown
+            rt.has_rad_diffuse = True
 
         log('ICON import finished.')
 
