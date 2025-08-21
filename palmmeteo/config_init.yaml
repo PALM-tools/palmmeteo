@@ -148,6 +148,7 @@ postproc:
     nox_post_sum: false
 
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+log_datetime: true #prepend each log message with date+time
 
 # The complete workflow - do not change!
 full_workflow:
