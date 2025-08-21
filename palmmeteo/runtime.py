@@ -26,6 +26,21 @@ from . import signature
 from .logging import die, warn, log, verbose
 from .config import cfg, parse_duration, ConfigObj
 
+zstd = None
+
+def myopen(fpath, *args, **kwargs):
+    global zstd
+
+    if fpath.endswith('.zst'):
+        if zstd is None:
+            try:
+                from compression import zstd
+            except ImportError:
+                import pyzstd as zstd
+        return zstd.open(fpath, *args, **kwargs)
+    else:
+        return open(fpath, *args, **kwargs)
+
 class RuntimeObj(object):
     """An object for holding runtime-related values.
 
@@ -33,15 +48,17 @@ class RuntimeObj(object):
     """
 
     def _save(self, fpath):
-        with open(fpath, 'wb') as f:
+        log('Saving snapshot to {}', fpath)
+        with myopen(fpath, 'wb') as f:
             p = pickle.Pickler(f, protocol=cfg.intermediate_files.pickle_protocol,
                     fix_imports=False)
             p.dump(signature)
             p.dump(self.__dict__)
+        verbose('Snapshot saved.')
 
     def _load(self, fpath):
-        log('Loading snapshot from {}.', fpath)
-        with open(fpath, 'rb') as f:
+        log('Loading snapshot from {}', fpath)
+        with myopen(fpath, 'rb') as f:
             p = pickle.Unpickler(f, fix_imports=False)
             sig_loaded = p.load()
             loaded = p.load()
@@ -49,7 +66,7 @@ class RuntimeObj(object):
             verbose('Loaded snapshot version: {}', sig_loaded)
         else:
             warn('Loaded snapshot version "{}" does not match current '
-                 'version "{}", errors may come!', sig_loaded, signature)
+                 'version "{}", errors may follow!', sig_loaded, signature)
         assert(isinstance(loaded, dict))
         self.__dict__.update(loaded)
 

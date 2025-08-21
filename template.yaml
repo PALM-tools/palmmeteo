@@ -45,10 +45,10 @@ paths:
         #vinterp:     'METEO/vinterp{domain}.nc'
 
     snapshot:
-        #setup_model:  'METEO/setup{domain}.pickle'
-        #import_data:  'METEO/import{domain}.pickle'
-        #hinterp:      'METEO/hinterp{domain}.pickle'
-        #vinterp:      'METEO/vinterp{domain}.pickle'
+        #setup_model:  'METEO/setup{domain}.pickle.zst'
+        #import_data:  'METEO/import{domain}.pickle.zst'
+        #hinterp:      'METEO/hinterp{domain}.pickle.zst'
+        #vinterp:      'METEO/vinterp{domain}.pickle.zst'
 
     wrf:
         #file_mask:      'WRF/wrfout_*.e000'

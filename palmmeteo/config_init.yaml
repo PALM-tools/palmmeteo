@@ -48,11 +48,13 @@ paths:
         hinterp:     'METEO/hinterp{domain}.nc'
         vinterp:     'METEO/vinterp{domain}.nc'
 
+    # Pickle file paths for snapshots. If they end with .zst, they will be
+    # compressed (requires pyzstd OR python>=3.14).
     snapshot:
-        setup_model:  'METEO/setup{domain}.pickle'
-        import_data:  'METEO/import{domain}.pickle'
-        hinterp:      'METEO/hinterp{domain}.pickle'
-        vinterp:      'METEO/vinterp{domain}.pickle'
+        setup_model:  'METEO/setup{domain}.pickle.zst'
+        import_data:  'METEO/import{domain}.pickle.zst'
+        hinterp:      'METEO/hinterp{domain}.pickle.zst'
+        vinterp:      'METEO/vinterp{domain}.pickle.zst'
 
 output:
     # Overwrite existing output files? Otherwise create a new file with
