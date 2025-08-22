@@ -167,7 +167,7 @@ class StaticDriverPlugin(SetupPluginMixin):
             lad_top = np.zeros([rt.ny,rt.nx])
 
         # calculate maximum of surface canopy layer
-        nscl = max(btop, (rt.th+lad_top).max())
+        rt.canopy_top = nscl = max(btop, (rt.th+lad_top).max())
 
         # check nz with ncl
         if rt.nz < nscl + cfg.domain.nscl_free:

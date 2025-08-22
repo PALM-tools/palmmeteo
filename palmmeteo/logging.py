@@ -20,9 +20,13 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import sys
+from time import strftime
 
 __all__ = ['die', 'warn', 'log', 'verbose', 'configure_log']
 
+dtf = '%Y-%m-%d %H:%M:%S '
+log_output = sys.stdout.write
+error_output = sys.stderr.write
 
 def die(s, *args, **kwargs):
     """Write message to error output and exit with status 1."""
@@ -42,35 +46,33 @@ def warn(s, *args, **kwargs):
     else:
         error_output(s + '\n')
 
+class LoggingLevel:
+    def __init__(self, is_on, use_dt=False):
+        self.is_on = is_on
+        self.use_dt = use_dt
 
-def log_on(s, *args, **kwargs):
-    """Write logging or debugging message to standard output (logging is enabled)."""
+    def __call__(self, s, *args, **kwargs):
+        """Write logging or debugging message with optional datetime if configured to do so."""
 
-    if args or kwargs:
-        log_output(s.format(*args, **kwargs) + '\n')
-    else:
-        log_output(s + '\n')
+        if not self.is_on:
+            return
 
-# For detecting whether specified verbosity level is enabled
-log_on.level_on = True
+        if args or kwargs:
+            ss = s.format(*args, **kwargs)
+        else:
+            ss = s
 
+        if self.use_dt:
+            log_output(strftime(dtf) + ss + '\n')
+        else:
+            log_output(ss + '\n')
 
-def log_off(s, *args, **kwargs):
-    """Do nothing (logging is disabled)."""
+    def __bool__(self):
+        return self.is_on
 
-    pass
+log = LoggingLevel(True)
+verbose = LoggingLevel(False)
 
-# For detecting whether specified verbosity level is enabled
-log_off.level_on = False
-
-
-log_output = sys.stdout.write
-error_output = sys.stderr.write
-log = log_on
-verbose = log_off
-
-def configure_log(cfg):
-    global log, verbose
-
-    log = log_on if cfg.verbosity >= 1 else log_off
-    verbose = log_on if cfg.verbosity >= 2 else log_off
+def configure_log(verbosity, log_datetime=False):
+    log.__init__(verbosity >= 1, log_datetime)
+    verbose.__init__(verbosity >= 2, log_datetime)

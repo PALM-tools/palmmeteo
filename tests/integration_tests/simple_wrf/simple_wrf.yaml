@@ -9,6 +9,11 @@ domain:
 
 paths:
     base: tests/integration_tests/simple_wrf
+    snapshot:
+        setup_model:  'METEO/setup{domain}.pickle'
+        import_data:  'METEO/import{domain}.pickle'
+        hinterp:      'METEO/hinterp{domain}.pickle'
+        vinterp:      'METEO/vinterp{domain}.pickle'
 
 simulation:
     origin_time: 2018-07-19 10:00:00

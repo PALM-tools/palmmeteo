@@ -322,9 +322,10 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 if cfg.wrf.vertical_adaptation == 'universal':
                     # Calculate transition pressure level using horizontal
                     # domain-wide pressure average
-                    gp_trans = (rt.origin_z + cfg.vinterp.transition_level) * g
+                    z_trans = rt.origin_z + rt.z_levels_stag[rt.canopy_top] + cfg.vinterp.transition_level
+                    gp_trans = z_trans * g
                     p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
-                    verbose('Vertical stretching transition level: {} Pa', p_trans)
+                    verbose('Vertical stretching transition level: {} m ASL = {} Pa', z_trans, p_trans)
 
                     # Convert the geopotentials to pressure naively using barometric equation
                     p_orig_w = barom_pres(p_surf, gp_w, gp_w[0,:,:], tair_surf)

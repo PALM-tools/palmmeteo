@@ -106,15 +106,13 @@ def execute_event(event, from_plugins):
 def run(argv):
     # Set initial verbosity from commandline, so that we can log the
     # configuration progress appropriately.
-    cfg._settings['verbosity'] = (argv.verbosity_arg
-                                  if argv.verbosity_arg is not None else 1)
-    configure_log(cfg)
+    configure_log(argv.verbosity_arg if argv.verbosity_arg is not None else 1)
 
     # Load all configfiles and apply commandline config
     workflow = load_config(argv)
 
     # Configure logging according to final config
-    configure_log(cfg)
+    configure_log(cfg.verbosity, cfg.log_datetime)
 
     # Runtime data
     basic_init(rt)

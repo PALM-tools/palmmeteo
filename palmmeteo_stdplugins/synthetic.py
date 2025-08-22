@@ -97,7 +97,8 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             target_terrain = rt.terrain
 
         gp0 = rt.origin_z*g
-        gp_trans = (rt.origin_z + cfg.vinterp.transition_level) * g
+        z_trans = rt.origin_z + rt.z_levels_stag[rt.canopy_top] + cfg.vinterp.transition_level
+        gp_trans = z_trans * g
         gp_new_surf = target_terrain * g
 
         for it in range(rt.nt):
@@ -116,7 +117,7 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             # Calculate transition pressure level using horizontal
             # domain-wide pressure average
             p_trans = barom_pres(p_surf, gp_trans, gp0, t0)
-            verbose('Vertical stretching transition level: {} Pa', p_trans)
+            verbose('Vertical stretching transition level: {} m ASL = {} Pa', z_trans, p_trans)
 
             # Save 1-D hydrostatic pressure
             fout.variables['palm_hydrostatic_pressure'][it,:,] = PalmPhysics.barom_ptn_pres(p_surf, rt.z_levels, t0)

@@ -45,10 +45,10 @@ paths:
         #vinterp:     'METEO/vinterp{domain}.nc'
 
     snapshot:
-        #setup_model:  'METEO/setup{domain}.pickle'
-        #import_data:  'METEO/import{domain}.pickle'
-        #hinterp:      'METEO/hinterp{domain}.pickle'
-        #vinterp:      'METEO/vinterp{domain}.pickle'
+        #setup_model:  'METEO/setup{domain}.pickle.zst'
+        #import_data:  'METEO/import{domain}.pickle.zst'
+        #hinterp:      'METEO/hinterp{domain}.pickle.zst'
+        #vinterp:      'METEO/vinterp{domain}.pickle.zst'
 
     wrf:
         #file_mask:      'WRF/wrfout_*.e000'
@@ -129,8 +129,8 @@ vinterp:
     #terrain_smoothing: off
 
     # Upper limit of vertical adaptation for terrain matching
-    # [metres above origin_z]
-    #transition_level: 2000.0
+    # [metres above highest obstacles]
+    #transition_level: 300.0
 
     # code used for the interpolation
     #interpolator: prepared  #pure-Python interpolator with prepared weights (default)
@@ -143,7 +143,8 @@ vinterp:
 postproc:
     #nox_post_sum: false
 
-verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+#verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+#log_datetime: true #prepend each log message with date+time
 
 # Workflow: optionally select a subset of stages
 #workflow:
