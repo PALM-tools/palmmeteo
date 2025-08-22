@@ -116,10 +116,10 @@ Configuration options</h1>
 <div class="line">        #vinterp:     &#39;METEO/vinterp{domain}.nc&#39;</div>
 <div class="line"> </div>
 <div class="line">    snapshot:</div>
-<div class="line">        #setup_model:  &#39;METEO/setup{domain}.pickle&#39;</div>
-<div class="line">        #import_data:  &#39;METEO/import{domain}.pickle&#39;</div>
-<div class="line">        #hinterp:      &#39;METEO/hinterp{domain}.pickle&#39;</div>
-<div class="line">        #vinterp:      &#39;METEO/vinterp{domain}.pickle&#39;</div>
+<div class="line">        #setup_model:  &#39;METEO/setup{domain}.pickle.zst&#39;</div>
+<div class="line">        #import_data:  &#39;METEO/import{domain}.pickle.zst&#39;</div>
+<div class="line">        #hinterp:      &#39;METEO/hinterp{domain}.pickle.zst&#39;</div>
+<div class="line">        #vinterp:      &#39;METEO/vinterp{domain}.pickle.zst&#39;</div>
 <div class="line"> </div>
 <div class="line">    wrf:</div>
 <div class="line">        #file_mask:      &#39;WRF/wrfout_*.e000&#39;</div>
@@ -170,9 +170,13 @@ Configuration options</h1>
 <div class="line">    #dz_stretch_level: -1.0 #in metres</div>
 <div class="line">    #dz_stretch_factor: 1.0</div>
 <div class="line">    #dz_max: -1.0 #in metres</div>
-<div class="line">    # minimal number of free surface canopy layers above top of terrain with</div>
-<div class="line">    # building and plant canopy</div>
+<div class="line"> </div>
+<div class="line">    # Check minimum number of free surface canopy layers above the top of</div>
+<div class="line">    # terrain, buildings and plant canopy</div>
 <div class="line">    #nscl_free: 3</div>
+<div class="line"> </div>
+<div class="line">    # Ignore buildings in the static driver (for nscl_free and wind damping)</div>
+<div class="line">    #ignore_buildings: false</div>
 <div class="line"> </div>
 <div class="line">simulation:</div>
 <div class="line">    #origin_time: #default: read from static driver</div>
@@ -196,8 +200,8 @@ Configuration options</h1>
 <div class="line">    #terrain_smoothing: off</div>
 <div class="line"> </div>
 <div class="line">    # Upper limit of vertical adaptation for terrain matching</div>
-<div class="line">    # [metres above origin_z]</div>
-<div class="line">    #transition_level: 2000.0</div>
+<div class="line">    # [metres above highest obstacles]</div>
+<div class="line">    #transition_level: 300.0</div>
 <div class="line"> </div>
 <div class="line">    # code used for the interpolation</div>
 <div class="line">    #interpolator: prepared  #pure-Python interpolator with prepared weights (default)</div>
@@ -210,7 +214,8 @@ Configuration options</h1>
 <div class="line">postproc:</div>
 <div class="line">    #nox_post_sum: false</div>
 <div class="line"> </div>
-<div class="line">verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)</div>
+<div class="line">#verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)</div>
+<div class="line">#log_datetime: true #prepend each log message with date+time</div>
 <div class="line"> </div>
 <div class="line"># Workflow: optionally select a subset of stages</div>
 <div class="line">#workflow:</div>

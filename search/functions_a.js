@@ -8,7 +8,5 @@ var searchData=
   ['locate_5',['locate',['../classpalmmeteo_1_1library_1_1HorizonSelection.html#a477b114068a5f7c87d3926f03ede4076',1,'palmmeteo::library::HorizonSelection']]],
   ['log_5fdstat_5foff_6',['log_dstat_off',['../namespacepalmmeteo__stdplugins_1_1aladin.html#a7ddf4dec15205355e3391346d6a95330',1,'palmmeteo_stdplugins.aladin.log_dstat_off()'],['../namespacepalmmeteo__stdplugins_1_1icon.html#a3ea8195bd942f6d14e555f7a3e817d3b',1,'palmmeteo_stdplugins.icon.log_dstat_off()'],['../namespacepalmmeteo__stdplugins_1_1wrf.html#aff2cd651e744cb9710b6ab9f20bcee8a',1,'palmmeteo_stdplugins.wrf.log_dstat_off()']]],
   ['log_5fdstat_5fon_7',['log_dstat_on',['../namespacepalmmeteo__stdplugins_1_1aladin.html#acf3417a5580ae8a2c7de05d70f4dcf91',1,'palmmeteo_stdplugins.aladin.log_dstat_on()'],['../namespacepalmmeteo__stdplugins_1_1icon.html#ac0f2eff07d3ff09578789f2f4829e872',1,'palmmeteo_stdplugins.icon.log_dstat_on()'],['../namespacepalmmeteo__stdplugins_1_1wrf.html#a293e920d9acd98f153dd4032d644de87',1,'palmmeteo_stdplugins.wrf.log_dstat_on()']]],
-  ['log_5foff_8',['log_off',['../namespacepalmmeteo_1_1logging.html#aa86c74db1b2e70a55856d158ba45e3e2',1,'palmmeteo::logging']]],
-  ['log_5fon_9',['log_on',['../namespacepalmmeteo_1_1logging.html#af053d54c56153c0fad20b45ae18c89e4',1,'palmmeteo::logging']]],
-  ['lpad_10',['lpad',['../namespacepalmmeteo_1_1vinterp.html#a7d4d85b79f966b32fccaf59f8ae9f18b',1,'palmmeteo::vinterp']]]
+  ['lpad_8',['lpad',['../namespacepalmmeteo_1_1vinterp.html#a7d4d85b79f966b32fccaf59f8ae9f18b',1,'palmmeteo::vinterp']]]
 ];

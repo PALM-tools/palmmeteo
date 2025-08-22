@@ -8,5 +8,6 @@ var searchData=
   ['midnight_5fof_5',['midnight_of',['../namespacepalmmeteo_1_1utils.html#a143f12fd597ad8fb3782ecf06368a366',1,'palmmeteo::utils']]],
   ['minterp_6',['minterp',['../namespacepalmmeteo__stdplugins_1_1aladin.html#aa11833030f2464ec916d40bdfc130b08',1,'palmmeteo_stdplugins.aladin.minterp()'],['../namespacepalmmeteo__stdplugins_1_1wrf__utils.html#a34bc2dfb143200b78e4bf837544fd29a',1,'palmmeteo_stdplugins.wrf_utils.minterp()']]],
   ['msg_7',['msg',['../classpalmmeteo_1_1config_1_1ConfigError.html#ab2509c3fcec04d4e445ddfdc1fd65f88',1,'palmmeteo::config::ConfigError']]],
-  ['mu_8',['mu',['../namespacepalmmeteo__stdplugins_1_1wrf__utils.html#a3f605936d13cbb59da0f81c166d2339b',1,'palmmeteo_stdplugins::wrf_utils']]]
+  ['mu_8',['mu',['../namespacepalmmeteo__stdplugins_1_1wrf__utils.html#a3f605936d13cbb59da0f81c166d2339b',1,'palmmeteo_stdplugins::wrf_utils']]],
+  ['myopen_9',['myopen',['../namespacepalmmeteo_1_1runtime.html#ad0f1d734ac4f67d825da6054d9b0c06c',1,'palmmeteo::runtime']]]
 ];

@@ -19,7 +19,7 @@ var searchData=
   ['configerror_16',['ConfigError',['../classpalmmeteo_1_1config_1_1ConfigError.html',1,'palmmeteo::config']]],
   ['configobj_17',['ConfigObj',['../classpalmmeteo_1_1config_1_1ConfigObj.html',1,'palmmeteo::config']]],
   ['configuration_2emd_18',['configuration.md',['../configuration_8md.html',1,'']]],
-  ['configure_5flog_19',['configure_log',['../namespacepalmmeteo_1_1logging.html#a9a60d330f10715e31be663d4113d22b4',1,'palmmeteo::logging']]],
+  ['configure_5flog_19',['configure_log',['../namespacepalmmeteo_1_1logging.html#a863216b074fdcb50ea6f9f724abd440a',1,'palmmeteo::logging']]],
   ['convert_20',['convert',['../classpalmmeteo_1_1library_1_1UnitConverter.html#a1709685d4288cffda3312b88aad01ce5',1,'palmmeteo::library::UnitConverter']]],
   ['convert_5fauto_21',['convert_auto',['../classpalmmeteo_1_1library_1_1UnitConverter.html#ab875c431d79ba3502e75959f232e80ec',1,'palmmeteo::library::UnitConverter']]],
   ['cp_5fd_5frd_22',['cp_d_rd',['../classpalmmeteo_1_1library_1_1PalmPhysics.html#afd2bb3a0cb4c8188a9ca3e16cc2b458a',1,'palmmeteo::library::PalmPhysics']]],
