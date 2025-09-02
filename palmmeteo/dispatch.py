@@ -23,6 +23,7 @@ import sys
 import os
 from datetime import datetime
 from argparse import ArgumentParser
+import threading
 import netCDF4
 
 from . import __doc__, __version__, signature
@@ -35,6 +36,11 @@ from .utils import find_free_fname, assert_dir
 
 last_stage_files = []
 
+def threading_excepthook(args):
+    """Overwrites original threading.excepthook to terminate after unhandled error."""
+    threading.current_thread().pmeteo_unhandled_exception = args
+    threading.__excepthook__(args)
+
 def build_exec_queue(event, from_plugins):
     # logika vytvareni fronty muze byt slozitejsi nez jen prosty seznam (strom, mozna paralelizace....)
     queue = []
@@ -43,7 +49,6 @@ def build_exec_queue(event, from_plugins):
             queue.append(plugin)
 
     return queue
-
 
 def execute_event(event, from_plugins):
     log('========== Starting stage {} ==========', event)
@@ -114,10 +119,15 @@ def run(argv):
     # Configure logging according to final config
     configure_log(cfg.verbosity, cfg.log_datetime)
 
+    log('Initializing runtime')
+    if cfg.compute.nthreads > 1:
+        threading.excepthook = threading_excepthook
+
     # Runtime data
     basic_init(rt)
 
     # Load plugins as configured
+    verbose('Initialising plugins')
     plugins = [plg.plugin_factory(p) for p in cfg.plugins]
 
     if workflow.snapshot_from:

@@ -143,6 +143,9 @@ vinterp:
 postproc:
     #nox_post_sum: false
 
+compute:
+    #nthreads: 1 #number of parallel threads (currently in fortran vinterp)
+
 #verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
 #log_datetime: true #prepend each log message with date+time
 

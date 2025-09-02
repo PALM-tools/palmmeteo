@@ -21,9 +21,12 @@
 
 """Functions for vertical interpolation"""
 
+import sys
 import numpy as np
+from threading import Thread
+from .logging import die, warn, log, verbose
 from .config import cfg, ConfigError
-from .utils import ax_
+from .utils import ax_, distribute_chunks
 
 interpolators = {}
 
@@ -139,22 +142,79 @@ def get_vinterp_metpy(ztarget, zsource):
                               return_list_always=True)
     return vinterp
 
-@interpolator('fortran')
-def get_vinterp_fortran(ztarget, zsource):
-    """Returns a wrapper for the native Fortran interpolator"""
-    from .vinterp_native import zinterp
-    linear = zinterp.linear
-    dtype_f = 'f%d' % zinterp.wp
 
-    def vinterp(*variables):
-        s = variables[0].shape
-        ain = np.empty((len(variables), s[0], s[1], s[2]), dtype=dtype_f, order='F')
-        for i,v in enumerate(variables):
-            ain[i,:,:,:] = v[:,:,:]
-        aout, err = linear(ain, zsource, ztarget)
+class VInterpFortranThread:
+    def __init__(self, variables, indices, zsource, ztarget, zinterp):
+        self.indices = indices
+        self.ztarget = ztarget
+        self.linear = zinterp.linear
+
+        # Copy data to per-thread input
+        nvar, ny, nx = (s.stop-s.start for s in indices)
+        nz = variables[0].shape[0]
+        vsel = (slice(None),) + indices[1:]
+        self.ain = np.empty((nvar, nz, ny, nx), dtype='f%d'%zinterp.wp, order='F')
+        for i, v in enumerate(variables[indices[0]]):
+            self.ain[i,:,:,:] = v[vsel]
+        self.zsource = zsource[vsel]
+
+    def __call__(self):
+        # Call native interpolator
+        self.aout, err = self.linear(self.ain, self.zsource, self.ztarget)
         if err:
             raise ValueError(('Error {4}: requested heights ({0}, {1}) lie outside '
                 'provided heights ({2}, {3}).').format(ztarget[0],
                     ztarget[-1], zsource[0].max(), zsource[-1].min(), err))
-        return aout
-    return vinterp
+
+    def put(self, out):
+        """Write results to global array"""
+        out[self.indices[0],:,self.indices[1],self.indices[2]] = self.aout
+
+@interpolator('fortran')
+def get_vinterp_fortran(ztarget, zsource):
+    """Returns a wrapper for the native Fortran interpolator"""
+    from .vinterp_native import zinterp
+
+    if cfg.compute.nthreads <= 1:
+        def vinterp_serial(*variables):
+            # Copy inputs to single native Fortran array
+            nz, ny, nx = variables[0].shape
+            ain = np.empty((len(variables), nz, ny, nx), dtype='f%d'%zinterp.wp, order='F')
+            for i,v in enumerate(variables):
+                ain[i,:,:,:] = v[:,:,:]
+
+            # Call native interpolator
+            aout, err = zinterp.linear(ain, zsource, ztarget)
+            if err:
+                raise ValueError(('Error {4}: requested heights ({0}, {1}) lie outside '
+                    'provided heights ({2}, {3}).').format(ztarget[0],
+                        ztarget[-1], zsource[0].max(), zsource[-1].min(), err))
+            return aout
+
+        return vinterp_serial
+    else:
+        def vinterp_parallel(*variables):
+            # Distribute inputs and start threads
+            sizes = (len(variables),) + variables[0].shape[1:]
+            thread_data = []
+            for sl in distribute_chunks(sizes, cfg.compute.nthreads):
+                tdata = VInterpFortranThread(variables, sl, zsource, ztarget, zinterp)
+                thread = Thread(target=tdata)
+                thread_data.append((thread, tdata))
+                thread.start()
+            verbose('vinterp parallel sizes: {}',
+                    tuple(t[1].ain.size for t in thread_data))
+
+            # Prepare global outputs
+            aout = np.empty((sizes[0],len(ztarget),sizes[1],sizes[2]),
+                    dtype='f%d'%zinterp.wp)
+
+            # Joint tasks and combine outputs to a global array
+            for th, td in thread_data:
+                th.join()
+                if hasattr(th, 'pmeteo_unhandled_exception'):
+                    sys.exit(3)
+                td.put(aout)
+
+            return aout
+        return vinterp_parallel

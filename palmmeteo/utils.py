@@ -53,6 +53,42 @@ fext_re = re.compile(r'\.(\d{3})$')
 # bounding box)
 where_range = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))
 
+
+def distribute(what, into, reverse=False):
+    """Distributes integer into integers as evenly as possible"""
+
+    d, m = divmod(what, into)
+    if reverse:
+        return (d,)*(into-m) + (d+1,)*m
+    else:
+        return (d+1,)*m + (d,)*(into-m)
+
+def distribute_chunks(sizes, nthreads, prefix=(), reverse=False):
+    """Distributes an n-dim array among threads as evenly as possible"""
+
+    if len(sizes) == 0:
+        # Nothing more to distribute, may yield less threads
+        yield prefix
+    elif sizes[0] >= nthreads:
+        # Final step, threads cover remaining dimension(s)
+        rem = tuple(slice(0, l) for l in sizes[1:])
+        start = 0
+        for n in distribute(sizes[0], nthreads, not reverse):
+            stop = start + n
+            yield prefix + (slice(start, stop),) + rem
+            start = stop
+    else:
+        # distribute threads into this dim's elements
+        start = 0
+        for n in distribute(nthreads, sizes[0], reverse):
+            stop = start + 1
+            # By flipping reverse back and forth we avoid systematic
+            # overburdening of first/last threads
+            yield from distribute_chunks(sizes[1:], n,
+                    prefix + (slice(start, stop),),
+                    not reverse)
+            start = stop
+
 def find_free_fname(fpath, overwrite=False):
     if not os.path.exists(fpath):
         return fpath
