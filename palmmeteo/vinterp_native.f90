@@ -7,16 +7,17 @@ module zinterp
 
 contains
     subroutine linear(nvar, nz, ny, nx, nhreq, ain, hin, hreq, aout, err)
+        !f2py threadsafe
         integer(iwp), intent(in) :: &
-            nvar, nz, ny, nx, nhreq
+            nvar, nz, ny, nx, nhreq             !array dims
         real(wp), intent(in) :: &
-            ain(1:nvar, 1:nz, 1:ny, 1:nx), &
-            hin(1:nz, 1:ny, 1:nx), &
-            hreq(1:nhreq)
+            ain(1:nvar, 1:nz, 1:ny, 1:nx), &    !input values
+            hin(1:nz, 1:ny, 1:nx), &            !input heights
+            hreq(1:nhreq)                       !requested heights
         real(wp), intent(out) :: &
-            aout(1:nvar, 1:nhreq, 1:ny, 1:nx)
+            aout(1:nvar, 1:nhreq, 1:ny, 1:nx)   !output values
         integer(iwp), intent(out) :: &
-            err
+            err                                 !error number
 
         integer(iwp) :: &
             i, j, &
@@ -31,7 +32,6 @@ contains
             do j = 1, ny
                 kl = 1
                 ku = 2
-                hl = hin(kl, j, i)
                 hu = hin(ku, j, i)
                 kr = 1
                 hr = hreq(kr)
@@ -39,7 +39,7 @@ contains
                     if (hu < hr) then
                         kl = ku
                         if (kl >= nz) then
-                            err = 2
+                            err = 2 !requested above highest input level
                             return
                         endif
                         ku = ku + 1
@@ -49,7 +49,7 @@ contains
                     hl = hin(kl, j, i)
 
                     if (hr < hl) then
-                        !extrapolate
+                        ! Extrapolate below lowest input level
                         ratio = 0._wp
                     else
                         ratio = (hr-hl) / (hu-hl)
