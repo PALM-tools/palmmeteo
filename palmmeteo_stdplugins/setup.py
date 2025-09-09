@@ -34,9 +34,6 @@ class SetupPlugin(SetupPluginMixin):
     def setup_model(self, *args, **kwargs):
         log('Setting up model domain...')
 
-        # absolute terrain needed for vertical interpolation of wrf data
-        rt.terrain = rt.terrain_rel + rt.origin_z
-
         # print domain parameters and check ist existence in caso of setup from config
         verbose('Domain parameters:')
         verbose('nx={}, ny={}, nz={}', rt.nx, rt.ny, rt.nz)
@@ -77,15 +74,21 @@ class SetupPlugin(SetupPluginMixin):
                         'dz (={})'.format(rt.dz), cfg.domain, 'dz_max')
         # fill out z_levels
         rt.z_levels = np.zeros(rt.nz, dtype=float)
-        rt.z_levels_stag = np.zeros(rt.nz-1, dtype=float)
         dzs = rt.dz
-        rt.z_levels[0] = dzs/2.0
-        for i in range(rt.nz-1):
-            rt.z_levels[i+1] = rt.z_levels[i] + dzs
-            rt.z_levels_stag[i] = (rt.z_levels[i+1]+rt.z_levels[i])/2.0
-            if rt.stretching and rt.z_levels[i+1] + dzs >= cfg.domain.dz_stretch_level:
+        rt.z_levels[0] = lev = dzs * .5
+        stretching_started = False
+        for i in range(1, rt.nz):
+            if rt.stretching and (stretching_started or
+                                  lev + dzs >= cfg.domain.dz_stretch_level):
                 dzs = min(dzs * cfg.domain.dz_stretch_factor, cfg.domain.dz_max)
+                stretching_started = True
+
+            rt.z_levels[i] = lev = lev + dzs
+
+        rt.z_levels_stag = (rt.z_levels[:-1] + rt.z_levels[1:]) * .5
         rt.ztop = rt.z_levels[-1] + dzs / 2.
+        rt.z_levels_msl = rt.z_levels + rt.origin_z
+        rt.z_levels_stag_msl = rt.z_levels_stag + rt.origin_z
         verbose('z: {}', rt.z_levels)
         verbose('zw: {}', rt.z_levels_stag)
 

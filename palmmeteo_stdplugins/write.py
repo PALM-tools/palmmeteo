@@ -73,6 +73,11 @@ class WritePlugin(WritePluginMixin):
         fout.createDimension('y',     rt.ny     )
         fout.createDimension('yv',    rt.ny-1   )
 
+        # Global attributes
+        fout.setncatts({
+            'origin_z': rt.origin_z,
+            })
+
         # Create and write dimension variables
         mkvar('time',  ('time',), units=f'seconds since {rt.simulation.start_time}'
                 )[:] = rt.times_sec

@@ -95,6 +95,12 @@ domain:
     # terrain, buildings and plant canopy
     nscl_free: 3
 
+    # Manual shift of terrain in metres. This should be equal to min(zt) of all
+    # domains. It is better to generate static drivers with such origin_z that
+    # min(zt) of all domains is 0.
+    terrain_offset: 0    #default
+    #terrain_offset: auto #calculate from min(zt), only valid for single domain cases
+
     # Ignore buildings in the static driver (for nscl_free and wind damping)
     ignore_buildings: false
 

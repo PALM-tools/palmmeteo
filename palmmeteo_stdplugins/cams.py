@@ -164,12 +164,11 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
     def interpolate_vert(self, fout, *args, **kwargs):
         log('Performing CAMS vertical interpolation')
-        terrain_rel = rt.terrain_rel[ax_,:,:]
+        terrain = rt.terrain[ax_,:,:]
 
         with netCDF4.Dataset(rt.paths.intermediate.hinterp) as fin:
             agl_chem = fin.variables['height_chem']
             chem_heights = np.zeros((agl_chem.shape[1]+1,) + agl_chem.shape[2:], dtype=agl_chem.dtype)
-            chem_heights[0,:,:] = -999.
 
             verbose('Preparing output file')
             for dimname in ['time', 'y', 'x']:
@@ -185,7 +184,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 verbose('Processing timestep {}', it)
 
                 # Calc CAMS layer heights
-                chem_heights[1:,:,:] = agl_chem[it] + terrain_rel
+                chem_heights[1:,:,:] = agl_chem[it] + terrain
 
                 # Load all variables for the timestep
                 vardata = []
@@ -195,7 +194,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     vardata.append(data)
 
                 # Perform vertical interpolation on all currently loaded vars at once
-                vinterpolator, = get_vinterp(rt.z_levels, chem_heights, True, False)
+                vinterpolator, = get_vinterp(rt.z_levels_msl, chem_heights, True, False)
                 vinterp = vinterpolator(*vardata)
                 del vardata, vinterpolator
 
