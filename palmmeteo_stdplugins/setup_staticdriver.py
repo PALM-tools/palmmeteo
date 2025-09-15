@@ -93,25 +93,47 @@ class StaticDriverPlugin(SetupPluginMixin):
         # read terrain height (relative to origin_z) and
         # calculate and check the height of the surface canopy layer
         if 'zt' in ncs.variables.keys():
-            rt.terrain_rel = ncs.variables['zt'][:]
+            terrain_rel = ncs.variables['zt'][:]
         else:
-            rt.terrain_rel = np.zeros([rt.ny,rt.nx])
+            terrain_rel = np.zeros([rt.ny,rt.nx])
 
         # Check terrain
-        terrain_min = rt.terrain_rel.min()
-        if rt.nested_domain and terrain_min != 0:
-            warn('The lowest point of the terrain variable zt in the parent '
-                'domain is {} (relative to origin_z={}). Please check '
-                'that the lowest point of ALL domains equals zero, otherwise PALM '
-                'shifts the terrain to ensure that, which can lead to vertical '
-                'mismatching with the dynamic driver.', rt.origin_z, terrain_min)
+        terrain_min = terrain_rel.min()
+        terrain_shift = cfg.domain.terrain_offset
+        if terrain_shift == 'auto':
+            log('Shifting terrain (zt) such that its minimum value {} is now zero.',
+                    terrain_min)
+            terrain_shift = terrain_min
+            if rt.nested_domain:
+                warn('IMPORTANT WARNING: Automatic terrain shifting such that '
+                     'min=0 is only valid for single domain runs. This is '
+                     'nested domain, so either this domain or other domains '
+                     'will have WRONG LEVELS interpreted in PALM!')
+            else:
+                warn('Automatic terrain shifting such that min=0 is only valid '
+                     'for single domain runs - make sure that this is the only '
+                     'domain!')
+
+        terrain_min -= terrain_shift
+        rt.origin_z += terrain_shift
+        log('Shifting terrain (zt) by {} m, new minimum is {} and origin_z={} m.',
+                terrain_shift, terrain_min, rt.origin_z)
+
+        if terrain_min != 0:
+            warn('The lowest point of the terrain variable zt in this domain '
+                 'is {}. Please make sure that min(zt) of ALL domains equals '
+                 'zero, otherwise PALM will shift the terrain to ensure that '
+                 'and the dynamic driver will be vertically mismatched!',
+                 terrain_min)
+
+        rt.terrain = terrain_rel + rt.origin_z #shift is irrelevant here
 
         # Calculate terrain height in integral grid points, which is also the
         # k-coordinate of the lowest air-cell.
         # NOTE: PALM assigns terrain to those grid cells whose center lies on
         # or below terrain (assuming that it is not shifted due to the lowest
         # point not being 0).
-        rt.th = np.floor(rt.terrain_rel / rt.dz + 0.5).astype('i8') #terrain top
+        rt.th = np.floor(terrain_rel / rt.dz + 0.5).astype('i8') #terrain top
         terrain_mask = np.arange(rt.nz)[:,ax_,ax_] < rt.th[ax_,:,:]
 
         # Detect individual buildings

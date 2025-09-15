@@ -402,7 +402,8 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     # Mass (half) levels should be calculated from full
                     # levels by halving pressure, not geopotential, because
                     # ZNU = (ZNW[:-1]+ZNW[1:])/2 (verified)
-                    p_orig_u = (p_orig_w[:-1] + p_orig_w[1:]) * 0.5
+                    #p_orig_u = (p_orig_w[:-1] + p_orig_w[1:]) * 0.5
+                    p_orig_u = p_orig_w #Aladin does not seem to have half-level output
 
                     # Calculate terrain pressure shift ratio
                     p_surf_new = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf)
@@ -467,7 +468,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp_wind(var)
 
                 var = fin.variables['V'][it]
-                fout.variables['init_atmosphere_v'][it,:,:,:],  = vinterp_wind(var)
+                fout.variables['init_atmosphere_v'][it,:,:,:], = vinterp_wind(var)
 
                 del vinterp, vinterp_wind
 
