@@ -442,22 +442,31 @@ class HorizonSelection:
     Represents a continous selection of forecast horizons for
     a given selection of cycles (AssimCycle)
     """
-    def __init__(self, cycles, earliest_horizon, idx_start=None, idx_stop=None, tindex=None):
+    def __init__(self, cycles, earliest_horizon, idx_start=None, idx_stop=None,
+                 tindex=None, idx_rad=False):
         self.cycles = cycles
         self.horiz_first = earliest_horizon
         if not cycles.cycle_int:
             self.horiz_last = datetime.timedelta(days=999999)
         else:
             self.horiz_last = earliest_horizon + cycles.cycle_int - rt.simulation.timestep
-        self.idx0 = 0 if idx_start is None else idx_start
-        self.idx1 = rt.nt if idx_stop is None else idx_stop
+
+        if idx_rad:
+            self.idx0 = (math.floor(-rt.simulation.spinup_rad / rt.timestep_rad)
+                         if idx_start is None else idx_start)
+            self.idx1 = (math.ceil((rt.simulation.end_time_rad - rt.simulation.start_time) / rt.timestep_rad) + 1
+                         if idx_stop is None else idx_stop)
+        else:
+            self.idx0 = 0 if idx_start is None else idx_start
+            self.idx1 = rt.nt if idx_stop is None else idx_stop
         self.tindex = rt.tindex if tindex is None else tindex
 
     @classmethod
-    def from_cfg(cls, cfgsect, idx_start=None, idx_stop=None):
+    def from_cfg(cls, cfgsect, idx_start=None, idx_stop=None, tindex=None, idx_rad=False):
         cycles = AssimCycle(cfgsect)
         hor0 = parse_duration(cfgsect, 'earliest_horizon')
-        return cls(cycles, hor0, idx_start, idx_stop)
+        return cls(cycles, hor0, idx_start=idx_start, idx_stop=idx_stop,
+                   tindex=tindex, idx_rad=idx_rad)
 
     def get_idx(self, horizon, dt_idx):
         if not self.idx0 <= dt_idx < self.idx1:

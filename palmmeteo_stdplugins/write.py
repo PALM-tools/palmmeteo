@@ -345,7 +345,7 @@ class WritePlugin(WritePluginMixin):
                             fov['ls_forcing_top_NOX'][it] = sum(fov['ls_forcing_top_'+vn][it]
                                                                 for vn in cfg.postproc.nox_post_sum)
 
-        if cfg.radiation:
+        if cfg.radiation.enabled:
             # Separate time dimension for radiation
             fout.createDimension('time_rad', rt.nt_rad)
             var = mkvar('time_rad', ('time_rad',))

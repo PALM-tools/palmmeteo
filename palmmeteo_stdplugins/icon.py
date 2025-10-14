@@ -73,7 +73,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             raise ConfigError('ICON must use either cycle interval or a '
                     'single cycle, not all cycles', cfg.icon.assim_cycles,
                     'cycles_used')
-        if cfg.radiation and not rt.paths.icon.static_data:
+        if cfg.radiation.enabled and not rt.paths.icon.static_data:
             raise ConfigError('For radiation with ICON, the static data file '
                     'with surface emissivity must be specified', cfg.path,
                     'icon_static_data')
@@ -81,7 +81,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 and rt.timestep_rad != rt.simulation.timestep):
             raise ConfigError('For radiation with ICON, the radiation timestep '
                     'can not be configured to a different value than the main '
-                    'timestep', cfg.simulation, 'timestep_rad')
+                    'timestep', cfg.radiation, 'timestep')
         if cfg.output.geostrophic_wind:
             raise ConfigError('The ICON plugin does not support geostrophic wind',
                               cfg.output, 'geostrophic_wind')
@@ -100,7 +100,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         verbose('ICON horizon range for instantaneous values: {}...{}',
                 hselect.horiz_first, hselect.horiz_last)
 
-        if cfg.radiation:
+        if cfg.radiation.enabled:
             # Radiation uses same timestep as IBC in ICON
             rt.timestep_rad = rt.simulation.timestep
             rt.nt_rad = rt.tindex(rt.simulation.end_time_rad) + 2 #=nt+1 unless nested
@@ -160,7 +160,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     verbose('File is used for HHL.')
                     use = True
 
-                if cfg.radiation:
+                if cfg.radiation.enabled:
                     it_rad_left = hselect_rad_left.get_idx(thoriz, it)
                     if it_rad_left is not False:
                         verbose('File is used for left-side deaggregation of radiation.')
@@ -223,7 +223,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     for varname in cfg.icon.vars_soil:
                         fout.createVariable(varname, 'f4', ['time', 'zsoil', 'ncells'])
 
-                    if cfg.radiation:
+                    if cfg.radiation.enabled:
                         verbose('Building list of indices for radiation smoothing.')
 
                         deg_range = cfg.icon.radiation_smoothing_distance / (PalmPhysics.radius*rad)
@@ -254,7 +254,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     assert(np.abs(zsl2-rt.z_soil_levels).max() < 0.01)
 
                 # Process aggregate values
-                if cfg.radiation:
+                if cfg.radiation.enabled:
                     # Verified: ASWDIR_S + ASWDIFD_S - ASWDIFU_S (upward) == ASOB_S (net),
                     # therefore ASWDIR_S must be on horizontal (not normal) plane
                     swdir = fin.variables['ASWDIR_S'][0][rad_mask].mean()
@@ -331,7 +331,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 die('Base ICON run {} not loaded!', dtrun)
 
         # De-aggregate values
-        if cfg.radiation:
+        if cfg.radiation.enabled:
             verbose('De-aggregating SW+LW radiation.')
             if aggr_start[0] is None and cfg.icon.allow_skip_first_disaggr:
                 log('Extrapolating ICON disaggregated radiation values for '

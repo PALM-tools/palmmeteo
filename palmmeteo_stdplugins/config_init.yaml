@@ -594,14 +594,16 @@ task_config:
 
     wrf_rad:
         set:
-            radiation: true
+            radiation:
+                enabled: true
         extend:
             plugins:
                 - palmmeteo_stdplugins.wrf.WRFRadPlugin
 
     aladin_rad:
         set:
-            radiation: true
+            radiation:
+                enabled: true
         extend:
             plugins:
                 - palmmeteo_stdplugins.aladin.AladinRadPlugin

@@ -121,7 +121,15 @@ simulation:
     #timestep_rad: auto # default: detect from input files (if possible)
     #timestep_rad: 10 m # explicit
 
-#radiation: false #off by default, switched on by tasks or manually
+radiation:
+    #enabled: false #off by default, switched on by tasks or manually
+
+    #timestep: auto #default: detect from input files (if possible)
+    #timestep: 10 m #explicit
+
+    # Configure when using external radiation also for spinup (PALM default for
+    # spinup is clearsky).
+    #spinup_length: 0 h
 
 #chem_species: [] #empty list = disabled chemistry
 

@@ -93,6 +93,7 @@ class SetupPlugin(SetupPluginMixin):
         verbose('zw: {}', rt.z_levels_stag)
 
         # configure times
+        rt.simulation.start_time_rad = rt.simulation.start_time - rt.simulation.spinup_rad
         rt.simulation.end_time_rad = rt.simulation.start_time + rt.simulation.length
         rt.tindex = DTIndexer(rt.simulation.start_time, rt.simulation.timestep)
         if rt.nested_domain:
