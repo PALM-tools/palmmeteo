@@ -532,21 +532,23 @@ class WRFRadPlugin(ImportPluginMixin):
             # Determine timestep and check consistency
             rt.nt_rad = len(rt.times_rad)
             if rt.times_rad[0] != rt.simulation.start_time_rad:
-                die('Radiation must start with (spinup) start time ({}), but they start with '
-                        '{}!', rt.simulation.start_time_rad, rt.times_rad[0])
+                die('Radiation files must start with (spinup) start time ({}), '
+                    'but they start with {}!', rt.simulation.start_time_rad,
+                    rt.times_rad[0])
             if rt.times_rad[-1] != rt.simulation.end_time_rad:
-                die('Radiation must start with end time ({}), but they end with '
-                        '{}!', rt.simulation.end_time_rad, rt.times_rad[-1])
+                die('Radiation files must end with end time ({}), but they end '
+                    'with {}!', rt.simulation.end_time_rad, rt.times_rad[-1])
             rt.timestep_rad = rt.times_rad[1] - rt.times_rad[0]
             if rt.simulation.spinup_rad % rt.timestep_rad:
                 die('Spinup length must be divisible by radiation timestep '
-                    'when radtation timestep is autodetected.')
+                    'when radiation timestep is autodetected.')
             for i in range(1, rt.nt_rad-1):
                 step = rt.times_rad[i+1] - rt.times_rad[i]
                 if step != rt.timestep_rad:
                     die('Time delta between steps {} and {} ({}) is different from '
                             'radiation timestep ({})!', i, i+1, step, rt.timestep_rad)
-            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+            rt.times_rad_sec = (np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+                                - rt.simulation.spinup_rad.total_seconds())
             verbose('Using detected radiation timestep {} with {} times.',
                     rt.timestep_rad, rt.nt_rad)
 
