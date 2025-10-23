@@ -1,0 +1,26 @@
+<map id="palmmeteo.plugins.Plugin" name="palmmeteo.plugins.Plugin">
+<area shape="rect" id="node1" title=" " alt="" coords="380,422,551,449"/>
+<area shape="rect" id="node5" href="$classpalmmeteo_1_1plugins_1_1HInterpPluginMixin.html" title=" " alt="" coords="612,136,791,177"/>
+<area shape="rect" id="node11" href="$classpalmmeteo_1_1plugins_1_1ImportPluginMixin.html" title=" " alt="" coords="615,332,788,373"/>
+<area shape="rect" id="node17" href="$classpalmmeteo_1_1plugins_1_1SetupPluginMixin.html" title=" " alt="" coords="599,659,804,700"/>
+<area shape="rect" id="node20" href="$classpalmmeteo_1_1plugins_1_1VInterpPluginMixin.html" title=" " alt="" coords="612,201,791,243"/>
+<area shape="rect" id="node21" href="$classpalmmeteo_1_1plugins_1_1WritePluginMixin.html" title=" " alt="" coords="601,789,802,831"/>
+<area shape="rect" id="node24" href="$classpalmmeteo__stdplugins_1_1meteo_1_1RequiresMeteoPluginMixin.html" title=" " alt="" coords="603,496,799,537"/>
+<area shape="rect" id="node2" title=" " alt="" coords="191,397,273,423"/>
+<area shape="rect" id="node3" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="132,447,332,474"/>
+<area shape="rect" id="node4" title=" " alt="" coords="5,447,84,474"/>
+<area shape="rect" id="node6" href="$classpalmmeteo__stdplugins_1_1aladin_1_1AladinPlugin.html" title=" " alt="" coords="864,201,1059,243"/>
+<area shape="rect" id="node7" href="$classpalmmeteo__stdplugins_1_1cams_1_1CAMSPlugin.html" title=" " alt="" coords="865,267,1057,308"/>
+<area shape="rect" id="node8" href="$classpalmmeteo__stdplugins_1_1camx_1_1CAMxPlugin.html" title=" " alt="" coords="866,5,1057,47"/>
+<area shape="rect" id="node9" href="$classpalmmeteo__stdplugins_1_1icon_1_1IconPlugin.html" title=" " alt="" coords="869,71,1053,112"/>
+<area shape="rect" id="node10" href="$classpalmmeteo__stdplugins_1_1wrf_1_1WRFPlugin.html" title=" " alt="" coords="872,136,1051,177"/>
+<area shape="rect" id="node12" href="$classpalmmeteo__stdplugins_1_1aladin_1_1AladinRadPlugin.html" title=" " alt="" coords="864,397,1059,439"/>
+<area shape="rect" id="node13" href="$classpalmmeteo__stdplugins_1_1meteo_1_1EmisPlugin.html" title=" " alt="" coords="863,593,1059,635"/>
+<area shape="rect" id="node14" href="$classpalmmeteo__stdplugins_1_1meteo_1_1SomeMeteoPlugin.html" title=" " alt="" coords="863,463,1059,504"/>
+<area shape="rect" id="node15" href="$classpalmmeteo__stdplugins_1_1synthetic_1_1SyntheticPlugin.html" title=" " alt="" coords="855,332,1067,373"/>
+<area shape="rect" id="node16" href="$classpalmmeteo__stdplugins_1_1wrf_1_1WRFRadPlugin.html" title=" " alt="" coords="872,528,1051,569"/>
+<area shape="rect" id="node18" href="$classpalmmeteo__stdplugins_1_1setup_1_1SetupPlugin.html" title=" " alt="" coords="865,659,1057,700"/>
+<area shape="rect" id="node19" href="$classpalmmeteo__stdplugins_1_1setup__staticdriver_1_1StaticDriverPlugin.html" title=" " alt="" coords="861,724,1061,765"/>
+<area shape="rect" id="node22" href="$classpalmmeteo__stdplugins_1_1winddamp_1_1WindDampPlugin.html" title=" " alt="" coords="852,789,1071,831"/>
+<area shape="rect" id="node23" href="$classpalmmeteo__stdplugins_1_1write_1_1WritePlugin.html" title=" " alt="" coords="867,855,1055,896"/>
+</map>

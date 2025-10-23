@@ -1,0 +1,10 @@
+<map id="palmmeteo_stdplugins.cams.CAMSPlugin" name="palmmeteo_stdplugins.cams.CAMSPlugin">
+<area shape="rect" id="node1" title=" " alt="" coords="825,71,1017,112"/>
+<area shape="rect" id="node2" href="$classpalmmeteo_1_1plugins_1_1ImportPluginMixin.html" title=" " alt="" coords="601,5,775,47"/>
+<area shape="rect" id="node3" href="$classpalmmeteo_1_1plugins_1_1Plugin.html" title=" " alt="" coords="380,78,551,105"/>
+<area shape="rect" id="node7" href="$classpalmmeteo_1_1plugins_1_1HInterpPluginMixin.html" title=" " alt="" coords="599,71,777,112"/>
+<area shape="rect" id="node8" href="$classpalmmeteo_1_1plugins_1_1VInterpPluginMixin.html" title=" " alt="" coords="599,136,777,177"/>
+<area shape="rect" id="node4" title=" " alt="" coords="191,53,273,79"/>
+<area shape="rect" id="node5" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="132,103,332,130"/>
+<area shape="rect" id="node6" title=" " alt="" coords="5,103,84,130"/>
+</map>
