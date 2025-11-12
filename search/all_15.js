@@ -9,5 +9,6 @@ var searchData=
   ['vinterp_2epy_6',['vinterp.py',['../vinterp_8py.html',1,'']]],
   ['vinterp_5fnative_2ef90_7',['vinterp_native.f90',['../vinterp__native_8f90.html',1,'']]],
   ['vinterpfortranthread_8',['VInterpFortranThread',['../classpalmmeteo_1_1vinterp_1_1VInterpFortranThread.html',1,'palmmeteo::vinterp']]],
-  ['vinterppluginmixin_9',['VInterpPluginMixin',['../classpalmmeteo_1_1plugins_1_1VInterpPluginMixin.html',1,'palmmeteo::plugins']]]
+  ['vinterpolator_9',['vinterpolator',['../classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#a74adf6cca26ead769e3309483af737cc',1,'palmmeteo_stdplugins::synthetic::ProfileInterpolator']]],
+  ['vinterppluginmixin_10',['VInterpPluginMixin',['../classpalmmeteo_1_1plugins_1_1VInterpPluginMixin.html',1,'palmmeteo::plugins']]]
 ];

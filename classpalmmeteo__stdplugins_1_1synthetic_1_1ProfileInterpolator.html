@@ -78,6 +78,8 @@ $(function() {
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a2f39f292843e2c167922bcac93e9f990"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#a2f39f292843e2c167922bcac93e9f990">__init__</a> (self, varname, vc)</td></tr>
 <tr class="separator:a2f39f292843e2c167922bcac93e9f990"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af734faa142e9c53f8fda981cd69dbc85"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#af734faa142e9c53f8fda981cd69dbc85">get_vinterp</a> (self, terrain_ratio, gp0, t0, p_surf, p_trans)</td></tr>
+<tr class="separator:af734faa142e9c53f8fda981cd69dbc85"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a7e0db2d0168226949173b63f1512c9"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#a7a7e0db2d0168226949173b63f1512c9">interp_next_time</a> (self, dt)</td></tr>
 <tr class="separator:a7a7e0db2d0168226949173b63f1512c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -97,6 +99,12 @@ Public Attributes</h2></td></tr>
 <tr class="separator:a1480ac4f3edd91c4c51af51a8be38ade"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac0593b5c09da1bbb942fa797504ced4e"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#ac0593b5c09da1bbb942fa797504ced4e">prof</a></td></tr>
 <tr class="separator:ac0593b5c09da1bbb942fa797504ced4e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd9c856de35a799de3f0fccef03bb3c4"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#afd9c856de35a799de3f0fccef03bb3c4">is_wind</a></td></tr>
+<tr class="separator:afd9c856de35a799de3f0fccef03bb3c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a33f9717d62a8dacb51bbffb80cced0e2"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#a33f9717d62a8dacb51bbffb80cced0e2">is_zstag</a></td></tr>
+<tr class="separator:a33f9717d62a8dacb51bbffb80cced0e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a74adf6cca26ead769e3309483af737cc"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#a74adf6cca26ead769e3309483af737cc">vinterpolator</a></td></tr>
+<tr class="separator:a74adf6cca26ead769e3309483af737cc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="a2f39f292843e2c167922bcac93e9f990" name="a2f39f292843e2c167922bcac93e9f990"></a>
@@ -134,6 +142,58 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
+<a id="af734faa142e9c53f8fda981cd69dbc85" name="af734faa142e9c53f8fda981cd69dbc85"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af734faa142e9c53f8fda981cd69dbc85">&#9670;&nbsp;</a></span>get_vinterp()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">def palmmeteo_stdplugins.synthetic.ProfileInterpolator.get_vinterp </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>self</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>terrain_ratio</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>gp0</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>t0</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>p_surf</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>p_trans</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a7a7e0db2d0168226949173b63f1512c9" name="a7a7e0db2d0168226949173b63f1512c9"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7a7e0db2d0168226949173b63f1512c9">&#9670;&nbsp;</a></span>interp_next_time()</h2>
 
@@ -219,6 +279,34 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="afd9c856de35a799de3f0fccef03bb3c4" name="afd9c856de35a799de3f0fccef03bb3c4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afd9c856de35a799de3f0fccef03bb3c4">&#9670;&nbsp;</a></span>is_wind</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo_stdplugins.synthetic.ProfileInterpolator.is_wind</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a33f9717d62a8dacb51bbffb80cced0e2" name="a33f9717d62a8dacb51bbffb80cced0e2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a33f9717d62a8dacb51bbffb80cced0e2">&#9670;&nbsp;</a></span>is_zstag</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo_stdplugins.synthetic.ProfileInterpolator.is_zstag</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aed9a8d21773d74a24fd4a8ec634ae177" name="aed9a8d21773d74a24fd4a8ec634ae177"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aed9a8d21773d74a24fd4a8ec634ae177">&#9670;&nbsp;</a></span>next_dt</h2>
 
@@ -255,6 +343,20 @@ Public Attributes</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">palmmeteo_stdplugins.synthetic.ProfileInterpolator.times</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a74adf6cca26ead769e3309483af737cc" name="a74adf6cca26ead769e3309483af737cc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a74adf6cca26ead769e3309483af737cc">&#9670;&nbsp;</a></span>vinterpolator</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo_stdplugins.synthetic.ProfileInterpolator.vinterpolator</td>
         </tr>
       </table>
 </div><div class="memdoc">

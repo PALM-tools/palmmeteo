@@ -19,7 +19,7 @@ var searchData=
   ['stage_5fidx_16',['stage_idx',['../classpalmmeteo_1_1utils_1_1Workflow.html#a82a330eaf8c5a5bbc7a5d032d23ebca6',1,'palmmeteo::utils::Workflow']]],
   ['stagger_17',['stagger',['../classpalmmeteo__stdplugins_1_1winddamp_1_1WindDampPlugin.html#ab47ac8c5cdad1aadc0a23294ff6c5405',1,'palmmeteo_stdplugins::winddamp::WindDampPlugin']]],
   ['staticdriverplugin_18',['StaticDriverPlugin',['../classpalmmeteo__stdplugins_1_1setup__staticdriver_1_1StaticDriverPlugin.html',1,'palmmeteo_stdplugins::setup_staticdriver']]],
-  ['stretch_5fheigts_19',['stretch_heigts',['../namespacepalmmeteo__stdplugins_1_1synthetic.html#a7ccd132a0212695bb2e41799267ee621',1,'palmmeteo_stdplugins::synthetic']]],
+  ['stretch_5fheights_19',['stretch_heights',['../namespacepalmmeteo__stdplugins_1_1synthetic.html#adc4c9d3cd4ea0c47fe234ceb0a3be768',1,'palmmeteo_stdplugins::synthetic']]],
   ['synthetic_2epy_20',['synthetic.py',['../synthetic_8py.html',1,'']]],
   ['syntheticplugin_21',['SyntheticPlugin',['../classpalmmeteo__stdplugins_1_1synthetic_1_1SyntheticPlugin.html',1,'palmmeteo_stdplugins::synthetic']]]
 ];
