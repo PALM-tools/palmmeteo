@@ -77,10 +77,11 @@ def basic_init(rt):
     rt.simulation = RuntimeObj()
     rt.simulation.timestep = parse_duration(cfg.simulation, 'timestep')
     rt.simulation.length = parse_duration(cfg.simulation, 'length')
-    if cfg.simulation.timestep_rad == 'auto':
+    if cfg.radiation.timestep == 'auto':
         rt.timestep_rad = None
     else:
-        rt.timestep_rad = parse_duration(cfg.simulation, 'timestep_rad')
+        rt.timestep_rad = parse_duration(cfg.radiation, 'timestep')
+    rt.simulation.spinup_rad = parse_duration(cfg.radiation, 'spinup_length')
 
     # Paths
     rt.path_strings = {}

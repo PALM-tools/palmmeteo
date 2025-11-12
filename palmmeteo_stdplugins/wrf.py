@@ -429,9 +429,8 @@ class WRFRadPlugin(ImportPluginMixin):
         if (rt.timestep_rad is None
                 and cfg.wrf.assim_cycles.cycles_used != 'all'):
             die('Automatic radiation timestep length '
-                '(simulation:timestep_rad=auto) cannot be combined with '
-                'explicit cycles (wrf:assim_cycles:cycles_used other than '
-                '"all")!')
+                '(radiation:timestep=auto) cannot be combined with explicit '
+                'cycles (wrf:assim_cycles:cycles_used other than "all")!')
 
     def import_data(self, *args, **kwargs):
         log('Importing WRF radiation data...')
@@ -441,12 +440,11 @@ class WRFRadPlugin(ImportPluginMixin):
         if detect_timestep:
             rad_data = []
         else:
-            hselect = HorizonSelection.from_cfg(cfg.wrf.assim_cycles)
+            hselect = HorizonSelection.from_cfg(cfg.wrf.assim_cycles, idx_rad=True)
 
+            rt.nt_rad = hselect.idx1 - hselect.idx0
             ts_sec = rt.timestep_rad.total_seconds()
-            rt.nt_rad = math.floor((rt.simulation.end_time_rad - rt.simulation.start_time).total_seconds()
-                                   / ts_sec) + 1
-            rt.times_rad_sec = np.arange(rt.nt_rad) * ts_sec
+            rt.times_rad_sec = np.arange(hselect.idx0, hselect.idx1) * ts_sec
 
             rad_data = [None] * rt.nt_rad
 
@@ -458,7 +456,7 @@ class WRFRadPlugin(ImportPluginMixin):
                 cycle, t = wrfout_dt(fin)
 
                 if detect_timestep:
-                    if not (rt.simulation.start_time <= t <= rt.simulation.end_time_rad):
+                    if not (rt.simulation.start_time_rad <= t <= rt.simulation.end_time_rad):
                         verbose('Time {} is out of range - skipping', t)
                         continue
                 else:
@@ -470,7 +468,7 @@ class WRFRadPlugin(ImportPluginMixin):
                         die('Time {} has been already loaded!', t)
 
                 verbose('Importing radiation for time {}', t)
-                if not rad_data:
+                if first:
                     verbose('Building list of indices for radiation smoothing.')
 
                     # Find mask using PALM projection
@@ -498,8 +496,7 @@ class WRFRadPlugin(ImportPluginMixin):
                     assert all(ymask[yfrom:yto])
                     mask = ~mask[yfrom:yto,xfrom:xto]
 
-                # load radiation
-                if first:
+                    # Detect radiation variables
                     rad_vars = [cfg.wrf.rad_vars.sw_tot_h, cfg.wrf.rad_vars.lw_tot_h]
                     if cfg.wrf.rad_vars.sw_dif_h in fin.variables:
                         verbose('WRF file does contain {} variable, adding diffuse component.',
@@ -511,6 +508,7 @@ class WRFRadPlugin(ImportPluginMixin):
                                 cfg.wrf.rad_vars.sw_dif_h)
                         rt.has_rad_diffuse = False
 
+                # Load values
                 entry = [t]
                 for varname in rad_vars:
                     arr = fin.variables[varname][0,yfrom:yto,xfrom:xto]
@@ -525,9 +523,7 @@ class WRFRadPlugin(ImportPluginMixin):
         verbose('Processing loaded radiation values')
         if detect_timestep:
             rad_data.sort()
-            rad_data_uz = list(zip(*rad_data)) #unzip/transpose
-        else:
-            rad_data_uz = rad_data
+        rad_data_uz = list(zip(*rad_data)) #unzip/transpose
 
         rad_times = rad_data_uz[0]
         rt.times_rad = list(rad_times)
@@ -535,19 +531,24 @@ class WRFRadPlugin(ImportPluginMixin):
         if detect_timestep:
             # Determine timestep and check consistency
             rt.nt_rad = len(rt.times_rad)
-            if rt.times_rad[0] != rt.simulation.start_time:
-                die('Radiation must start with start time ({}), but they start with '
-                        '{}!', rt.simulation.start_time, rt.times_rad[0])
+            if rt.times_rad[0] != rt.simulation.start_time_rad:
+                die('Radiation files must start with (spinup) start time ({}), '
+                    'but they start with {}!', rt.simulation.start_time_rad,
+                    rt.times_rad[0])
             if rt.times_rad[-1] != rt.simulation.end_time_rad:
-                die('Radiation must start with end time ({}), but they end with '
-                        '{}!', rt.simulation.end_time_rad, rt.times_rad[-1])
+                die('Radiation files must end with end time ({}), but they end '
+                    'with {}!', rt.simulation.end_time_rad, rt.times_rad[-1])
             rt.timestep_rad = rt.times_rad[1] - rt.times_rad[0]
+            if rt.simulation.spinup_rad % rt.timestep_rad:
+                die('Spinup length must be divisible by radiation timestep '
+                    'when radiation timestep is autodetected.')
             for i in range(1, rt.nt_rad-1):
                 step = rt.times_rad[i+1] - rt.times_rad[i]
                 if step != rt.timestep_rad:
                     die('Time delta between steps {} and {} ({}) is different from '
                             'radiation timestep ({})!', i, i+1, step, rt.timestep_rad)
-            rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+            rt.times_rad_sec = (np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+                                - rt.simulation.spinup_rad.total_seconds())
             verbose('Using detected radiation timestep {} with {} times.',
                     rt.timestep_rad, rt.nt_rad)
 
