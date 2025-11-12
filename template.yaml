@@ -241,7 +241,25 @@ camx:
 
 synthetic:
     #prof_vars:
-    #    u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    u:
+    #        # The list of vertical profiles of the given quantity, either one
+    #        # profile for values constant in time or more as timesteps within
+    #        # timeseries
+    #        profiles: ~
+
+    #        # List of heights of the vertical profile points (m above origin_z)
+    #        heights: ~
+
+    #        # If specified, allows arbitrary permutation or repetition of
+    #        # timesteps from "profiles" (using order numbers starting from 0).
+    #        # If unspecified, the profiles are taken sequentially, starting
+    #        # over from the first one if there is less of them than "times".
+    #        timeseries: ~
+
+    #        # Time points for the timeseries. This may be omitted if there is
+    #        # exactly one profile (constant in time).
+    #        times: ~
+
     #    v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
     #    w: {profiles: ~, heights: ~, timeseries: ~, times: ~}
     #    pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}
@@ -249,8 +267,8 @@ synthetic:
     #    soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}
     #    soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}
 
-    #p_surf: ~
-    #p_sl: 100000.
+    #p_surf: ~ #pressure at origin_z (default: calculate from p_sl)
+    #p_sl: 100000. #sea level pressure for p_surf calculation
 
 aladin:
     #load_gribs: true

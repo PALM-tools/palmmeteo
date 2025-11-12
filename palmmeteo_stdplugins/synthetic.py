@@ -38,7 +38,7 @@ g = PalmPhysics.g
 def expand(var):
     """expand horizontal dimensions and pad at top and bottom"""
     v = np.zeros((var.shape[0]+2, rt.ny, rt.nx), dtype=var.dtype)
-    v[0,:,:] = var[0]
+    v[0,:,:] = var[0,ax_,ax_]
     v[1:-1,:,:] = var[:,ax_,ax_]
     v[-1,:,:] = var[-1,ax_,ax_]
     return v
@@ -127,40 +127,30 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             p_surf_new = barom_pres(p_surf, gp_new_surf, gp0, t0)
             terrain_ratio = (p_surf_new - p_trans) / (p_surf - p_trans)
 
-            z = stretch_heigts(prof.heights, gp_new_surf, gp0, t0, p_surf, p_trans)
-
-            # Standard heights
-            vinterp, vinterp_wind = get_vinterp(rt.z_levels, z, True, True)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
 
             fout.variables['init_atmosphere_pt'][it,:,:,:], = vinterp(expand(pt))
             del pt
 
             prof = rt.synth_profiles['qv']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
             fout.variables['init_atmosphere_qv'][it,:,:,:], = vinterp(var)
 
             prof = rt.synth_profiles['u']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
-            fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp_wind(var)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+            fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp(var)
 
             prof = rt.synth_profiles['v']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
-            fout.variables['init_atmosphere_v'][it,:,:,:], = vinterp_wind(var)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+            fout.variables['init_atmosphere_v'][it,:,:,:], = vinterp(var)
 
-            del vinterp, vinterp_wind
-
-            # Z staggered
             prof = rt.synth_profiles['w']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
-            vinterp_wind, = get_vinterp(rt.z_levels_stag, z, False, True)
-
-            fout.variables['init_atmosphere_w'][it,:,:,:], = vinterp_wind(var)
-
-            del vinterp_wind
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+            fout.variables['init_atmosphere_w'][it,:,:,:], = vinterp(var)
 
             # Other vars w/o vinterp
             fout.variables['init_soil_t'][it,:,:,:] = (
@@ -169,7 +159,11 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             fout.variables['init_soil_m'][it,:,:,:] = (
                     rt.synth_profiles['soil_m'].interp_next_time(rt.times[it])[:,ax_,ax_])
 
-def stretch_heigts(heights, terrain_ratio, gp0, t0, p_surf, p_trans):
+        # Delete prepared interpolators
+        for prof in rt.synth_profiles.values():
+            prof.vinterpolator = None
+
+def stretch_heights(heights, terrain_ratio, gp0, t0, p_surf, p_trans):
     # Convert the geopotentials to pressure naively using barometric equation
     gp_prof = heights*g + gp0
     p_orig = barom_pres(p_surf, gp_prof, gp0, t0)[:,ax_,ax_]
@@ -235,6 +229,16 @@ class ProfileInterpolator:
 
         self.times = times
         self.prof = prof
+        self.is_wind = varname in ['u', 'v', 'w']
+        self.is_zstag = (varname == 'w')
+        self.vinterpolator = None
+
+    def get_vinterp(self, terrain_ratio, gp0, t0, p_surf, p_trans):
+        if self.vinterpolator is None:
+            ztarget = rt.z_levels_stag if self.is_zstag else rt.z_levels
+            z = stretch_heights(self.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
+            self.vinterpolator, = get_vinterp(ztarget, z, not self.is_wind, self.is_wind)
+        return self.vinterpolator
 
     def interp_next_time(self, dt):
         if dt > self.next_dt:
