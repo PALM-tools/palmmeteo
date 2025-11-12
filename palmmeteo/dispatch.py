@@ -127,7 +127,7 @@ def run(argv):
     basic_init(rt)
 
     # Load plugins as configured
-    verbose('Initialising plugins')
+    verbose('Initializing plugins')
     plugins = [plg.plugin_factory(p) for p in cfg.plugins]
 
     if workflow.snapshot_from:
