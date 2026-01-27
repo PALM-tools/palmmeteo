@@ -197,3 +197,4 @@ tasks:
     #- cams       # CAMS chemistry inputs
     #- synthetic  # Profiles and other synthetic inputs
     #- winddamp   # Postprocessor for wind damping near walls
+    #- plot       # Generates plots with time-series of vertical profiles
