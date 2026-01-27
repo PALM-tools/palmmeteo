@@ -31,9 +31,6 @@ from palmmeteo.logging import die, warn, log, verbose
 from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
 
-deg_ticks = np.linspace(0, 360, 9)
-deg_labels = [f'{t:.0f}°' for t in deg_ticks]
-
 class PlotPlugin(WritePluginMixin):
     """
     A plugin for plotting time series of vertical profiles of various
@@ -94,20 +91,36 @@ class PlotPlugin(WritePluginMixin):
                     verbose('Plotting.')
 
                     if vn=='wind':
-                        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
+                        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True, layout='constrained')
+
+                        ax1.grid(False)
                         m = ax1.pcolormesh(rt.times, rt.z_levels, wspd)
-                        plt.colorbar(m, label='Wind speed (m/s)')
+                        ax1c = ax1.inset_axes([1.12, 0, 0.11, 1])
+                        plt.colorbar(m, cax=ax1c, label='Wind speed (m/s)')
                         ax1.set_ylabel('Height (m above origin_z)')
+
+                        ax2.grid(False)
                         m = ax2.pcolormesh(rt.times, rt.z_levels, wdir,
                                 #alpha=np.minimum(1., wspd),
                                 cmap=cm.twilight)
-                        cb = plt.colorbar(m, label='Wind direction')
-                        cb.set_ticks(ticks=deg_ticks, labels=deg_labels)
                         ax2.tick_params('x', rotation=45)
                         ax2.set_ylabel('Height (m above origin_z)')
+
+                        ax2c = ax2.inset_axes([1.08, 0, 0.20, 1],
+                            projection='polar',theta_offset=np.pi/2.,theta_direction=-1.)
+                        cb_azimuths = np.arange(0, 361, 1)
+                        cb_zeniths = np.arange(3, 5, 1)
+                        cb_values = np.broadcast_to(cb_azimuths[np.newaxis,:], [2,361])
+                        ax2c.grid(False)
+                        ax2c.pcolormesh(cb_azimuths*(np.pi/180.), cb_zeniths, cb_values, cmap=cm.twilight)
+                        ax2c.set_ylim(0,4)
+                        ax2c.set_yticks([])
+                        ax2c.set_xlabel('Wind direction')
+
                         fig.suptitle(f'Wind at {pos_name}')
                     else:
                         fig, ax = plt.subplots(figsize=(8, 6))
+                        ax.grid(False)
                         m = ax.pcolormesh(rt.times, rt.z_levels, val.T)
                         plt.colorbar(m)
                         ax.tick_params('x', rotation=45)
@@ -116,7 +129,7 @@ class PlotPlugin(WritePluginMixin):
 
                     fig.savefig(os.path.join(dpath,
                         f'plot_{pos_name}_{vn}.{cfg.plot.format}'),
-                        dpi=cfg.plot.dpi)
+                        dpi=cfg.plot.dpi, bbox_inches='tight')
                     plt.close(fig)
 
         verbose('Plotting finished.')
