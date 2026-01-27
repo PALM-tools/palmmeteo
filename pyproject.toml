@@ -29,7 +29,8 @@ Issues = "https://github.com/PALM-tools/palmmeteo/issues"
 [project.optional-dependencies]
 vinterp_metpy = ["metpy>=1.6"]
 geostrophic_wind = ["metpy>=1.6"]
-aladin = ["cfgrib>=0.9.10"]
+aladin = ["cfgrib>=0.9.10", "xarray>=2024.1.0"]
+plot = ["matplotlib>=3.0"]
 
 [tool.setuptools]
 packages = ["palmmeteo", "palmmeteo_stdplugins"]

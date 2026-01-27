@@ -47,12 +47,83 @@ utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
 midnight_of = lambda dt: datetime.datetime.combine(dt.date(), midnight, dt.tzinfo)
 
 # Other
+eps_grid = 1e-3 #Acceptable rounding error for grid points
 fext_re = re.compile(r'\.(\d{3})$')
+pos_re = re.compile(r'''^\s*
+        (
+            (?P<gridpoint> -?\d+(\.\d*)?)
+        |
+            (?P<distance> -?\d+(\.\d*)?)
+            \s* m
+        |
+            (?P<domain> -?\d+(\.\d*)?)
+            \s* %
+        |
+            (?P<degrees> -?\d+(\.\d*)?)
+            (\s* °
+                (\s* (?P<minutes> \d+(\.\d*)?) \s* '
+                    (\s* (?P<seconds> \d+(\.\d*)?) \s* ")?
+                )?
+            )?
+            (?P<quadrant> [NSEW])
+        )
+        \s*$''', re.X)
 
 # Returns min and max+1 indices of true values (such that mask[fr:to] is the
 # bounding box)
 where_range = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))
 
+def parse_pos(pos, ngrid, resol):
+    """Parse position specified as one of the options (see pos_re). May raise ValueError."""
+
+    m = pos_re.match(pos)
+    if not m:
+        raise ValueError()
+
+    v = m.group('gridpoint')
+    if v:
+        return float(v), False
+
+    v = m.group('distance')
+    if v:
+        v = float(v) / resol - 0.5
+        if not -0.5-eps_grid <= v <= ngrid+0.5+eps_grid:
+            raise ValueError()
+        return v, False
+
+    v = m.group('domain')
+    if v:
+        v = float(v) * .01
+        if not 0. <= v <= 1.:
+            raise ValueError()
+        return v * ngrid - 0.5, False
+
+    v = m.group('degrees')
+    if v:
+        deg = float(v)
+
+        v = m.group('minutes')
+        if v:
+            deg += float(v) / 60.
+
+        v = m.group('seconds')
+        if v:
+            deg += float(v) / 3600.
+
+        v = m.group('quadrant')
+        if v in 'NE':
+            pass
+        elif v in 'SW':
+            deg = -deg
+        else:
+            raise ValueError()
+
+        return deg, True
+
+    raise ValueError()
+
+# Round to nearest gridpoint
+nearest_gridpt = lambda v, ngrid: min(ngrid-1, max(0, round(v)))
 
 def distribute(what, into, reverse=False):
     """Distributes integer into integers as evenly as possible"""

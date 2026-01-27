@@ -43,6 +43,9 @@ paths:
     cams:
         file:           'CAMS'
 
+    plot:
+        output_dir:     'METEO'
+
 wrf:
     # Compose continuous timeseries for the simululation using one or more
     # forecast/assimilation cycles from the set of input files
@@ -592,6 +595,26 @@ winddamp:
     stagger_method: average #default
     #stagger_method: minimum
 
+plot:
+    # List of horizontal positions for which to plot vertical profiles as
+    # time-series.
+    positions:
+        - name: center  #prefix for output files
+          xpos: 50%     #specified either as grid point (no suffix), distance
+                        #from origin (suffix m), domain relative (suffix %) or
+                        #degrees lat/lon (suffix N/E/S/W, may contain °'")
+          ypos: 50%     #dtto
+          vars:
+              # Special variables:
+              - wind    #wind (plotted as speed + direction)
+              - temp    #air temperature (plotted as potential + absolute)
+              # All other named variables from IBC:
+              - qv      #water vapor mixing ratio
+
+    format: png #default
+    #format: pdf
+
+    dpi: 300 #also determines sizes for raster outputs
 
 # Configuration items for selected tasks
 task_config:
@@ -655,3 +678,9 @@ task_config:
         extend:
             plugins:
                 - palmmeteo_stdplugins.winddamp.WindDampPlugin
+
+    plot:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.plot.PlotPlugin
