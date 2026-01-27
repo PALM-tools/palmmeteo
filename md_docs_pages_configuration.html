@@ -93,6 +93,7 @@ Configuration options</h1>
 <div class="line">    #- cams       # CAMS chemistry inputs</div>
 <div class="line">    #- synthetic  # Profiles and other synthetic inputs</div>
 <div class="line">    #- winddamp   # Postprocessor for wind damping near walls</div>
+<div class="line">    #- plot       # Generates plots with time-series of vertical profiles</div>
 <div class="line"> </div>
 <div class="line"># Replacement strings to be used in paths. They are valid Python expressions</div>
 <div class="line"># and they may reference configuration values such as `dnum` or `scenario`.</div>
@@ -139,6 +140,9 @@ Configuration options</h1>
 <div class="line"> </div>
 <div class="line">    cams:</div>
 <div class="line">        #file:           &#39;CAMS&#39;</div>
+<div class="line"> </div>
+<div class="line">    plot:</div>
+<div class="line">        #output_dir:     &#39;METEO&#39;</div>
 <div class="line"> </div>
 <div class="line">output:</div>
 <div class="line">    # Overwrite existing output files? Otherwise create a new file with</div>
@@ -312,7 +316,25 @@ Configuration options</h1>
 <div class="line"> </div>
 <div class="line">synthetic:</div>
 <div class="line">    #prof_vars:</div>
-<div class="line">    #    u: {profiles: ~, heights: ~, timeseries: ~, times: ~}</div>
+<div class="line">    #    u:</div>
+<div class="line">    #        # The list of vertical profiles of the given quantity, either one</div>
+<div class="line">    #        # profile for values constant in time or more as timesteps within</div>
+<div class="line">    #        # timeseries</div>
+<div class="line">    #        profiles: ~</div>
+<div class="line"> </div>
+<div class="line">    #        # List of heights of the vertical profile points (m above origin_z)</div>
+<div class="line">    #        heights: ~</div>
+<div class="line"> </div>
+<div class="line">    #        # If specified, allows arbitrary permutation or repetition of</div>
+<div class="line">    #        # timesteps from &quot;profiles&quot; (using order numbers starting from 0).</div>
+<div class="line">    #        # If unspecified, the profiles are taken sequentially, starting</div>
+<div class="line">    #        # over from the first one if there is less of them than &quot;times&quot;.</div>
+<div class="line">    #        timeseries: ~</div>
+<div class="line"> </div>
+<div class="line">    #        # Time points for the timeseries. This may be omitted if there is</div>
+<div class="line">    #        # exactly one profile (constant in time).</div>
+<div class="line">    #        times: ~</div>
+<div class="line"> </div>
 <div class="line">    #    v: {profiles: ~, heights: ~, timeseries: ~, times: ~}</div>
 <div class="line">    #    w: {profiles: ~, heights: ~, timeseries: ~, times: ~}</div>
 <div class="line">    #    pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}</div>
@@ -320,8 +342,8 @@ Configuration options</h1>
 <div class="line">    #    soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}</div>
 <div class="line">    #    soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}</div>
 <div class="line"> </div>
-<div class="line">    #p_surf: ~</div>
-<div class="line">    #p_sl: 100000.</div>
+<div class="line">    #p_surf: ~ #pressure at origin_z (default: calculate from p_sl)</div>
+<div class="line">    #p_sl: 100000. #sea level pressure for p_surf calculation</div>
 <div class="line"> </div>
 <div class="line">aladin:</div>
 <div class="line">    #load_gribs: true</div>
@@ -381,6 +403,26 @@ Configuration options</h1>
 <div class="line">    #stagger_method: average #default</div>
 <div class="line">    #stagger_method: minimum</div>
 <div class="line"> </div>
+<div class="line">plot:</div>
+<div class="line">    # List of horizontal positions for which to plot vertical profiles as</div>
+<div class="line">    # time-series.</div>
+<div class="line">    #positions:</div>
+<div class="line">    #    - name: center  #prefix for output files</div>
+<div class="line">    #      xpos: 50%     #specified either as grid point (no suffix), distance</div>
+<div class="line">    #                    #from origin (suffix m), domain relative (suffix %) or</div>
+<div class="line">    #                    #degrees lat/lon (suffix N/E/S/W, may contain °&#39;&quot;)</div>
+<div class="line">    #      ypos: 50%     #dtto</div>
+<div class="line">    #      vars:</div>
+<div class="line">    #          # Special variables:</div>
+<div class="line">    #          - wind    #wind (plotted as speed + direction)</div>
+<div class="line">    #          - temp    #air temperature (plotted as potential + absolute)</div>
+<div class="line">    #          # All other named variables from IBC:</div>
+<div class="line">    #          - qv      #water vapor mixing ratio</div>
+<div class="line"> </div>
+<div class="line">    #format: png #default</div>
+<div class="line">    #format: pdf</div>
+<div class="line"> </div>
+<div class="line">    #dpi: 300 #also determines sizes for raster outputs</div>
 </div><!-- fragment --><p >This file may be used as a template for a new PALM-meteo configuration by uncommenting the values that the user wants to change.</p>
 <p >Any valid options not listed in the file <code>template.yaml</code> are intended for developers only.</p>
 <h2><a class="anchor" id="autotoc_md17"></a>

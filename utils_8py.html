@@ -97,6 +97,8 @@ Namespaces</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
+<tr class="memitem:ab0396be4db831f30e55cdfda3289245b"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#ab0396be4db831f30e55cdfda3289245b">palmmeteo.utils.parse_pos</a> (pos, ngrid, resol)</td></tr>
+<tr class="separator:ab0396be4db831f30e55cdfda3289245b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c868dca86aa1bb13b965367e5ae0ea3"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a0c868dca86aa1bb13b965367e5ae0ea3">palmmeteo.utils.distribute</a> (what, into, reverse=False)</td></tr>
 <tr class="separator:a0c868dca86aa1bb13b965367e5ae0ea3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aac262ba846d9ff9d59b93bd569aa9207"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aac262ba846d9ff9d59b93bd569aa9207">palmmeteo.utils.distribute_chunks</a> (sizes, nthreads, prefix=(), reverse=False)</td></tr>
@@ -128,10 +130,16 @@ Variables</h2></td></tr>
 <tr class="separator:a18687593f37f5b74de4b7cc5482cdac8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a143f12fd597ad8fb3782ecf06368a366"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a143f12fd597ad8fb3782ecf06368a366">palmmeteo.utils.midnight_of</a> = lambda dt: datetime.datetime.combine(dt.date(), midnight, dt.tzinfo)</td></tr>
 <tr class="separator:a143f12fd597ad8fb3782ecf06368a366"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaee22265502d970a32f3903421b312c6"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aaee22265502d970a32f3903421b312c6">palmmeteo.utils.eps_grid</a> = 1e-3</td></tr>
+<tr class="separator:aaee22265502d970a32f3903421b312c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aff96e3b8da73a2c2c4d00e1b47d63528">palmmeteo.utils.fext_re</a> = re.compile(r'\.(\d{3})$')</td></tr>
 <tr class="separator:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68977b5ca11ca7b8bf71de532e02358f"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a68977b5ca11ca7b8bf71de532e02358f">palmmeteo.utils.pos_re</a> = re.compile(, re.X)</td></tr>
+<tr class="separator:a68977b5ca11ca7b8bf71de532e02358f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a58eafaeaa5ecd11b3d3484580c88db6d"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a58eafaeaa5ecd11b3d3484580c88db6d">palmmeteo.utils.where_range</a> = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))</td></tr>
 <tr class="separator:a58eafaeaa5ecd11b3d3484580c88db6d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7cc1f17d2581b8a5346185b138256816"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a7cc1f17d2581b8a5346185b138256816">palmmeteo.utils.nearest_gridpt</a> = lambda v, ngrid: min(ngrid-1, max(0, round(v)))</td></tr>
+<tr class="separator:a7cc1f17d2581b8a5346185b138256816"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 <!-- start footer part -->

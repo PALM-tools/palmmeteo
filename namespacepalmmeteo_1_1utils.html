@@ -89,6 +89,8 @@ Classes</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
+<tr class="memitem:ab0396be4db831f30e55cdfda3289245b"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#ab0396be4db831f30e55cdfda3289245b">parse_pos</a> (pos, ngrid, resol)</td></tr>
+<tr class="separator:ab0396be4db831f30e55cdfda3289245b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c868dca86aa1bb13b965367e5ae0ea3"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a0c868dca86aa1bb13b965367e5ae0ea3">distribute</a> (what, into, reverse=False)</td></tr>
 <tr class="separator:a0c868dca86aa1bb13b965367e5ae0ea3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aac262ba846d9ff9d59b93bd569aa9207"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aac262ba846d9ff9d59b93bd569aa9207">distribute_chunks</a> (sizes, nthreads, prefix=(), reverse=False)</td></tr>
@@ -120,10 +122,16 @@ Variables</h2></td></tr>
 <tr class="separator:a18687593f37f5b74de4b7cc5482cdac8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a143f12fd597ad8fb3782ecf06368a366"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a143f12fd597ad8fb3782ecf06368a366">midnight_of</a> = lambda dt: datetime.datetime.combine(dt.date(), <a class="el" href="namespacepalmmeteo_1_1utils.html#acd633f3dae1ccc9de58f08d10bb2969f">midnight</a>, dt.tzinfo)</td></tr>
 <tr class="separator:a143f12fd597ad8fb3782ecf06368a366"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaee22265502d970a32f3903421b312c6"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aaee22265502d970a32f3903421b312c6">eps_grid</a> = 1e-3</td></tr>
+<tr class="separator:aaee22265502d970a32f3903421b312c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#aff96e3b8da73a2c2c4d00e1b47d63528">fext_re</a> = re.compile(r'\.(\d{3})$')</td></tr>
 <tr class="separator:aff96e3b8da73a2c2c4d00e1b47d63528"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68977b5ca11ca7b8bf71de532e02358f"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a68977b5ca11ca7b8bf71de532e02358f">pos_re</a> = re.compile(, re.X)</td></tr>
+<tr class="separator:a68977b5ca11ca7b8bf71de532e02358f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a58eafaeaa5ecd11b3d3484580c88db6d"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a58eafaeaa5ecd11b3d3484580c88db6d">where_range</a> = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))</td></tr>
 <tr class="separator:a58eafaeaa5ecd11b3d3484580c88db6d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7cc1f17d2581b8a5346185b138256816"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepalmmeteo_1_1utils.html#a7cc1f17d2581b8a5346185b138256816">nearest_gridpt</a> = lambda v, ngrid: min(ngrid-1, max(0, round(v)))</td></tr>
+<tr class="separator:a7cc1f17d2581b8a5346185b138256816"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="ad693641d7c82e83b27ba8f97d2cddb3f" name="ad693641d7c82e83b27ba8f97d2cddb3f"></a>
@@ -324,6 +332,40 @@ Does NOT verify its parameters.
 </pre> 
 </div>
 </div>
+<a id="ab0396be4db831f30e55cdfda3289245b" name="ab0396be4db831f30e55cdfda3289245b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab0396be4db831f30e55cdfda3289245b">&#9670;&nbsp;</a></span>parse_pos()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">def palmmeteo.utils.parse_pos </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>pos</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>ngrid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>resol</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<pre class="fragment">Parse position specified as one of the options (see pos_re). May raise ValueError.</pre> 
+</div>
+</div>
 <a id="a122f01ea1e69f396a7d21bb2c4542dbd" name="a122f01ea1e69f396a7d21bb2c4542dbd"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a122f01ea1e69f396a7d21bb2c4542dbd">&#9670;&nbsp;</a></span>tstep()</h2>
 
@@ -367,6 +409,20 @@ Does NOT verify its parameters.
 
 </div>
 </div>
+<a id="aaee22265502d970a32f3903421b312c6" name="aaee22265502d970a32f3903421b312c6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaee22265502d970a32f3903421b312c6">&#9670;&nbsp;</a></span>eps_grid</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int palmmeteo.utils.eps_grid = 1e-3</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aff96e3b8da73a2c2c4d00e1b47d63528" name="aff96e3b8da73a2c2c4d00e1b47d63528"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aff96e3b8da73a2c2c4d00e1b47d63528">&#9670;&nbsp;</a></span>fext_re</h2>
 
@@ -403,6 +459,34 @@ Does NOT verify its parameters.
       <table class="memname">
         <tr>
           <td class="memname">palmmeteo.utils.midnight_of = lambda dt: datetime.datetime.combine(dt.date(), <a class="el" href="namespacepalmmeteo_1_1utils.html#acd633f3dae1ccc9de58f08d10bb2969f">midnight</a>, dt.tzinfo)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a7cc1f17d2581b8a5346185b138256816" name="a7cc1f17d2581b8a5346185b138256816"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7cc1f17d2581b8a5346185b138256816">&#9670;&nbsp;</a></span>nearest_gridpt</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo.utils.nearest_gridpt = lambda v, ngrid: min(ngrid-1, max(0, round(v)))</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a68977b5ca11ca7b8bf71de532e02358f" name="a68977b5ca11ca7b8bf71de532e02358f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a68977b5ca11ca7b8bf71de532e02358f">&#9670;&nbsp;</a></span>pos_re</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">palmmeteo.utils.pos_re = re.compile(, re.X)</td>
         </tr>
       </table>
 </div><div class="memdoc">

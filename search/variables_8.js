@@ -9,5 +9,7 @@ var searchData=
   ['interpolators_6',['interpolators',['../namespacepalmmeteo_1_1vinterp.html#ab43e6ec58c8a3245c351afe5126c91c7',1,'palmmeteo::vinterp']]],
   ['is_5fon_7',['is_on',['../classpalmmeteo_1_1logging_1_1LoggingLevel.html#a59511d1a8d53e162588208b943e0e78d',1,'palmmeteo::logging::LoggingLevel']]],
   ['is_5fselected_8',['is_selected',['../classpalmmeteo_1_1library_1_1AssimCycle.html#a61c7e6619ac8c546d4e894d55b049adb',1,'palmmeteo::library::AssimCycle']]],
-  ['iwp_9',['iwp',['../namespacezinterp.html#a493b48d354a5609d819277762a80f35a',1,'zinterp']]]
+  ['is_5fwind_9',['is_wind',['../classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#afd9c856de35a799de3f0fccef03bb3c4',1,'palmmeteo_stdplugins::synthetic::ProfileInterpolator']]],
+  ['is_5fzstag_10',['is_zstag',['../classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#a33f9717d62a8dacb51bbffb80cced0e2',1,'palmmeteo_stdplugins::synthetic::ProfileInterpolator']]],
+  ['iwp_11',['iwp',['../namespacezinterp.html#a493b48d354a5609d819277762a80f35a',1,'zinterp']]]
 ];
