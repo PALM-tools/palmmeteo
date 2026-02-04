@@ -73,6 +73,12 @@ def execute_event(event, from_plugins):
             f = netCDF4.Dataset(fn_out, 'w', format='NETCDF4')
             f.creator = signature
             f.creation_date = datetime.now().isoformat()
+            f.palmmeteo_case = '{}, {}domain {}'.format(
+                    cfg.case,
+                    'scenario {}, '.format(cfg.scenario) if cfg.scenario else '',
+                    cfg.dnum)
+            f.palmmeteo_tasks = ', '.join(cfg.tasks)
+            f.palmmeteo_plugins = ', '.join(cfg.plugins)
             common_files.append(f)
             kwargs['fout'] = f
 
