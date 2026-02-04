@@ -1,11 +1,11 @@
 /tests/integration_tests/*/INPUT/*_dynamic
-/tests/integration_tests/*/METEO/setup.pickle
+/tests/integration_tests/*/METEO/setup.pickle.zst
 /tests/integration_tests/*/METEO/import.nc
-/tests/integration_tests/*/METEO/import.pickle
+/tests/integration_tests/*/METEO/import.pickle.zst
 /tests/integration_tests/*/METEO/hinterp.nc
-/tests/integration_tests/*/METEO/hinterp.pickle
+/tests/integration_tests/*/METEO/hinterp.pickle.zst
 /tests/integration_tests/*/METEO/vinterp.nc
-/tests/integration_tests/*/METEO/vinterp.pickle
+/tests/integration_tests/*/METEO/vinterp.pickle.zst
 
 # This one can be safely used as another worktree for the orphan branch gh-pages
 /docs/html
@@ -13,6 +13,7 @@
 /docs/man
 /docs/latex
 /docs/examples/commandline.txt
+/docs/.commited
 
 /.venv
 /pmeteo
