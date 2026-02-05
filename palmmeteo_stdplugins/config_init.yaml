@@ -617,6 +617,16 @@ plot:
               # All other named variables from IBC:
               - qv      #water vapor mixing ratio
 
+    # Fully qualified names of colormaps used for the plots by type. Defaults
+    # require only standard matplotlib, recommended are from colorcet.
+    colormaps:
+        default: matplotlib.cm.viridis #Default from matplotlib
+        #default: colorcet.m_bmy        #Better
+        zero_based: matplotlib.cm.inferno #Default from matplotlib
+        #zero_based: colorcet.m_fire       #Better
+        wind_direction: matplotlib.cm.twilight #Default from matplotlib
+        #wind_direction: colorcet.m_colorwheel  #Better
+
     format: png #default
     #format: pdf
 

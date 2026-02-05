@@ -20,10 +20,11 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import os
+import importlib
 import numpy as np
 import netCDF4
 from matplotlib import pyplot as plt
-from matplotlib import cm
+from matplotlib import cm, colors
 
 from palmmeteo.utils import parse_pos, nearest_gridpt
 from palmmeteo.plugins import WritePluginMixin
@@ -31,13 +32,31 @@ from palmmeteo.logging import die, warn, log, verbose
 from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
 
+def import_colormap(qname):
+    mod_name, obj_name = qname.rsplit('.', 1)
+    mod = importlib.import_module(mod_name)
+    return getattr(mod, obj_name)
+
 class PlotPlugin(WritePluginMixin):
     """
     A plugin for plotting time series of vertical profiles of various
     meteorological quantities from the inputs to the dynamic driver.
     """
 
-    def check_config(self, *args, **kwargs):
+    def __init__(self):
+        # Load colormaps
+        self.cm_default = import_colormap(cfg.plot.colormaps.default)
+        self.cm_zbased = import_colormap(cfg.plot.colormaps.zero_based)
+        self.cm_wdir = import_colormap(cfg.plot.colormaps.wind_direction)
+
+    def write_data(self, fout, *args, **kwargs):
+        """
+        Loads data from the vertical interpolation step (where there are still
+        full 3D fields for all timesteps, not just the boundaries) and plots
+        them as configured.
+        """
+        log('Plotting time-series of vertical profiles.')
+
         rt.plot_positions = []
         for pos_cfg in cfg.plot.positions:
             p = [pos_cfg.get('name')]
@@ -57,16 +76,11 @@ class PlotPlugin(WritePluginMixin):
             p.append(pos_cfg.get('vars', []))
             rt.plot_positions.append(p)
 
-    def write_data(self, fout, *args, **kwargs):
-        """
-        Loads data from the vertical interpolation step (where there are still
-        full 3D fields for all timesteps, not just the boundaries) and plots
-        them as configured.
-        """
-        log('Plotting time-series of vertical profiles.')
         dpath = rt.paths.plot.output_dir
         if not os.path.isdir(dpath):
             os.makedirs(dpath)
+
+        hstr = f'Height (m above origin: {rt.origin_z:.1f} m AMSL)'
 
         with netCDF4.Dataset(rt.paths.intermediate.vinterp) as fin:
             fiv = fin.variables
@@ -93,18 +107,19 @@ class PlotPlugin(WritePluginMixin):
                     if vn=='wind':
                         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True, layout='constrained')
 
+                        wnorm = colors.Normalize(0., max(1., wspd.max()))
                         ax1.grid(False)
-                        m = ax1.pcolormesh(rt.times, rt.z_levels, wspd)
+                        m = ax1.pcolormesh(rt.times, rt.z_levels, wspd, norm=wnorm, cmap=self.cm_zbased)
                         ax1c = ax1.inset_axes([1.12, 0, 0.11, 1])
                         plt.colorbar(m, cax=ax1c, label='Wind speed (m/s)')
-                        ax1.set_ylabel('Height (m above origin_z)')
+                        ax1.set_ylabel(hstr)
 
                         ax2.grid(False)
                         m = ax2.pcolormesh(rt.times, rt.z_levels, wdir,
                                 #alpha=np.minimum(1., wspd),
-                                cmap=cm.twilight)
+                                cmap=self.cm_wdir)
                         ax2.tick_params('x', rotation=45)
-                        ax2.set_ylabel('Height (m above origin_z)')
+                        ax2.set_ylabel(hstr)
 
                         ax2c = ax2.inset_axes([1.08, 0, 0.20, 1],
                             projection='polar',theta_offset=np.pi/2.,theta_direction=-1.)
@@ -112,7 +127,7 @@ class PlotPlugin(WritePluginMixin):
                         cb_zeniths = np.arange(3, 5, 1)
                         cb_values = np.broadcast_to(cb_azimuths[np.newaxis,:], [2,361])
                         ax2c.grid(False)
-                        ax2c.pcolormesh(cb_azimuths*(np.pi/180.), cb_zeniths, cb_values, cmap=cm.twilight)
+                        ax2c.pcolormesh(cb_azimuths*(np.pi/180.), cb_zeniths, cb_values, cmap=self.cm_wdir)
                         ax2c.set_ylim(0,4)
                         ax2c.set_yticks([])
                         ax2c.set_xlabel('Wind direction')
@@ -121,10 +136,10 @@ class PlotPlugin(WritePluginMixin):
                     else:
                         fig, ax = plt.subplots(figsize=(8, 6))
                         ax.grid(False)
-                        m = ax.pcolormesh(rt.times, rt.z_levels, val.T)
+                        m = ax.pcolormesh(rt.times, rt.z_levels, val.T, cmap=self.cm_default)
                         plt.colorbar(m)
                         ax.tick_params('x', rotation=45)
-                        ax.set_ylabel('Height (m above origin_z)')
+                        ax.set_ylabel(hstr)
                         ax.set_title(title)
 
                     fig.savefig(os.path.join(dpath,
