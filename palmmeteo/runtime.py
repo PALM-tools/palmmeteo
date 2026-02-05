@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
+import sys
 import os
 import pickle
 
@@ -41,11 +42,19 @@ def myopen(fpath, *args, **kwargs):
     else:
         return open(fpath, *args, **kwargs)
 
-class RuntimeObj(object):
+class RuntimeObj:
     """An object for holding runtime-related values.
 
     May be nested.
     """
+
+    def _get_child(self, child_name):
+        try:
+            return self.__dict__[child_name]
+        except KeyError:
+            newchild = self.__class__()
+            self.__dict__[child_name] = newchild
+            return newchild
 
     def _save(self, fpath):
         log('Saving snapshot to {}', fpath)
@@ -54,6 +63,17 @@ class RuntimeObj(object):
                     fix_imports=False)
             p.dump(signature)
             p.dump(self.__dict__)
+            if rt.debug.snapshots:
+                for k, v in self.__dict__.items():
+                    if hasattr(v, 'nbytes'):
+                        verbose('{}:\t{} bytes (np).', k, v.nbytes)
+                    else:
+                        try:
+                            l = len(v)
+                        except:
+                            verbose('{}:\t{} bytes (sys).', k, sys.getsizeof(v))
+                        else:
+                            verbose('{}:\tlength {}, {} bytes (sys).', k, l, sys.getsizeof(v))
         verbose('Snapshot saved.')
 
     def _load(self, fpath):
@@ -74,14 +94,14 @@ def basic_init(rt):
     """Performs initializaiton of basic values from config."""
 
     # Times
-    rt.simulation = RuntimeObj()
-    rt.simulation.timestep = parse_duration(cfg.simulation, 'timestep')
-    rt.simulation.length = parse_duration(cfg.simulation, 'length')
+    simulation = rt._get_child('simulation')
+    simulation.timestep = parse_duration(cfg.simulation, 'timestep')
+    simulation.length = parse_duration(cfg.simulation, 'length')
     if cfg.radiation.timestep == 'auto':
         rt.timestep_rad = None
     else:
         rt.timestep_rad = parse_duration(cfg.radiation, 'timestep')
-    rt.simulation.spinup_rad = parse_duration(cfg.radiation, 'spinup_length')
+    simulation.spinup_rad = parse_duration(cfg.radiation, 'spinup_length')
 
     # Paths
     rt.path_strings = {}
@@ -98,19 +118,25 @@ def basic_init(rt):
             raise
         rt.path_strings[key] = val
 
-    rt.paths = RuntimeObj()
-    rt.paths.base = cfg.paths.base.format(**rt.path_strings)
+    paths = rt._get_child('paths')
+    paths.base = cfg.paths.base.format(**rt.path_strings)
     for sect_name, sect_cfg in cfg.paths:
         if isinstance(sect_cfg, ConfigObj):
-            path_sect = RuntimeObj()
-            setattr(rt.paths, sect_name, path_sect)
+            path_sect = paths._get_child(sect_name)
             for key, val in sect_cfg:
                 if isinstance(val, str):
                     setattr(path_sect, key,
-                        os.path.join(rt.paths.base, val.format(**rt.path_strings)))
+                        os.path.join(paths.base, val.format(**rt.path_strings)))
 
     # Domain
     rt.nested_domain = (cfg.dnum > 1)
     rt.stretching = (cfg.domain.dz_stretch_factor != 1.0)
 
+    # Debugging
+    debug = rt._get_child('debug')
+    isall = cfg.debug.all
+    for dname, don in cfg.debug:
+        setattr(debug, dname, isall or don)
+
+# Global object
 rt = RuntimeObj()

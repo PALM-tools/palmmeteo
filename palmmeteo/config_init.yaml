@@ -198,3 +198,8 @@ tasks:
     #- synthetic  # Profiles and other synthetic inputs
     #- winddamp   # Postprocessor for wind damping near walls
     #- plot       # Generates plots with time-series of vertical profiles
+
+# Debugging by sections for programmers
+debug:
+    all: false
+    snapshots: false
