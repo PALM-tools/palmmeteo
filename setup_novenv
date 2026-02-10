@@ -26,7 +26,11 @@ set -e
 cd "$(dirname "$(which "$0")")"
 
 echo "Installing PALM-meteo requirements."
+# Standard requirements
 python3 -m pip install --upgrade --requirement requirements.txt
+
+# Dynamic versioning
+python3 -m pip install setuptools-scm
 
 if [ -e pmeteo ]; then
     echo "Launcher script pmeteo is already present."
@@ -34,6 +38,7 @@ else
     echo "Creating launcher script pmeteo."
     cat > pmeteo <<EOT
 #!/bin/sh
+export PYTHONPATH="\$(dirname "\$(readlink -f "\$0")")\${PYTHONPATH:+:}\$PYTHONPATH"
 exec python3 -m palmmeteo "\$@"
 EOT
     chmod a+x pmeteo

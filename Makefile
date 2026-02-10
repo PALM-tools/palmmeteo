@@ -38,6 +38,7 @@ build: dist/.updated
 
 dist/.updated: $(SOURCES) $(DOCS_INDEX)
 	python3 -m build -n && touch $@
+	rm -f palmmeteo/_version.py #always detect version dynamically
 
 upload: dist/.uploaded
 
