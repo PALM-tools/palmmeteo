@@ -1,12 +1,20 @@
 var searchData=
 [
-  ['section_0',['section',['../classpalmmeteo_1_1config_1_1ConfigError.html#ac1174e037cd22ad44229db3a1abf77be',1,'palmmeteo::config::ConfigError']]],
-  ['shape_1',['shape',['../classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html#a3942612e48062c83605495b04e596491',1,'palmmeteo_stdplugins.aladin.BilinearRegridder.shape()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html#a7410bc89336b9131f20ed212dbeb90ee',1,'palmmeteo_stdplugins.wrf_utils.BilinearRegridder.shape()']]],
-  ['sigma_5fsb_2',['sigma_sb',['../classpalmmeteo_1_1library_1_1PalmPhysics.html#a6fae38756b36cf78b414a1ee1e34a369',1,'palmmeteo::library::PalmPhysics']]],
-  ['signature_3',['signature',['../namespacepalmmeteo.html#acb271807cc12140db96a8c93ce25b71c',1,'palmmeteo']]],
-  ['simp_4',['simp',['../classpalmmeteo_1_1library_1_1TriRegridder.html#aacda181b4ef648c83051775b90f8c8e1',1,'palmmeteo::library::TriRegridder']]],
-  ['slice_5fobj_5',['slice_obj',['../classpalmmeteo_1_1utils_1_1SliceExtender.html#adde7ba47ffbff1dc463b82b8be0430e7',1,'palmmeteo.utils.SliceExtender.slice_obj()'],['../classpalmmeteo_1_1utils_1_1SliceBoolExtender.html#aa5049612703b030ed44ad6b943e531ec',1,'palmmeteo.utils.SliceBoolExtender.slice_obj()']]],
-  ['slices_6',['slices',['../classpalmmeteo_1_1library_1_1TriRegridder.html#a03791997edaeeb47629f7c526f59cf6e',1,'palmmeteo.library.TriRegridder.slices()'],['../classpalmmeteo_1_1utils_1_1SliceExtender.html#aaee10219adebd1f23a82f5c4c1fc2f57',1,'palmmeteo.utils.SliceExtender.slices()'],['../classpalmmeteo_1_1utils_1_1SliceBoolExtender.html#a788e115aef9c3f859fa59f196f7a5742',1,'palmmeteo.utils.SliceBoolExtender.slices()'],['../classpalmmeteo__stdplugins_1_1setup__staticdriver_1_1Building.html#a8947a7b135b7b103da8fbd3fd33f703f',1,'palmmeteo_stdplugins.setup_staticdriver.Building.slices()']]],
-  ['snapshot_5ffrom_7',['snapshot_from',['../classpalmmeteo_1_1utils_1_1Workflow.html#a86b58b14124d87b01282d9c130ade09f',1,'palmmeteo::utils::Workflow']]],
-  ['stagger_8',['stagger',['../classpalmmeteo__stdplugins_1_1winddamp_1_1WindDampPlugin.html#ab47ac8c5cdad1aadc0a23294ff6c5405',1,'palmmeteo_stdplugins::winddamp::WindDampPlugin']]]
+  ['r_0',['R',['../classpalmmeteo_1_1library_1_1PalmPhysics.html#a28b3bab1c78eb5c886f6b1a07f5347fa',1,'palmmeteo::library::PalmPhysics']]],
+  ['r_5fd_1',['r_d',['../classpalmmeteo_1_1library_1_1PalmPhysics.html#aaf007848245f1a4fc89999798b268aab',1,'palmmeteo::library::PalmPhysics']]],
+  ['rad_2',['rad',['../namespacepalmmeteo_1_1utils.html#aad8da821a8e11cb72800b4fcc1f39f1c',1,'palmmeteo::utils']]],
+  ['radius_3',['radius',['../classpalmmeteo_1_1library_1_1PalmPhysics.html#a8ccb1db4d2bfbc1227e3a190ecc80991',1,'palmmeteo.library.PalmPhysics.radius()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1WrfPhysics.html#a626b01d49862572ee63671e7d6bc9c8b',1,'palmmeteo_stdplugins.wrf_utils.WrfPhysics.radius()']]],
+  ['rank_4',['rank',['../classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html#a2a26d972d804c15abcb0e150cec17d43',1,'palmmeteo_stdplugins.aladin.BilinearRegridder.rank()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html#a0ec88e966bb7a6408ae5e4c20a1af2c0',1,'palmmeteo_stdplugins.wrf_utils.BilinearRegridder.rank()']]],
+  ['rd_5fd_5fcp_5',['rd_d_cp',['../classpalmmeteo_1_1library_1_1PalmPhysics.html#ab3458c27c284c10819e8ae3ebdeb11a8',1,'palmmeteo.library.PalmPhysics.rd_d_cp()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1WrfPhysics.html#a0f1b50bc6f0b7f3a42ab5db79ce55df7',1,'palmmeteo_stdplugins.wrf_utils.WrfPhysics.rd_d_cp()']]],
+  ['re_5fgm3_6',['re_gm3',['../classpalmmeteo_1_1library_1_1UnitConverter.html#aabe29876472903918710ab7d0faa3a1e',1,'palmmeteo::library::UnitConverter']]],
+  ['re_5fkgm3_7',['re_kgm3',['../classpalmmeteo_1_1library_1_1UnitConverter.html#a3399ada9ea795a4c137eead9cf9b4d04',1,'palmmeteo::library::UnitConverter']]],
+  ['re_5flev_8',['re_lev',['../namespacepalmmeteo__stdplugins_1_1cams.html#a9f2a5865886d176b7ea8b459dc75633e',1,'palmmeteo_stdplugins::cams']]],
+  ['re_5fnum_9',['re_num',['../namespacepalmmeteo__stdplugins_1_1camx.html#aed3ff48d79e5054777041d5cb47c6340',1,'palmmeteo_stdplugins.camx.re_num()'],['../namespacepalmmeteo__stdplugins_1_1cams.html#ae7013f672e3d2e7eb37fc10805397b63',1,'palmmeteo_stdplugins.cams.re_num()']]],
+  ['re_5fppbv_10',['re_ppbv',['../classpalmmeteo_1_1library_1_1UnitConverter.html#a5b9278649ad826bcc3ee454c97bceddd',1,'palmmeteo::library::UnitConverter']]],
+  ['re_5fppmv_11',['re_ppmv',['../classpalmmeteo_1_1library_1_1UnitConverter.html#a886fd1a5b3a08f413e650937c939cce6',1,'palmmeteo::library::UnitConverter']]],
+  ['re_5ftime_5fnonst_12',['re_time_nonst',['../namespacepalmmeteo__stdplugins_1_1cams.html#a04eb553090f81e4b6d4aa24c3967ea3d',1,'palmmeteo_stdplugins::cams']]],
+  ['re_5fugm3_13',['re_ugm3',['../classpalmmeteo_1_1library_1_1UnitConverter.html#ab8c77ec59a8a532c25e8717994c13df0',1,'palmmeteo::library::UnitConverter']]],
+  ['regridder_14',['regridder',['../classpalmmeteo_1_1library_1_1QuantityCalculator.html#aa01b3c602d47ad57aa5403c42e2a161c',1,'palmmeteo::library::QuantityCalculator']]],
+  ['required_5fvariables_15',['required_variables',['../namespacepalmmeteo__stdplugins_1_1meteo.html#ae6c5b92956272c3eb123353e7c5e76f1',1,'palmmeteo_stdplugins::meteo']]],
+  ['rt_16',['rt',['../namespacepalmmeteo_1_1runtime.html#aba9a3ecf2eb61be9d2e29032c58c4d89',1,'palmmeteo::runtime']]]
 ];
