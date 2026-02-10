@@ -37,6 +37,14 @@ def import_colormap(qname):
     mod = importlib.import_module(mod_name)
     return getattr(mod, obj_name)
 
+def getfirst(d, *keys):
+    for k in keys:
+        try:
+            return d[k]
+        except KeyError:
+            pass
+    raise KeyError(f'Could not find either of {keys} in {d}.')
+
 class PlotPlugin(WritePluginMixin):
     """
     A plugin for plotting time series of vertical profiles of various
@@ -99,7 +107,7 @@ class PlotPlugin(WritePluginMixin):
                         val = fiv['init_atmosphere_pt'][:,:,ypos,xpos] - 273.15
                         title = f'Potential temperature at {pos_name} (°C)'
                     else:
-                        val = fiv['init_atmosphere_'+vn][:,:,ypos,xpos]
+                        val = getfirst(fiv, 'init_atmosphere_'+vn, vn)[:,:,ypos,xpos]
                         title = f'{vn} at {pos_name}'
 
                     verbose('Plotting.')
