@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 Copyright 2019-2025 Pavel Krc <src@pkrc.net>
 '''
 _, __date__, __author__, _ = __doc__.rsplit(' ', 3)
-__version__ = '2.0'
+__version__ = '2.0.1'
 
 import sys
 import argparse
@@ -222,8 +222,7 @@ if __name__ == '__main__':
                                 print('Equal attribute {}: F1=F2={}'.format(atname, a1))
                         else:
                             different_attrs.append(atname)
-                            print('Different attribute {}: F1={}, F2={}, F2-F1={}'.format(
-                                atname, a1, a2, a2-a1))
+                            print('Different attribute {}: F1={}, F2={}'.format(atname, a1, a2))
         finally:
             f2.close()
     finally:

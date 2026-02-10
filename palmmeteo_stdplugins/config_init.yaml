@@ -41,15 +41,40 @@ paths:
         soil_depth:     'ALADIN/aladin_soil_depth.grb'
 
     cams:
-        file:           'CAMS'
+        file_mask:      'CAMS/**/*.nc'
+
+    plot:
+        output_dir:     'METEO'
 
 wrf:
-    # Method of stretching vertical levels before vertical interpolation in
-    # order to match the target (high-resolution) terrain, while limiting the
-    # propagation of surface features to higher levels. May be one of:
-    # universal:    A universal method where levels above transition_level are
-    #               kept unmodified while the levels below are stretched
-    #               gradually
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # time interval
+        #cycles_used: single # use one specified cycle
+        cycles_used: all    # default: use all files, assume they are continuous
+
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        earliest_horizon: 0 h
+
+    # Method of stretching or squeezing of the intermediate-height levels
+    # before vertical interpolation in order to match the target
+    # (high-resolution) terrain, while limiting the propagation of
+    # surface-reltaed effects to higher levels. (Do not confuse with PALM's
+    # vertically stretched grid as in dz_stretch_level and dz_stretch_factor.)
+    # May be one of:
+    # universal:    A universal method where levels above
+    #               vinterp:transition_level are kept unmodified while the
+    #               levels below are stretched/squeezed gradually.
     # hybrid:       Use the WRF hybrid vertical coordinate system from the
     #               WRFOUT input files to stretch the levels. WARNING: the WRF
     #               model must be configured to using hybrid levels, not sigma
@@ -58,8 +83,7 @@ wrf:
     #               files to stretch the levels. WARNING: the WRF model must be
     #               configured to using sigma levels, not hybrid leves, there
     #               is no check for this!
-    vertical_stretching: universal
-    transition_level: 2000.0 #m above origin_z
+    vertical_adaptation: universal
 
     radiation_smoothing_distance: 10000.0
 
@@ -113,6 +137,8 @@ camx:
     # variables, which may optionally trigger specific preprocessors and/or
     # validations.
     output_var_defs:
+        __user_expandable__: true
+
         'NO': #NO without quotes means False in yaml!
             loaded_vars: ['NO']
             validations:
@@ -412,10 +438,26 @@ camx:
     #    H2O
 
 synthetic:
-    transition_level: 2000.0 #m above origin_z
-
     prof_vars:
-        u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+        u:
+            # The list of vertical profiles of the given quantity, either one
+            # profile for values constant in time or more as timesteps within
+            # timeseries
+            profiles: ~
+
+            # List of heights of the vertical profile points (m above origin_z)
+            heights: ~
+
+            # If specified, allows arbitrary permutation or repetition of
+            # timesteps from "profiles" (using order numbers starting from 0).
+            # If unspecified, the profiles are taken sequentially, starting
+            # over from the first one if there is less of them than "times".
+            timeseries: ~
+
+            # Time points for the timeseries. This may be omitted if there is
+            # exactly one profile (constant in time).
+            times: ~
+
         v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
         w: {profiles: ~, heights: ~, timeseries: ~, times: ~}
         pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}
@@ -423,15 +465,14 @@ synthetic:
         soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}
         soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}
 
-    p_surf: ~
-    p_sl: 100000.
+    p_surf: ~ #pressure at origin_z (default: calculate from p_sl)
+    p_sl: 100000. #sea level pressure for p_surf calculation
 
 srid_palm: 32633
 srid_wgs84: 4326
 aladin:
     load_gribs: true
-    vertical_stretching: universal
-    transition_level: 2000.0 #m above origin_z
+    vertical_adaptation: universal
 
     radiation_smoothing_distance: 10000.0
 
@@ -460,13 +501,30 @@ aladin:
     vars_1d: [ ]
 
 icon:
-    # List of assimilation cycles specified as timedeltas after midnight UTC
-    input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        cycles_used: 3 h    # default: time interval
+        #cycles_used: single # use one specified cycle
 
-    # First and last forecast horizon taken from each cycle. Must match
-    # assimilation cycles in such a way that a full, continuous day is formed.
-    # For aggregated values, the last horizon is exactly 1 timestep further.
-    input_fcst_horizon_range: [0 h, 2 h]
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        earliest_horizon: 0 h
+
+    # The disaggregated values (radiation) represent centres of intervals
+    # between timesteps, therefore to cover the full duration of the
+    # simulation, one more time interval before and after the simulation are
+    # required. Enable this to allow skipping them using extrapolation.
+    allow_skip_first_disaggr: true
+    allow_skip_last_disaggr: true
 
     # Distance [km] for selecting nearby grid points usable for interpolation.
     # Recommended value: original grid resolution × 3
@@ -474,19 +532,35 @@ icon:
 
     radiation_smoothing_distance: 30.0 #km
 
-    transition_level: 2000.0 #m above origin_z
-
     vars_2d: [PS]
     vars_3d: [P, T, U, V, QV]
     vars_3dw: [W] #HHL is special
     vars_soil: [T_SO, QSOIL]
 
-    # Smoothing of PALM terrain for vertical interpolation to avoid sharp
-    # horizontal gradients. Sigma value in grid points.
-    terrain_smoothing: off
-
-
 cams:
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # time interval
+        #cycles_used: single # use one specified cycle
+        cycles_used: all    # default: use all files, assume they are continuous
+
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        earliest_horizon: 0 h
+
+    varnames:
+        latitude: latitude
+        longitude: longitude
+
     validations: [ ]
     
     loaded_vars: [ ]
@@ -494,39 +568,69 @@ cams:
     preprocessors:
     
     output_var_defs:
+        __user_expandable__: true
+
         'NO': #NO without quotes means False in yaml!
             molar_mass: 30.01 #g/mol
             loaded_vars: [no_conc]
-            validations:
-                - '_units.no_conc == "µg/m3"'
         NO2:
             molar_mass: 46.01 #g/mol
             loaded_vars: [no2_conc]
-            validations:
-                - '_units.no2_conc == "µg/m3"'
-        # NOX: #currently unsupported - needs conversion to ppmv _before_ summing 
-        #     formula: 'no_conc+no2_conc'
-        #     unit: 'µg/m3'
-        #     loaded_vars: [no_conc, no2_conc]
-        #     validations:
-        #         - '_units.no_conc == "µg/m3"'
-        #         - '_units.no2_conc == "µg/m3"'
         O3:
             molar_mass: 48.00 #g/mol
             loaded_vars: [o3_conc]
-            validations:
-                - '_units.o3_conc == "µg/m3"'
         PM10:
             flags: [non_gasphase]
             loaded_vars: [pm10_conc]
-            validations:
-                - '_units.pm10_conc == "µg/m3"'
         PM25:
             flags: [non_gasphase]
             loaded_vars: [pm2p5_conc]
-            validations:
-                - '_units.pm2p5_conc == "µg/m3"'
 
+winddamp:
+    # Distance in number of grid cells from the wall which have some wind
+    # damping. Cells further from the wall will have no damping.
+    damping_dist: 2
+
+    # Distance in number of grid cells from the wall which are damped to zero.
+    # The next cells further from the wall have a damping factor which
+    # increases linearly to 1.
+    num_zeroed: 1
+
+    # Method of staggering the damping factor for the U, V and W wind
+    # components by taking adjacent cells in the respective dimension.
+    stagger_method: average #default
+    #stagger_method: minimum
+
+plot:
+    # List of horizontal positions for which to plot vertical profiles as
+    # time-series.
+    positions:
+        - name: center  #prefix for output files
+          xpos: 50%     #specified either as grid point (no suffix), distance
+                        #from origin (suffix m), domain relative (suffix %) or
+                        #degrees lat/lon (suffix N/E/S/W, may contain °'")
+          ypos: 50%     #dtto
+          vars:
+              # Special variables:
+              - wind    #wind (plotted as speed + direction)
+              - temp    #air temperature (plotted as potential + absolute)
+              # All other named variables from IBC:
+              - qv      #water vapor mixing ratio
+
+    # Fully qualified names of colormaps used for the plots by type. Defaults
+    # require only standard matplotlib, recommended are from colorcet.
+    colormaps:
+        default: matplotlib.cm.viridis #Default from matplotlib
+        #default: colorcet.m_bmy        #Better
+        zero_based: matplotlib.cm.inferno #Default from matplotlib
+        #zero_based: colorcet.m_fire       #Better
+        wind_direction: matplotlib.cm.twilight #Default from matplotlib
+        #wind_direction: colorcet.m_colorwheel  #Better
+
+    format: png #default
+    #format: pdf
+
+    dpi: 300 #also determines sizes for raster outputs
 
 # Configuration items for selected tasks
 task_config:
@@ -547,14 +651,16 @@ task_config:
 
     wrf_rad:
         set:
-            radiation: true
+            radiation:
+                enabled: true
         extend:
             plugins:
                 - palmmeteo_stdplugins.wrf.WRFRadPlugin
 
     aladin_rad:
         set:
-            radiation: true
+            radiation:
+                enabled: true
         extend:
             plugins:
                 - palmmeteo_stdplugins.aladin.AladinRadPlugin
@@ -582,3 +688,15 @@ task_config:
         extend:
             plugins:
                 - palmmeteo_stdplugins.icon.IconPlugin
+
+    winddamp:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.winddamp.WindDampPlugin
+
+    plot:
+        set:
+        extend:
+            plugins:
+                - palmmeteo_stdplugins.plot.PlotPlugin

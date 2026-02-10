@@ -49,8 +49,15 @@ dist/.uploaded: dist/*
 docs_build: $(DOCS_INDEX)
 
 $(DOCS_INDEX): $(DOXYCONFIG) $(SOURCES) README.md $(DOCS_PAGES) $(EXAMPLES)
+	set -e
+	rm -rf docs/html/*
 	$(DOXYGEN) $(DOXYCONFIG)
 	touch $(DOCS_ROOT)/.nojekyll
+
+docs_commit: docs/.commited
+
+docs/.commited: $(DOCS_INDEX)
+	cd docs/html && [ gh-pages = "`git branch --show-current`" ] && git add -A && git commit -m "Update github pages" && touch ../.commited
 
 $(CMDLINE_DOC): $(SOURCES_MAIN)
 	$(RUNNER) -h > $@
@@ -58,12 +65,8 @@ $(CMDLINE_DOC): $(SOURCES_MAIN)
 show: $(DOCS_INDEX)
 	$(BROWSER) $(DOCS_INDEX)
 
-docs_publish: $(DOCS_INDEX)
-	set -e
-	[ gh-pages = "`git branch --show-current`" ]
-	git add -f docs/html
-	git commit -m "Update github pages"
-	git subtree push --prefix docs/html/ github gh-pages
+docs_publish: docs/.commited
+	git push github gh-pages
 
 all: build upload
 
@@ -71,3 +74,16 @@ clean:
 	rm -rf docs/html docs/man docs/latex $(CMDLINE_DOC) dist/*
 
 .PHONY: build upload docs_build show docs_publish all clean
+
+# Notes for using the subdirectory docs/html as a separate worktree for
+# the orphan branch gh-pages:
+# After fetching gh-pages from github, just run
+# 	git worktree add docs/html gh-pages
+# Occassionally clean up history (from docs/html):
+# 	git checkout github/gh-pages
+#	git branch -d gh-pages
+#	git checkout --orphan gh-pages
+#	+ add all, commit, force push
+#
+# Previously tried using docs/html as a submodule (also works, but needs more
+# maintenance + storage) and as a pushed subtree (even worse).

@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import os
 from datetime import datetime, timezone
 import numpy as np
 import netCDF4
@@ -28,8 +27,21 @@ from palmmeteo.config import cfg, ConfigError
 from palmmeteo.runtime import rt
 from palmmeteo.plugins import SetupPluginMixin
 from palmmeteo.logging import die, warn, log, verbose
+from palmmeteo.utils import ax_, where_range
 
-na_ = np.newaxis
+class Building:
+    __slots__ = 'id x0 x1 y0 y1 slices mask'.split()
+
+    def __init__(self, bid, bids):
+        self.id = bid
+        building_mask = (bids == bid)
+        self.x0, self.x1 = where_range(np.any(building_mask, axis=0))
+        self.y0, self.y1 = where_range(np.any(building_mask, axis=1))
+        self.slices = (slice(self.y0, self.y1), slice(self.x0, self.x1))
+        self.mask = building_mask[self.slices].copy() #a view would keep full array!
+        verbose('Building ID {}: {} points between [{}:{},{}:{}].',
+                bid, self.mask.sum(),
+                self.y0, self.y1, self.x0, self.x1)
 
 class StaticDriverPlugin(SetupPluginMixin):
     """Default setup plugin for loading domain info from static driver file."""
@@ -81,58 +93,103 @@ class StaticDriverPlugin(SetupPluginMixin):
         # read terrain height (relative to origin_z) and
         # calculate and check the height of the surface canopy layer
         if 'zt' in ncs.variables.keys():
-            rt.terrain_rel = ncs.variables['zt'][:]
+            terrain_rel = ncs.variables['zt'][:]
         else:
-            rt.terrain_rel = np.zeros([rt.ny,rt.nx])
+            terrain_rel = np.zeros([rt.ny,rt.nx])
 
         # Check terrain
-        terrain_min = rt.terrain_rel.min()
-        if rt.nested_domain and terrain_min != 0:
-            warn('The lowest point of the terrain variable zt in the parent '
-                'domain is {} (relative to origin_z={}). Please check '
-                'that the lowest point of ALL domains equals zero, otherwise PALM '
-                'shifts the terrain to ensure that, which can lead to vertical '
-                'mismatching with the dynamic driver.', rt.origin_z, terrain_min)
+        terrain_min = terrain_rel.min()
+        terrain_shift = cfg.domain.terrain_offset
+        if terrain_shift == 'auto':
+            log('Shifting terrain (zt) such that its minimum value {} is now zero.',
+                    terrain_min)
+            terrain_shift = terrain_min
+            if rt.nested_domain:
+                warn('IMPORTANT WARNING: Automatic terrain shifting such that '
+                     'min=0 is only valid for single domain runs. This is '
+                     'nested domain, so either this domain or other domains '
+                     'will have WRONG LEVELS interpreted in PALM!')
+            else:
+                warn('Automatic terrain shifting such that min=0 is only valid '
+                     'for single domain runs - make sure that this is the only '
+                     'domain!')
+
+        terrain_min -= terrain_shift
+        rt.origin_z += terrain_shift
+        log('Shifting terrain (zt) by {} m, new minimum is {} and origin_z={} m.',
+                terrain_shift, terrain_min, rt.origin_z)
+
+        if terrain_min != 0:
+            warn('The lowest point of the terrain variable zt in this domain '
+                 'is {}. Please make sure that min(zt) of ALL domains equals '
+                 'zero, otherwise PALM will shift the terrain to ensure that '
+                 'and the dynamic driver will be vertically mismatched!',
+                 terrain_min)
+
+        rt.terrain = terrain_rel + rt.origin_z #shift is irrelevant here
 
         # Calculate terrain height in integral grid points, which is also the
         # k-coordinate of the lowest air-cell.
         # NOTE: PALM assigns terrain to those grid cells whose center lies on
         # or below terrain (assuming that it is not shifted due to the lowest
         # point not being 0).
-        rt.th = np.floor(rt.terrain_rel / rt.dz + 0.5).astype('i8')
-        rt.terrain_mask = np.arange(rt.nz)[:,na_,na_] < rt.th[na_,:,:]
+        rt.th = np.floor(terrain_rel / rt.dz + 0.5).astype('i8') #terrain top
+        terrain_mask = np.arange(rt.nz)[:,ax_,ax_] < rt.th[ax_,:,:]
 
-        # building height
-        if 'buildings_3d' in ncs.variables.keys():
-            #print(np.argmax(a != 0, axis=0)) #### FIXME: what is this?
-            bh3 = ncs.variables['buildings_3d'][:]
-            # minimum index of nonzeo value along inverted z
-            rt.bh = np.argmax(bh3[::-1], axis=0)
-            # inversion back and masking grids with no buildings
-            rt.bh = bh3.shape[0] - rt.bh
-            rt.bh[np.max(bh3, axis=0) == 0] = 0
-        elif 'buildings_2d' in ncs.variables.keys():
-            rt.bh = ncs.variables['buildings_2d'][:]
-            rt.bh[rt.bh.mask] = 0
-            rt.bh = np.ceil(rt.bh / rt.dz)
+        # Detect individual buildings
+        if 'building_id' in ncs.variables:
+            building_ids = []
+            bids = ncs.variables['building_id'][:]
+            building_ids = [Building(bid, bids) for bid
+                            in np.ma.unique(bids).compressed()]
+            del bids
+
+        # Load buildings
+        rt.obstacle_mask = terrain_mask.copy()
+        btop = -1 #global max building top
+        if 'buildings_3d' in ncs.variables and not cfg.domain.ignore_buildings:
+            b3ds = ncs.variables['buildings_3d']
+            nz_b3d = b3ds.shape[0]
+            for bld in building_ids:
+                b3d = b3ds[(slice(None),)+bld.slices]
+                thmax = rt.th[bld.slices][bld.mask].max() #building terrain top
+                bcol = np.any(b3d,axis=(1,2))
+                bmax = len(bcol) - np.argmax(bcol[::-1]) + thmax
+                verbose('Building ID {} top: {}', bld.id, bmax)
+                btop = max(btop, bmax)
+
+                # Put building mask on top of terrain
+                rt.obstacle_mask[(slice(0,thmax),)+bld.slices] = 1 #terrain below
+                b3d_height = min(rt.nz-thmax, nz_b3d)
+                rt.obstacle_mask[(slice(thmax,thmax+b3d_height),)+bld.slices] = b3d[:b3d_height,:,:]
+        elif 'buildings_2d' in ncs.variables and not cfg.domain.ignore_buildings:
+            b2ds = ncs.variables['buildings_2d'][:]
+            for bld in building_ids:
+                b2d = b2ds[bld.slices]
+                bh = np.floor(b2d / rt.dz + 0.5).astype('i8')
+                thmax = rt.th[bld.slices][bld.mask].max() #building terrain top
+                bmax = bh.max() + thmax
+                verbose('Building ID {} top: {}', bld.id, bmax)
+                btop = max(btop, bmax)
+
+                # Put building mask on top of terrain
+                rt.obstacle_mask[(slice(None),)+bld.slices] = (np.arange(rt.nz)[:,ax_,ax_] <
+                                                               (bh+thmax)[ax_,:,:])
         else:
-            rt.bh = np.zeros([rt.ny,rt.nx])
+            btop = rt.th.max()
 
         # plant canopy height
-        if 'lad' in ncs.variables.keys():
-            lad3 = ncs.variables['lad'][:]
-            # replace non-zero values with 1
-            lad3[lad3 != 0] = 1
+        if 'lad' in ncs.variables:
+            lad = ncs.variables['lad'][:]
+            lad_mask = lad > 0
             # minimum index of nonzeo value along inverted z
-            rt.lad = np.argmax(lad3[::-1], axis=0)
-            # inversion back and masking grids with no buildings
-            rt.lad = lad3.shape[0] - rt.lad
-            rt.lad[np.max(lad3, axis=0) == 0] = 0
+            lad_top = lad.shape[0] - np.argmax(lad_mask[::-1], axis=0)
+            lad_top[~np.any(lad_mask, axis=0)] = 0
         else:
-            rt.lad = np.zeros([rt.ny,rt.nx])
+            lad_top = np.zeros([rt.ny,rt.nx])
 
         # calculate maximum of surface canopy layer
-        nscl = max(np.amax(rt.th+rt.bh),np.amax(rt.th+rt.lad))
+        rt.canopy_top = nscl = max(btop, (rt.th+lad_top).max())
 
         # check nz with ncl
         if rt.nz < nscl + cfg.domain.nscl_free:

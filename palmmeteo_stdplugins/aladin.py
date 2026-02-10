@@ -24,19 +24,12 @@
 import os
 import glob
 from datetime import datetime, timezone, timedelta
-import sys
 import numpy as np
 import cfgrib as cg
 import pyproj
 import netCDF4
 import math
-import metpy
-metpy_version_master = int(metpy.__version__.split('.', 1)[0])
-import metpy.calc as mpcalc
-from metpy.interpolate import log_interpolate_1d
-from metpy.units import units
 from pyproj import transform
-from metpy.interpolate import interpolate_1d
 from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from palmmeteo.logging import die, warn, log, verbose, log_output
 from palmmeteo.config import cfg, ConfigError
@@ -46,6 +39,7 @@ import scipy.ndimage as ndimage
 from .wrf_utils import BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, WrfPhysics
 from palmmeteo.library import PalmPhysics
+from palmmeteo.vinterp import get_vinterp
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
@@ -126,14 +120,14 @@ def findnearest(xlon, xlat, point):
 # class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
-        if cfg.aladin.vertical_stretching in ['hybrid', 'sigma']:
-            warn('The configuration setting aladin.vertical_stretching="{}" is '
+        if cfg.aladin.vertical_adaptation in ['hybrid', 'sigma']:
+            warn('The configuration setting aladin.vertical_adaptation="{}" is '
                  'deprecated, the "universal" vertical stretching provides '
                  'smoother upper level values. For the "hybrid" or "sigma" '
                  'settings, the user must also manually verify that the '
                  'selected method matches the vertical coordinate system '
                  'used in the provided WRFOUT files.',
-                 cfg.aladin.vertical_stretching)
+                 cfg.aladin.vertical_adaptation)
 
 
     def import_data(self, fout, *args, **kwargs):
@@ -251,13 +245,14 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 del vdata
 
                 # calculated geostrophic wind
-                ug, vg = palm_alad_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels, ta)
-                v_out = (fout.createVariable('UG', 'f4', ('time', 'z')) if first
-                         else fout.variables['UG'])
-                v_out[it] = ug
-                v_out = (fout.createVariable('VG', 'f4', ('time', 'z')) if first
-                         else fout.variables['VG'])
-                v_out[it] = vg
+                if cfg.output.geostrophic_wind:
+                    ug, vg = palm_alad_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels, ta)
+                    v_out = (fout.createVariable('UG', 'f4', ('time', 'z')) if first
+                            else fout.variables['UG'])
+                    v_out[it] = ug
+                    v_out = (fout.createVariable('VG', 'f4', ('time', 'z')) if first
+                            else fout.variables['VG'])
+                    v_out[it] = vg
 
                 # soil layers
                 if first:
@@ -293,7 +288,8 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         + ('y', 'x'))
             fout.createVariable('U', 'f4', ('time', 'z_meteo', 'y', 'x'))
             fout.createVariable('V', 'f4', ('time', 'z_meteo', 'y', 'x'))
-            for varname in cfg.aladin.vars_1d + ['UG', 'VG']:
+            for varname in cfg.aladin.vars_1d + (['UG', 'VG'] if cfg.output.geostrophic_wind
+                                                 else []):
                 v_wrf = fin.variables[varname]
                 fout.createVariable(varname, 'f4', v_wrf.dimensions)
 
@@ -313,7 +309,8 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         fin.variables['V'][it])
 
                 # direct copy
-                for varname in cfg.aladin.vars_1d + ['UG', 'VG']:
+                for varname in cfg.aladin.vars_1d + (['UG', 'VG'] if cfg.output.geostrophic_wind
+                                                     else []):
                     fout.variables[varname][it] = fin.variables[varname][it]
 
     def interpolate_vert(self, fout, *args, **kwargs):
@@ -338,17 +335,12 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             fout.createVariable('palm_hydrostatic_pressure_stag', 'f4', ('time', 'zw'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
-            fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
-            fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
             fout.createVariable('zsoil', 'f4', ('zsoil',))
             fout.createVariable('z', 'f4', ('z',))
             fout.createVariable('zw', 'f4', ('zw',))
-
-            # DEBUG:
-            fout.createDimension('z_meteo', len(fin.dimensions['z_meteo']))
-            fout.createDimension('zw_meteo', len(fin.dimensions['zw_meteo']))
-            fout.createVariable('height', 'f4', ('time', 'z_meteo', 'y', 'x'))
-            fout.createVariable('heightw', 'f4', ('time', 'zw_meteo', 'y', 'x'))
+            if cfg.output.geostrophic_wind:
+                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
+                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
 
             fout.variables['z'][:] = rt.z_levels
             fout.variables['zw'][:] = rt.z_levels_stag
@@ -396,12 +388,13 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 gp_new_surf = target_terrain * g
 
-                if cfg.aladin.vertical_stretching == 'universal':
+                if cfg.aladin.vertical_adaptation == 'universal':
                     # Calculate transition pressure level using horizontal
                     # domain-wide pressure average
-                    gp_trans = (rt.origin_z + cfg.aladin.transition_level) * g
+                    z_trans = rt.origin_z + rt.z_levels_stag[rt.canopy_top] + cfg.vinterp.transition_level
+                    gp_trans = z_trans * g
                     p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
-                    verbose('Vertical stretching transition level: {} Pa', p_trans)
+                    verbose('Vertical stretching transition level: {} m ASL = {} Pa', z_trans, p_trans)
 
                     # Convert the geopotentials to pressure naively using barometric equation
                     p_orig_w = barom_pres(p_surf, gp_w, gp_w[0,:,:], tair_surf)
@@ -409,7 +402,8 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     # Mass (half) levels should be calculated from full
                     # levels by halving pressure, not geopotential, because
                     # ZNU = (ZNW[:-1]+ZNW[1:])/2 (verified)
-                    p_orig_u = (p_orig_w[:-1] + p_orig_w[1:]) * 0.5
+                    #p_orig_u = (p_orig_w[:-1] + p_orig_w[1:]) * 0.5
+                    p_orig_u = p_orig_w #Aladin does not seem to have half-level output
 
                     # Calculate terrain pressure shift ratio
                     p_surf_new = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf)
@@ -438,7 +432,7 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     # mu2 = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf) - p_top
 
                     # Calculate original and shifted 3D dry air pressure
-                    # if cfg.aladin.vertical_stretching == 'hybrid':
+                    # if cfg.aladin.vertical_adaptation == 'hybrid':
                     #     p_orig_w, p_orig_u = calc_ph_hybrid(fin, it, mu)
                     #     p_new_w, p_new_u = calc_ph_hybrid(fin, it, mu2)
                     # else:
@@ -461,37 +455,32 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 for k in range(gp_w.shape[0]):
                     verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
 
-                # Because we require levels below the lowest level from WRF, we will always
-                # add one layer at zero level with repeated values from the lowest level.
-                # WRF-python had some special treatment for theta in this case.
-                height = np.zeros((z_u.shape[0]+1,) + z_u.shape[1:], dtype=z_u.dtype)
-                height[0,:,:] = -999. #always below terrain
-                height[1:,:,:] = z_u
-                heightw = np.zeros((z_w.shape[0]+1,) + z_w.shape[1:], dtype=z_w.dtype)
-                heightw[0,:,:] = -999. #always below terrain
-                heightw[1:,:,:] = z_w
+                # Standard heights
+                vinterp, vinterp_wind = get_vinterp(rt.z_levels, z_u, True, True)
 
-                #DEBUG:
-                fout.variables['height'][it] = height[:,:,:]
-                fout.variables['heightw'][it] = heightw[1:,:,:]
+                var = fin.variables['SPECHUM'][it]
+                fout.variables['init_atmosphere_qv'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['SPECHUM'][it])
-                fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['T'][it] #from perturbation pt to standard
+                fout.variables['init_atmosphere_pt'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['T'][it]) #from perturbation pt to standard
-                fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['U'][it]
+                fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp_wind(var)
 
-                var = lpad(fin.variables['U'][it])
-                fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['V'][it]
+                fout.variables['init_atmosphere_v'][it,:,:,:], = vinterp_wind(var)
 
-                var = lpad(fin.variables['V'][it])
-                fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
+                del vinterp, vinterp_wind
 
-                var = lpad(fin.variables['W'][it]) #z staggered!
-                fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
+                # Z staggered
+                vinterp_wind, = get_vinterp(rt.z_levels_stag, z_w, False, True)
 
-                #var = fin.variables['PSFC'][it]
-                #fout.variables['surface_forcing_surface_pressure'][it,:,:] = p_surf_new
+                var = fin.variables['W'][it] #z staggered!
+                fout.variables['init_atmosphere_w'][it,:,:,:], = vinterp_wind(var)
+
+                del vinterp_wind
+
+                # Other vars w/o vinterp
 
                 var = fin.variables['TSLB'][it] #soil temperature
                 fout.variables['init_soil_t'][it,:,:,:] = var
@@ -499,11 +488,12 @@ class AladinPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 var = fin.variables['SMOIS'][it] #soil moisture
                 fout.variables['init_soil_m'][it,:,:,:] = var
 
-                var = fin.variables['UG'][it]
-                fout.variables['ls_forcing_ug'][it,:] = var
+                if cfg.output.geostrophic_wind:
+                    var = fin.variables['UG'][it]
+                    fout.variables['ls_forcing_ug'][it,:] = var
 
-                var = fin.variables['VG'][it]
-                fout.variables['ls_forcing_vg'][it,:] = var
+                    var = fin.variables['VG'][it]
+                    fout.variables['ls_forcing_vg'][it,:] = var
 
 
 class AladinCoordTransform(object):
@@ -1128,10 +1118,6 @@ def log_dstat_off(desc, delta):
     """Do nothing (log disabled)"""
     pass
 
-def lpad(var):
-    """Pad variable in first dimension by repeating lowest layer twice"""
-    return np.r_[var[0:1], var]
-
 def palm_alad_gw(f, lon, lat, levels, tidx=0):
     '''Calculate geostrophic wind from WRF using metpy'''
 
@@ -1179,6 +1165,12 @@ def get_wrf_dims(f, lat, lon, xlat, xlong):
     return coords, (slice(y0, y1+1), slice(x0, x1+1)), (ymargin, xmargin)
 
 def calcgw_wrf(f, lat, lon, levels, tidx=0):
+    import metpy
+    metpy_version_master = int(metpy.__version__.split('.', 1)[0])
+    import metpy.calc as mpcalc
+    from metpy.interpolate import log_interpolate_1d
+    from metpy.units import units
+
     # MFDataset removes the time dimension from XLAT, XLONG
     xlat = f.variables['XLAT']
     xlslice = (0,) * (len(xlat.shape)-2) + (slice(None), slice(None))

@@ -19,32 +19,28 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import glob
 from datetime import datetime, timezone
+import math
 import numpy as np
 import scipy.ndimage as ndimage
 import netCDF4
 from pyproj import transform
-from metpy.interpolate import interpolate_1d
 
 from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
 from palmmeteo.logging import die, warn, log, verbose, log_output
-from palmmeteo.config import cfg, ConfigError
+from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
 from palmmeteo.utils import ensure_dimension
+from palmmeteo.vinterp import get_vinterp
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, wrf_t, palm_wrf_gw, WrfPhysics
-from palmmeteo.library import PalmPhysics, verify_palm_hinterp
+from palmmeteo.library import PalmPhysics, verify_palm_hinterp, HorizonSelection
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
-
-
-def lpad(var):
-    """Pad variable in first dimension by repeating lowest layer twice"""
-    return np.r_[var[0:1], var]
+dtformat_wrf = '%Y-%m-%d_%H:%M:%S'
 
 def log_dstat_on(desc, delta):
     """Calculate and log delta statistics if enabled."""
@@ -55,19 +51,30 @@ def log_dstat_off(desc, delta):
     """Do nothing (log disabled)"""
     pass
 
+def wrfout_dt(fin):
+    """Return cycle time and time for the specific wrfout"""
+
+    ts = fin.variables['Times'][:].tobytes().decode('utf-8')
+    t = datetime.strptime(ts, dtformat_wrf)
+    t = t.replace(tzinfo=timezone.utc)
+    cycle = datetime.strptime(fin.START_DATE, dtformat_wrf)
+    cycle = cycle.replace(tzinfo=timezone.utc)
+    return cycle, t
+
 class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def check_config(self, *args, **kwargs):
-        if cfg.wrf.vertical_stretching in ['hybrid', 'sigma']:
-            warn('The configuration setting wrf.vertical_stretching="{}" is '
+        if cfg.wrf.vertical_adaptation in ['hybrid', 'sigma']:
+            warn('The configuration setting wrf.vertical_adaptation="{}" is '
                  'deprecated, the "universal" vertical stretching provides '
                  'smoother upper level values. For the "hybrid" or "sigma" '
                  'settings, the user must also manually verify that the '
                  'selected method matches the vertical coordinate system '
                  'used in the provided WRFOUT files.',
-                 cfg.wrf.vertical_stretching)
+                 cfg.wrf.vertical_adaptation)
 
     def import_data(self, fout, *args, **kwargs):
         log('Importing WRF data...')
+        hselect = HorizonSelection.from_cfg(cfg.wrf.assim_cycles)
 
         # Process input files
         verbose('Parsing WRF files from {}', rt.paths.wrf.file_mask)
@@ -77,17 +84,13 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             verbose('Parsing WRF file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep
-                ts = fin.variables['Times'][:].tobytes().decode('utf-8')
-                t = datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S')
-                t = t.replace(tzinfo=timezone.utc)
-                try:
-                    it = rt.tindex(t)
-                except ValueError:
-                    verbose('Time {} is not within timestep intervals - skipping', t)
+                cycle, t = wrfout_dt(fin)
+
+                it = hselect.locate(cycle, dt=t)
+                if it is False:
+                    verbose('File is not used.')
                     continue
-                if not (0 <= it < rt.nt):
-                    verbose('Time {} is out of range - skipping', t)
-                    continue
+
                 if rt.times[it] is not None:
                     die('Time {} has been already loaded!', t)
                 rt.times[it] = t
@@ -173,13 +176,14 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 del vdata
 
                 # calculated geostrophic wind
-                ug, vg = palm_wrf_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels, 0)
-                v_out = (fout.createVariable('UG', 'f4', ('time', 'z')) if first
-                    else fout.variables['UG'])
-                v_out[it] = ug
-                v_out = (fout.createVariable('VG', 'f4', ('time', 'z')) if first
-                    else fout.variables['VG'])
-                v_out[it] = vg
+                if cfg.output.geostrophic_wind:
+                    ug, vg = palm_wrf_gw(fin, rt.cent_lon, rt.cent_lat, rt.z_levels, 0)
+                    v_out = (fout.createVariable('UG', 'f4', ('time', 'z')) if first
+                        else fout.variables['UG'])
+                    v_out[it] = ug
+                    v_out = (fout.createVariable('VG', 'f4', ('time', 'z')) if first
+                        else fout.variables['VG'])
+                    v_out[it] = vg
 
                 # soil layers
                 if first:
@@ -218,7 +222,8 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         + ('y', 'x'))
             fout.createVariable('U', 'f4', ('time', 'z_meteo', 'y', 'x'))
             fout.createVariable('V', 'f4', ('time', 'z_meteo', 'y', 'x'))
-            for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
+            for varname in cfg.wrf.vars_1d + (['UG', 'VG'] if cfg.output.geostrophic_wind
+                                              else []):
                 v_wrf = fin.variables[varname]
                 fout.createVariable(varname, 'f4', v_wrf.dimensions)
 
@@ -238,7 +243,8 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                         fin.variables['V'][it])
 
                 # direct copy
-                for varname in cfg.wrf.vars_1d + ['UG', 'VG']:
+                for varname in cfg.wrf.vars_1d + (['UG', 'VG'] if cfg.output.geostrophic_wind
+                                                  else []):
                     fout.variables[varname][it] = fin.variables[varname][it]
 
     def interpolate_vert(self, fout, *args, **kwargs):
@@ -263,11 +269,12 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             fout.createVariable('palm_hydrostatic_pressure_stag', 'f4', ('time', 'zw'))
             fout.createVariable('init_soil_t', 'f4', ('time', 'zsoil', 'y', 'x'))
             fout.createVariable('init_soil_m', 'f4', ('time', 'zsoil', 'y', 'x'))
-            fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
-            fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
             fout.createVariable('zsoil', 'f4', ('zsoil',))
             fout.createVariable('z', 'f4', ('z',))
             fout.createVariable('zw', 'f4', ('zw',))
+            if cfg.output.geostrophic_wind:
+                fout.createVariable('ls_forcing_ug', 'f4', ('time', 'z'))
+                fout.createVariable('ls_forcing_vg', 'f4', ('time', 'z'))
 
             fout.variables['z'][:] = rt.z_levels
             fout.variables['zw'][:] = rt.z_levels_stag
@@ -312,12 +319,13 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
 
                 gp_new_surf = target_terrain * g
 
-                if cfg.wrf.vertical_stretching == 'universal':
+                if cfg.wrf.vertical_adaptation == 'universal':
                     # Calculate transition pressure level using horizontal
                     # domain-wide pressure average
-                    gp_trans = (rt.origin_z + cfg.wrf.transition_level) * g
+                    z_trans = rt.origin_z + rt.z_levels_stag[rt.canopy_top] + cfg.vinterp.transition_level
+                    gp_trans = z_trans * g
                     p_trans = barom_pres(p_surf, gp_trans, gp_w[0,:,:], tair_surf).mean()
-                    verbose('Vertical stretching transition level: {} Pa', p_trans)
+                    verbose('Vertical stretching transition level: {} m ASL = {} Pa', z_trans, p_trans)
 
                     # Convert the geopotentials to pressure naively using barometric equation
                     p_orig_w = barom_pres(p_surf, gp_w, gp_w[0,:,:], tair_surf)
@@ -352,7 +360,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                     mu2 = barom_pres(p_surf, gp_new_surf, gp_w[0,:,:], tair_surf) - p_top
 
                     # Calculate original and shifted 3D dry air pressure
-                    if cfg.wrf.vertical_stretching == 'hybrid':
+                    if cfg.wrf.vertical_adaptation == 'hybrid':
                         p_orig_w, p_orig_u = calc_ph_hybrid(fin, it, mu)
                         p_new_w, p_new_u = calc_ph_hybrid(fin, it, mu2)
                     else:
@@ -375,30 +383,32 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 for k in range(gp_w.shape[0]):
                     verbose_dstat('GP shift level {:3d}'.format(k), gpdelta[k])
 
-                # Because we require levels below the lowest level from WRF, we will always
-                # add one layer at zero level with repeated values from the lowest level.
-                # WRF-python had some special treatment for theta in this case.
-                height = np.zeros((z_u.shape[0]+1,) + z_u.shape[1:], dtype=z_u.dtype)
-                height[0,:,:] = -999. #always below terrain
-                height[1:,:,:] = z_u
-                heightw = np.zeros((z_w.shape[0]+1,) + z_w.shape[1:], dtype=z_w.dtype)
-                heightw[0,:,:] = -999. #always below terrain
-                heightw[1:,:,:] = z_w
+                # Standard heights
+                vinterp, vinterp_wind = get_vinterp(rt.z_levels, z_u, True, True)
 
-                var = lpad(fin.variables['SPECHUM'][it])
-                fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['SPECHUM'][it]
+                fout.variables['init_atmosphere_qv'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['T'][it] + WrfPhysics.base_temp) #from perturbation pt to standard
-                fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['T'][it] + WrfPhysics.base_temp #from perturbation pt to standard
+                fout.variables['init_atmosphere_pt'][it,:,:,:], = vinterp(var)
 
-                var = lpad(fin.variables['U'][it])
-                fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['U'][it]
+                fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp_wind(var)
 
-                var = lpad(fin.variables['V'][it])
-                fout.variables['init_atmosphere_v'][it,:,:,:]  = interpolate_1d(rt.z_levels, height, var)
+                var = fin.variables['V'][it]
+                fout.variables['init_atmosphere_v'][it,:,:,:],  = vinterp_wind(var)
 
-                var = lpad(fin.variables['W'][it]) #z staggered!
-                fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, heightw, var)
+                del vinterp, vinterp_wind
+
+                # Z staggered
+                vinterp_wind, = get_vinterp(rt.z_levels_stag, z_w, False, True)
+
+                var = fin.variables['W'][it] #z staggered!
+                fout.variables['init_atmosphere_w'][it,:,:,:], = vinterp_wind(var)
+
+                del vinterp_wind
+
+                # Other vars w/o vinterp
 
                 var = fin.variables['TSLB'][it] #soil temperature
                 fout.variables['init_soil_t'][it,:,:,:] = var
@@ -406,34 +416,60 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                 var = fin.variables['SMOIS'][it] #soil moisture
                 fout.variables['init_soil_m'][it,:,:,:] = var
 
-                var = fin.variables['UG'][it]
-                fout.variables['ls_forcing_ug'][it,:] = var
+                if cfg.output.geostrophic_wind:
+                    var = fin.variables['UG'][it]
+                    fout.variables['ls_forcing_ug'][it,:] = var
 
-                var = fin.variables['VG'][it]
-                fout.variables['ls_forcing_vg'][it,:] = var
+                    var = fin.variables['VG'][it]
+                    fout.variables['ls_forcing_vg'][it,:] = var
 
 
 class WRFRadPlugin(ImportPluginMixin):
+    def check_config(self, *args, **kwargs):
+        if (rt.timestep_rad is None
+                and cfg.wrf.assim_cycles.cycles_used != 'all'):
+            die('Automatic radiation timestep length '
+                '(radiation:timestep=auto) cannot be combined with explicit '
+                'cycles (wrf:assim_cycles:cycles_used other than "all")!')
+
     def import_data(self, *args, **kwargs):
         log('Importing WRF radiation data...')
         verbose('Parsing WRF radiation files from {}', rt.paths.wrf.rad_file_mask)
 
-        rad_data = []
+        detect_timestep = (rt.timestep_rad is None)
+        if detect_timestep:
+            rad_data = []
+        else:
+            hselect = HorizonSelection.from_cfg(cfg.wrf.assim_cycles, idx_rad=True)
+
+            rt.nt_rad = hselect.idx1 - hselect.idx0
+            ts_sec = rt.timestep_rad.total_seconds()
+            rt.times_rad_sec = np.arange(hselect.idx0, hselect.idx1) * ts_sec
+
+            rad_data = [None] * rt.nt_rad
+
         first = True
         for fn in glob.glob(rt.paths.wrf.rad_file_mask):
             verbose('Parsing WRF radiation file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time
-                ts = fin.variables['Times'][:].tobytes().decode('utf-8')
-                t = datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S')
-                t = t.replace(tzinfo=timezone.utc)
-                if not (rt.simulation.start_time <= t <= rt.simulation.end_time_rad):
-                    verbose('Time {} is out of range - skipping', t)
-                    continue
+                cycle, t = wrfout_dt(fin)
+
+                if detect_timestep:
+                    if not (rt.simulation.start_time_rad <= t <= rt.simulation.end_time_rad):
+                        verbose('Time {} is out of range - skipping', t)
+                        continue
+                else:
+                    it = hselect.locate(cycle, dt=t)
+                    if it is False:
+                        verbose('File is not used.')
+                        continue
+                    if rad_data[it] is not None:
+                        die('Time {} has been already loaded!', t)
 
                 verbose('Importing radiation for time {}', t)
-                if not rad_data:
-                    verbose('Building list of indices for radiation smoothig.')
+                if first:
+                    verbose('Building list of indices for radiation smoothing.')
 
                     # Find mask using PALM projection
                     lons = fin.variables['XLONG'][0]
@@ -460,8 +496,7 @@ class WRFRadPlugin(ImportPluginMixin):
                     assert all(ymask[yfrom:yto])
                     mask = ~mask[yfrom:yto,xfrom:xto]
 
-                # load radiation
-                if first:
+                    # Detect radiation variables
                     rad_vars = [cfg.wrf.rad_vars.sw_tot_h, cfg.wrf.rad_vars.lw_tot_h]
                     if cfg.wrf.rad_vars.sw_dif_h in fin.variables:
                         verbose('WRF file does contain {} variable, adding diffuse component.',
@@ -473,37 +508,49 @@ class WRFRadPlugin(ImportPluginMixin):
                                 cfg.wrf.rad_vars.sw_dif_h)
                         rt.has_rad_diffuse = False
 
+                # Load values
                 entry = [t]
                 for varname in rad_vars:
                     arr = fin.variables[varname][0,yfrom:yto,xfrom:xto]
                     arr.mask &= mask
                     entry.append(arr.mean())
-                rad_data.append(entry)
+                if detect_timestep:
+                    rad_data.append(entry)
+                else:
+                    rad_data[it] = entry
             first = False
 
         verbose('Processing loaded radiation values')
-        rad_data.sort()
+        if detect_timestep:
+            rad_data.sort()
         rad_data_uz = list(zip(*rad_data)) #unzip/transpose
-        rad_times = rad_data_uz[0]
 
-        # Determine timestep and check consistency
+        rad_times = rad_data_uz[0]
         rt.times_rad = list(rad_times)
-        rt.nt_rad = len(rt.times_rad)
-        if rt.times_rad[0] != rt.simulation.start_time:
-            die('Radiation must start with start time ({}), but they start with '
-                    '{}!', rt.simulation.start_time, rt.times_rad[0])
-        if rt.times_rad[-1] != rt.simulation.end_time_rad:
-            die('Radiation must start with end time ({}), but they end with '
-                    '{}!', rt.simulation.end_time_rad, rt.times_rad[-1])
-        rt.timestep_rad = rt.times_rad[1] - rt.times_rad[0]
-        for i in range(1, rt.nt_rad-1):
-            step = rt.times_rad[i+1] - rt.times_rad[i]
-            if step != rt.timestep_rad:
-                die('Time delta between steps {} and {} ({}) is different from '
-                        'radiation timestep ({})!', i, i+1, step, rt.timestep_rad)
-        rt.times_rad_sec = np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
-        verbose('Using detected radiation timestep {} with {} times.',
-                rt.timestep_rad, rt.nt_rad)
+
+        if detect_timestep:
+            # Determine timestep and check consistency
+            rt.nt_rad = len(rt.times_rad)
+            if rt.times_rad[0] != rt.simulation.start_time_rad:
+                die('Radiation files must start with (spinup) start time ({}), '
+                    'but they start with {}!', rt.simulation.start_time_rad,
+                    rt.times_rad[0])
+            if rt.times_rad[-1] != rt.simulation.end_time_rad:
+                die('Radiation files must end with end time ({}), but they end '
+                    'with {}!', rt.simulation.end_time_rad, rt.times_rad[-1])
+            rt.timestep_rad = rt.times_rad[1] - rt.times_rad[0]
+            if rt.simulation.spinup_rad % rt.timestep_rad:
+                die('Spinup length must be divisible by radiation timestep '
+                    'when radiation timestep is autodetected.')
+            for i in range(1, rt.nt_rad-1):
+                step = rt.times_rad[i+1] - rt.times_rad[i]
+                if step != rt.timestep_rad:
+                    die('Time delta between steps {} and {} ({}) is different from '
+                            'radiation timestep ({})!', i, i+1, step, rt.timestep_rad)
+            rt.times_rad_sec = (np.arange(rt.nt_rad) * rt.timestep_rad.total_seconds()
+                                - rt.simulation.spinup_rad.total_seconds())
+            verbose('Using detected radiation timestep {} with {} times.',
+                    rt.timestep_rad, rt.nt_rad)
 
         # Store loaded data
         # TODO: move to netCDF (opened once among plugins)

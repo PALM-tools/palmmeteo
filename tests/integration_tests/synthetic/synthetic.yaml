@@ -1,0 +1,63 @@
+case: synthetic
+
+tasks:
+    - synthetic
+    - winddamp
+
+paths:
+    base: 'tests/integration_tests/{case}{scenario}'
+
+output:
+    overwrite: true
+
+intermediate_files:
+    delete_after_success: true
+
+domain:
+    nz: 25
+
+simulation:
+    origin_time: 2018-07-19 10:00:00
+    length: 3 h
+
+verbosity: 2
+
+synthetic:
+    prof_vars:
+        u: 
+            profiles: 
+                - [0.0, 2.0, 20.0]
+                - [0.0, -1.0, 5.0]
+            heights: [0, 10, 50]
+            times:
+                - 2018-07-19 10:00:00
+                - 2018-07-19 13:00:00
+        v:
+            profiles:
+                - [0.0, 0.5, 4.0]
+            heights: [0, 10, 50]
+        w:
+            profiles:
+                - [0.0]
+            heights: [0]
+        pt:
+            profiles:
+                - [292.0, 297.0]
+            heights: [0, 50]
+        qv:
+            profiles:
+                - [0.008]
+            heights: [0]
+        soil_t:
+            profiles:
+                - [291.0, 288.0, 285.0, 283.0]
+            heights: [0.05, 0.25, 0.7, 1.5]
+        soil_m:
+            profiles:
+                - [0.21, 0.20, 0.19, 0.27]
+            heights: [0.05, 0.25, 0.7, 1.5]
+
+winddamp:
+    damping_dist: 2
+    num_zeroed: 1
+    stagger_method: minimum

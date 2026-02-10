@@ -28,17 +28,137 @@ runtime.
 
 import os
 import re
-from datetime import datetime, timedelta
+import datetime
 from dataclasses import dataclass
 import numpy as np
 
 from .logging import die, warn, log, verbose
 
+# Numeric constants
 ax_ = np.newaxis
 rad = np.pi / 180.
-td0 = timedelta(hours=0)
 
+# Time-related constants
+td0 = datetime.timedelta(0)
+utc = datetime.timezone.utc
+midnight = datetime.time(0)
+
+utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
+midnight_of = lambda dt: datetime.datetime.combine(dt.date(), midnight, dt.tzinfo)
+
+# Other
+eps_grid = 1e-3 #Acceptable rounding error for grid points
 fext_re = re.compile(r'\.(\d{3})$')
+pos_re = re.compile(r'''^\s*
+        (
+            (?P<gridpoint> -?\d+(\.\d*)?)
+        |
+            (?P<distance> -?\d+(\.\d*)?)
+            \s* m
+        |
+            (?P<domain> -?\d+(\.\d*)?)
+            \s* %
+        |
+            (?P<degrees> -?\d+(\.\d*)?)
+            (\s* °
+                (\s* (?P<minutes> \d+(\.\d*)?) \s* '
+                    (\s* (?P<seconds> \d+(\.\d*)?) \s* ")?
+                )?
+            )?
+            (?P<quadrant> [NSEW])
+        )
+        \s*$''', re.X)
+
+# Returns min and max+1 indices of true values (such that mask[fr:to] is the
+# bounding box)
+where_range = lambda mask: (np.argmax(mask), len(mask)-np.argmax(mask[::-1]))
+
+def parse_pos(pos, ngrid, resol):
+    """Parse position specified as one of the options (see pos_re). May raise ValueError."""
+
+    m = pos_re.match(pos)
+    if not m:
+        raise ValueError()
+
+    v = m.group('gridpoint')
+    if v:
+        return float(v), False
+
+    v = m.group('distance')
+    if v:
+        v = float(v) / resol - 0.5
+        if not -0.5-eps_grid <= v <= ngrid+0.5+eps_grid:
+            raise ValueError()
+        return v, False
+
+    v = m.group('domain')
+    if v:
+        v = float(v) * .01
+        if not 0. <= v <= 1.:
+            raise ValueError()
+        return v * ngrid - 0.5, False
+
+    v = m.group('degrees')
+    if v:
+        deg = float(v)
+
+        v = m.group('minutes')
+        if v:
+            deg += float(v) / 60.
+
+        v = m.group('seconds')
+        if v:
+            deg += float(v) / 3600.
+
+        v = m.group('quadrant')
+        if v in 'NE':
+            pass
+        elif v in 'SW':
+            deg = -deg
+        else:
+            raise ValueError()
+
+        return deg, True
+
+    raise ValueError()
+
+# Round to nearest gridpoint
+nearest_gridpt = lambda v, ngrid: min(ngrid-1, max(0, round(v)))
+
+def distribute(what, into, reverse=False):
+    """Distributes integer into integers as evenly as possible"""
+
+    d, m = divmod(what, into)
+    if reverse:
+        return (d,)*(into-m) + (d+1,)*m
+    else:
+        return (d+1,)*m + (d,)*(into-m)
+
+def distribute_chunks(sizes, nthreads, prefix=(), reverse=False):
+    """Distributes an n-dim array among threads as evenly as possible"""
+
+    if len(sizes) == 0:
+        # Nothing more to distribute, may yield less threads
+        yield prefix
+    elif sizes[0] >= nthreads:
+        # Final step, threads cover remaining dimension(s)
+        rem = tuple(slice(0, l) for l in sizes[1:])
+        start = 0
+        for n in distribute(sizes[0], nthreads, not reverse):
+            stop = start + n
+            yield prefix + (slice(start, stop),) + rem
+            start = stop
+    else:
+        # distribute threads into this dim's elements
+        start = 0
+        for n in distribute(nthreads, sizes[0], reverse):
+            stop = start + 1
+            # By flipping reverse back and forth we avoid systematic
+            # overburdening of first/last threads
+            yield from distribute_chunks(sizes[1:], n,
+                    prefix + (slice(start, stop),),
+                    not reverse)
+            start = stop
 
 def find_free_fname(fpath, overwrite=False):
     if not os.path.exists(fpath):
@@ -66,11 +186,14 @@ def find_free_fname(fpath, overwrite=False):
     log('Filename {} exists, using {}.', fpath, newpath)
     return newpath
 
+class NotWholeTimestep(ValueError):
+    pass
+
 def tstep(td, step):
     """Fully divide datetime td by timedelta step."""
     d, m = divmod(td, step)
-    if m != td0:
-        raise ValueError('Not a whole timestep!')
+    if m:
+        raise NotWholeTimestep(f'{td} is not a whole timestep of {step}!')
     return d
 
 def ensure_dimension(f, dimname, dimsize):
@@ -120,8 +243,8 @@ class DTIndexer:
     Calculates integral time index from start and origin. Avoids
     using the unpicklable lambdas.
     """
-    origin: datetime
-    timestep: timedelta
+    origin: datetime.datetime
+    timestep: datetime.timedelta
 
     def __call__(self, dt):
         return tstep(dt-self.origin, self.timestep)
@@ -173,21 +296,43 @@ class Workflow:
         self.workflow = self.default_stages
 
     def assign_fromto(self, stage_from, stage_to):
-        wf1 = self.stage_idx(stage_from) if stage_from else 0
-        wf2 = self.stage_idx(stage_to)   if stage_to   else -1
+        try:
+            wf1 = self.stage_idx(stage_from) if stage_from else 0
+            wf2 = self.stage_idx(stage_to)   if stage_to   else -1
+        except KeyError as e:
+            die('Unknown stage: {}', e.args[0])
+
         self.workflow = self.default_stages[wf1:wf2+1]
         if wf1 > 0:
             self.snapshot_from = self.default_stages[wf1-1]
 
     def assign_list(self, stages):
-        workflow = [self.stage_idx(s) for s in stages]
-        wfnext = [si+1 for si in workflow[:-1]]
-        if wfnext != workflow[1:]:
-            raise ValueError(f'Workflow is not contiguous! Selected: {stages}. '
-                             f'Complete workflow: {self.default_stages}.')
+        try:
+            workflow = [self.stage_idx(s) for s in stages]
+        except KeyError as e:
+            die('Unknown stage: {}', e.args[0])
+
+        gaps = [i for i in range(1, len(workflow))
+                if workflow[i-1]+1 != workflow[i]]
+        if len(gaps) == 1:
+            before = workflow[:gaps[0]]
+            after = workflow[gaps[0]]
+            if before in ([0], [0,1]) and after >= 2:
+                self.snapshot_from = self.default_stages[after-1]
+                warn('Partially supported non-continuous workflow. Snapshot '
+                     'will be loaded from stage {}. Success is not '
+                     'guaranteed.', self.snapshot_from)
+                gaps = None
+        else:
+            if workflow[0] > 0:
+                self.snapshot_from = self.default_stages[workflow[0]-1]
+
+        if gaps:
+            # Apart from supported case above
+            die('Unsupported non-contiguous workflow! Selected stages {}. '
+                'Complete workflow: {}.', stages, self.default_stages)
+
         self.workflow = [self.default_stages[si] for si in workflow]
-        if workflow[0] > 0:
-            self.snapshot_from = self.default_stages[workflow[0]-1]
 
     def __iter__(self):
         return iter(self.workflow)

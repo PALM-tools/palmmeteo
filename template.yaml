@@ -13,12 +13,16 @@
 # necessary options. Tasks typically select input meteo and/or chemistry data
 # sources.
 tasks:
-    - wrf     # WRF meteo inputs
-    #- wrf_rad # WRF radiation inputs
-    #- icon    # ICON inputs
-    #- aladin  # Aladin inputs
-    #- camx    # CAMx chemistry inputs
-    #- cams    # CAMS chemistry inputs
+    - wrf         # WRF meteo inputs
+    #- wrf_rad    # WRF radiation inputs
+    #- icon       # ICON inputs
+    #- aladin     # Aladin inputs
+    #- aladin_rad # Aladin inputs
+    #- camx       # CAMx chemistry inputs
+    #- cams       # CAMS chemistry inputs
+    #- synthetic  # Profiles and other synthetic inputs
+    #- winddamp   # Postprocessor for wind damping near walls
+    #- plot       # Generates plots with time-series of vertical profiles
 
 # Replacement strings to be used in paths. They are valid Python expressions
 # and they may reference configuration values such as `dnum` or `scenario`.
@@ -42,10 +46,10 @@ paths:
         #vinterp:     'METEO/vinterp{domain}.nc'
 
     snapshot:
-        #setup_model:  'METEO/setup{domain}.pickle'
-        #import_data:  'METEO/import{domain}.pickle'
-        #hinterp:      'METEO/hinterp{domain}.pickle'
-        #vinterp:      'METEO/vinterp{domain}.pickle'
+        #setup_model:  'METEO/setup{domain}.pickle.zst'
+        #import_data:  'METEO/import{domain}.pickle.zst'
+        #hinterp:      'METEO/hinterp{domain}.pickle.zst'
+        #vinterp:      'METEO/vinterp{domain}.pickle.zst'
 
     wrf:
         #file_mask:      'WRF/wrfout_*.e000'
@@ -64,12 +68,17 @@ paths:
         #soil_depth:     'ALADIN/aladin_soil_depth.grb'
 
     cams:
-        #file:           'CAMS'
+        #file_mask:      'CAMS/**/*.nc'
+
+    plot:
+        #output_dir:     'METEO'
 
 output:
     # Overwrite existing output files? Otherwise create a new file with
     # numerical suffix
     #overwrite: false
+
+    #geostrophic_wind: false #not available with all plugins
 
     # LODs for output variables:
     # LOD2 = 3D data (unchanged, default),
@@ -94,16 +103,37 @@ domain:
     #dz_stretch_level: -1.0 #in metres
     #dz_stretch_factor: 1.0
     #dz_max: -1.0 #in metres
-    # minimal number of free surface canopy layers above top of terrain with
-    # building and plant canopy
+
+    # Check minimum number of free surface canopy layers above the top of
+    # terrain, buildings and plant canopy
     #nscl_free: 3
+
+    # Manual shift of terrain in metres. This should be equal to min(zt) of all
+    # domains. It is better to generate static drivers with such origin_z that
+    # min(zt) of all domains is 0.
+    #terrain_offset: 0    #default
+    #terrain_offset: auto #calculate from min(zt), only valid for single domain cases
+
+    # Ignore buildings in the static driver (for nscl_free and wind damping)
+    #ignore_buildings: false
 
 simulation:
     #origin_time: #default: read from static driver
     #timestep: 1 h
     #length: 1 d
 
-#radiation: false #off by default, switched on by tasks or manually
+    #timestep_rad: auto # default: detect from input files (if possible)
+    #timestep_rad: 10 m # explicit
+
+radiation:
+    #enabled: false #off by default, switched on by tasks or manually
+
+    #timestep: auto #default: detect from input files (if possible)
+    #timestep: 10 m #explicit
+
+    # Configure when using external radiation also for spinup (PALM default for
+    # spinup is clearsky).
+    #spinup_length: 0 h
 
 #chem_species: [] #empty list = disabled chemistry
 
@@ -116,10 +146,26 @@ vinterp:
     # horizontal gradients. Sigma value in grid points.
     #terrain_smoothing: off
 
+    # Upper limit of vertical adaptation for terrain matching
+    # [metres above highest obstacles]
+    #transition_level: 300.0
+
+    # code used for the interpolation
+    #interpolator: prepared  #pure-Python interpolator with prepared weights (default)
+    #interpolator: metpy     #legacy interpolator from the MetPy library (slow)
+    #interpolator: fortran   #Fortran-based interpolator (fastest, must be compiled using f2py)
+
+    #wind_power_law: false #off by default
+    #wind_power_law: 0.147
+
 postproc:
     #nox_post_sum: false
 
-verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+compute:
+    #nthreads: 1 #number of parallel threads (currently in fortran vinterp)
+
+#verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+#log_datetime: true #prepend each log message with date+time
 
 # Workflow: optionally select a subset of stages
 #workflow:
@@ -133,12 +179,34 @@ verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
 ######################### PLUGIN-SPECIFIC OPTIONS #########################
 
 wrf:
-    # Method of stretching vertical levels before vertical interpolation in
-    # order to match the target (high-resolution) terrain, while limiting the
-    # propagation of surface features to higher levels. May be one of:
-    # universal:    A universal method where levels above transition_level are
-    #               kept unmodified while the levels below are stretched
-    #               gradually
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # time interval
+        #cycles_used: single # use one specified cycle
+        #cycles_used: all    # default: use all files, assume they are continuous
+
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        #reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        #earliest_horizon: 0 h
+
+    # Method of stretching or squeezing of the intermediate-height levels
+    # before vertical interpolation in order to match the target
+    # (high-resolution) terrain, while limiting the propagation of
+    # surface-reltaed effects to higher levels. (Do not confuse with PALM's
+    # vertically stretched grid as in dz_stretch_level and dz_stretch_factor.)
+    # May be one of:
+    # universal:    A universal method where levels above
+    #               vinterp:transition_level are kept unmodified while the
+    #               levels below are stretched/squeezed gradually.
     # hybrid:       Use the WRF hybrid vertical coordinate system from the
     #               WRFOUT input files to stretch the levels. WARNING: the WRF
     #               model must be configured to using hybrid levels, not sigma
@@ -147,8 +215,7 @@ wrf:
     #               files to stretch the levels. WARNING: the WRF model must be
     #               configured to using sigma levels, not hybrid leves, there
     #               is no check for this!
-    #vertical_stretching: universal
-    #transition_level: 2000.0 #m above origin_z
+    #vertical_adaptation: universal
 
     #radiation_smoothing_distance: 10000.0
 
@@ -177,10 +244,26 @@ camx:
     #    PM25: 'PM25 = PSO4+PNO3+PNH4+POA+PEC+FPRM+SOA1+SOA2+SOA3+SOA4+SOPA+SOPB'
 
 synthetic:
-    #transition_level: 2000.0 #m above origin_z
-
     #prof_vars:
-    #    u: {profiles: ~, heights: ~, timeseries: ~, times: ~}
+    #    u:
+    #        # The list of vertical profiles of the given quantity, either one
+    #        # profile for values constant in time or more as timesteps within
+    #        # timeseries
+    #        profiles: ~
+
+    #        # List of heights of the vertical profile points (m above origin_z)
+    #        heights: ~
+
+    #        # If specified, allows arbitrary permutation or repetition of
+    #        # timesteps from "profiles" (using order numbers starting from 0).
+    #        # If unspecified, the profiles are taken sequentially, starting
+    #        # over from the first one if there is less of them than "times".
+    #        timeseries: ~
+
+    #        # Time points for the timeseries. This may be omitted if there is
+    #        # exactly one profile (constant in time).
+    #        times: ~
+
     #    v: {profiles: ~, heights: ~, timeseries: ~, times: ~}
     #    w: {profiles: ~, heights: ~, timeseries: ~, times: ~}
     #    pt: {profiles: ~, heights: ~, timeseries: ~, times: ~}
@@ -188,13 +271,12 @@ synthetic:
     #    soil_t: {profiles: ~, heights: ~, timeseries: ~, times: ~}
     #    soil_m: {profiles: ~, heights: ~, timeseries: ~, times: ~}
 
-    #p_surf: ~
-    #p_sl: 100000.
+    #p_surf: ~ #pressure at origin_z (default: calculate from p_sl)
+    #p_sl: 100000. #sea level pressure for p_surf calculation
 
 aladin:
     #load_gribs: true
-    #vertical_stretching: universal
-    #transition_level: 2000.0 #m above origin_z
+    #vertical_adaptation: universal
 
     #radiation_smoothing_distance: 10000.0
 
@@ -202,13 +284,30 @@ aladin:
     #soil_avg_point: [ 14.418540, 50.073658 ]
 
 icon:
-    # List of assimilation cycles specified as timedeltas after midnight UTC
-    #input_assim_cycles: [0 h, 3 h, 6 h, 9 h, 12 h, 15 h, 18 h, 21 h]
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # default: time interval
+        #cycles_used: single # use one specified cycle
 
-    # First and last forecast horizon taken from each cycle. Must match
-    # assimilation cycles in such a way that a full, continuous day is formed.
-    # For aggregated values, the last horizon is exactly 1 timestep further.
-    #input_fcst_horizon_range: [0 h, 2 h]
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        #reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        #earliest_horizon: 0 h
+
+    # The disaggregated values (radiation) represent centres of intervals
+    # between timesteps, therefore to cover the full duration of the
+    # simulation, one more time interval before and after the simulation are
+    # required. Enable this to allow skipping them using extrapolation.
+    #allow_skip_first_disaggr: true
+    #allow_skip_last_disaggr: true
 
     # Distance [km] for selecting nearby grid points usable for interpolation.
     # Recommended value: original grid resolution × 3
@@ -216,12 +315,72 @@ icon:
 
     #radiation_smoothing_distance: 30.0 #km
 
-    #transition_level: 2000.0 #m above origin_z
-
-    # Smoothing of PALM terrain for vertical interpolation to avoid sharp
-    # horizontal gradients. Sigma value in grid points.
-    #terrain_smoothing: off
-
-
 cams:
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # time interval
+        #cycles_used: single # use one specified cycle
+        #cycles_used: all    # default: use all files, assume they are continuous
 
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        #reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        #earliest_horizon: 0 h
+
+    varnames:
+        #latitude: latitude
+        #longitude: longitude
+
+winddamp:
+    # Distance in number of grid cells from the wall which have some wind
+    # damping. Cells further from the wall will have no damping.
+    #damping_dist: 2
+
+    # Distance in number of grid cells from the wall which are damped to zero.
+    # The next cells further from the wall have a damping factor which
+    # increases linearly to 1.
+    #num_zeroed: 1
+
+    # Method of staggering the damping factor for the U, V and W wind
+    # components by taking adjacent cells in the respective dimension.
+    #stagger_method: average #default
+    #stagger_method: minimum
+
+plot:
+    # List of horizontal positions for which to plot vertical profiles as
+    # time-series.
+    #positions:
+    #    - name: center  #prefix for output files
+    #      xpos: 50%     #specified either as grid point (no suffix), distance
+    #                    #from origin (suffix m), domain relative (suffix %) or
+    #                    #degrees lat/lon (suffix N/E/S/W, may contain °'")
+    #      ypos: 50%     #dtto
+    #      vars:
+    #          # Special variables:
+    #          - wind    #wind (plotted as speed + direction)
+    #          - temp    #air temperature (plotted as potential + absolute)
+    #          # All other named variables from IBC:
+    #          - qv      #water vapor mixing ratio
+
+    # Fully qualified names of colormaps used for the plots by type. Defaults
+    # require only standard matplotlib, recommended are from colorcet.
+    colormaps:
+        #default: matplotlib.cm.viridis #Default from matplotlib
+        #default: colorcet.m_bmy        #Better
+        #zero_based: matplotlib.cm.inferno #Default from matplotlib
+        #zero_based: colorcet.m_fire       #Better
+        #wind_direction: matplotlib.cm.twilight #Default from matplotlib
+        #wind_direction: colorcet.m_colorwheel  #Better
+
+    #format: png #default
+    #format: pdf
+
+    #dpi: 300 #also determines sizes for raster outputs

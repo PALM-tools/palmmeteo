@@ -1,11 +1,12 @@
 # Explicit dependency versions
-pint>=0.23
+pint>=0.23; python_version >= '3.9'
 
 # Project reqs (for py310)
-numpy>=2.1,<2.2
+numpy>=2.1,<2.2; python_version >= '3.10'
 pyyaml>=6.0
 netCDF4>=1.7.2
 scipy>=1.15; python_version >= '3.10'
 pyproj>=3.7; python_version >= '3.10'
-metpy>=1.6; python_version >= '3.10'
 pytest>=7.0
+
+pyzstd; python_version < '3.14'

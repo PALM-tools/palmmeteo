@@ -13,23 +13,27 @@ https://palm-tools.github.io/palmmeteo/.
 
 ## Functionality
 
-The PALM-meteo workflow consists of these _stages_:
+The PALM-meteo workflow consists of six _stages_. Normally, they are all
+executed sequentially, but it is possible to stop the execution after any stage
+and restart it later (see also [Running PALM-meteo](docs/pages/running.md)).
 
-1. **Model setup**: setting up basic items such as the PALM model domain.
-   Currently this requireds providing the already prepared PALM *static
-   driver*.
+1. **Configuration** (`check_config`): Loads and validates user configuration.
 
-2. **Input loading**: selection of requested variables, area selection,
-   transformation and/or unit conversion where required. Certain input
-   variables are also temporally disagregated.
+2. **Domain and model set-up** (`setup_model`): setting up basic items such as
+   the geometry of the PALM model domain.  Currently this requires providing
+   the already prepared PALM *static driver*.
 
-3. **Horizontal interpolation** from the input model grid to PALM grid.
-   Includes geographic projection conversion where required. Models with
+3. **Input data loading** (`import_data`): selection of requested variables,
+   area selection, transformation and/or unit conversion where required.
+   Certain input variables are also temporally disagregated.
+
+4. **Horizontal interpolation** (`hinterp`) from the input model grid to PALM
+   grid.  Includes geographic projection conversion where required. Models with
    traditional rectangular grid are regridded using bilinear interpolation, the
    ICON model with the icosahedral grid uses Delaunay triangulation and
    barycentric interpolation.
 
-4. **Vertical interpolation** from input model levels (which may be
+5. **Vertical interpolation** (`vinterp`) from input model levels (which may be
    terrain-following, isobaric, eta, hybrid etc.) to PALM model levels
    (altitude-based). Part of this process is terrain matching, as the
    high-resolution PALM terrain may differ, even significantly, from the input
@@ -38,7 +42,7 @@ The PALM-meteo workflow consists of these _stages_:
    higher layers, the vertical shifts are progressively smaller until they
    reach the _transition level_, above which they are not shifted at all.
 
-5. **Output generation** creates the final PALM dynamic driver. Final
+6. **Output generation** (`write`) creates the final PALM dynamic driver. Final
    adjustments are performed here, notably the mass balancing which is
    performed on all boundaries (respecting terrain on lateral boundaries), so
    that the PALM's internal mass balancing (which is performed only on the top
@@ -125,6 +129,24 @@ or for indivudal tests:
 
 You may also examine the directory `tests/integration_tests/simple_wrf` as
 a reference WRF case for PALM-meteo.
+
+### Optional dependencies
+
+Some plugins or extra functionalities have optional dependencies which are not
+part of the main installation as they are often not used. In the Method 1,
+you may enable them by using
+`pip3 install palmmeteo[extra_functionality]`
+for these extra functionalities: `vinterp_metpy` for the legacy MetPy vertical
+interpolation, `geostrophic_wind` or `aladin`. With the other install methods
+you need to manually install the Python packages listed in
+`pyproject.toml`.
+
+It is also possible to use the fastest method for vertical interpolation
+(see [configuration](docs/pages/configuration.md)) which uses natively compiled
+Fortran code. To do this, you must first compile it by running this command
+within the `palmmeteo` directory:
+
+    f2py -c -m vinterp_native vinterp_native.f90
 
 ## Usage
 

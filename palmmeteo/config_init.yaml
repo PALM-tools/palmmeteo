@@ -48,16 +48,20 @@ paths:
         hinterp:     'METEO/hinterp{domain}.nc'
         vinterp:     'METEO/vinterp{domain}.nc'
 
+    # Pickle file paths for snapshots. If they end with .zst, they will be
+    # compressed (requires pyzstd OR python>=3.14).
     snapshot:
-        setup_model:  'METEO/setup{domain}.pickle'
-        import_data:  'METEO/import{domain}.pickle'
-        hinterp:      'METEO/hinterp{domain}.pickle'
-        vinterp:      'METEO/vinterp{domain}.pickle'
+        setup_model:  'METEO/setup{domain}.pickle.zst'
+        import_data:  'METEO/import{domain}.pickle.zst'
+        hinterp:      'METEO/hinterp{domain}.pickle.zst'
+        vinterp:      'METEO/vinterp{domain}.pickle.zst'
 
 output:
     # Overwrite existing output files? Otherwise create a new file with
     # numerical suffix
     overwrite: false
+
+    geostrophic_wind: false #not available with all plugins
 
     # LODs for output variables:
     # LOD2 = 3D data (unchanged, default),
@@ -86,9 +90,20 @@ domain:
     dz_stretch_level: -1.0 #in metres
     dz_stretch_factor: 1.0
     dz_max: -1.0 #in metres
-    # minimal number of free surface canopy layers above top of terrain with
-    # building and plant canopy
+
+    # Check minimum number of free surface canopy layers above the top of
+    # terrain, buildings and plant canopy
     nscl_free: 3
+
+    # Manual shift of terrain in metres. This should be equal to min(zt) of all
+    # domains. It is better to generate static drivers with such origin_z that
+    # min(zt) of all domains is 0.
+    terrain_offset: 0    #default
+    #terrain_offset: auto #calculate from min(zt), only valid for single domain cases
+
+    # Ignore buildings in the static driver (for nscl_free and wind damping)
+    ignore_buildings: false
+
     proj_palm: 'EPSG:32633' #reference coordinate system of PALM simulation
     proj_wgs84: 'EPSG:4326' #projection lon-lat
 
@@ -97,8 +112,16 @@ simulation:
     timestep: 1 h
     length: 1 d
 
-#Off by default (empty so that tasks may overwrite), switched on by tasks or manually
 radiation:
+    # Off by default (empty so that tasks may overwrite), switched on by tasks or manually
+    enabled: ~
+
+    timestep: auto #default: detect from input files (if possible)
+    #timestep: 10 m #explicit
+
+    # Configure when using external radiation also for spinup (PALM default for
+    # spinup is clearsky).
+    spinup_length: 0 h
 
 chem_species: [] #empty list = disabled chemistry
 
@@ -122,10 +145,26 @@ vinterp:
     # horizontal gradients. Sigma value in grid points.
     terrain_smoothing: off
 
+    # Upper limit of vertical adaptation for terrain matching
+    # [metres above highest obstacles]
+    transition_level: 300.0
+
+    # code used for the interpolation
+    interpolator: prepared  #pure-Python interpolator with prepared weights (default)
+    #interpolator: metpy     #legacy interpolator from the MetPy library (slow)
+    #interpolator: fortran   #Fortran-based interpolator (fastest, must be compiled using f2py)
+
+    wind_power_law: false #off by default
+    #wind_power_law: 0.143
+
 postproc:
     nox_post_sum: false
 
+compute:
+    nthreads: 1 #number of parallel threads (currently in fortran vinterp)
+
 verbosity: 1 #can be overwritten by command-line switches -v (=2) or -s (=0)
+log_datetime: true #prepend each log message with date+time
 
 # The complete workflow - do not change!
 full_workflow:
@@ -149,9 +188,18 @@ plugins:
 # necessary options. Tasks typically select input meteo and/or chemistry data
 # sources.
 tasks:
-    - wrf     # WRF meteo inputs
-    #- wrf_rad # WRF radiation inputs
-    #- icon    # ICON inputs
-    #- aladin  # Aladin inputs
-    #- camx    # CAMx chemistry inputs
-    #- cams    # CAMS chemistry inputs
+    - wrf         # WRF meteo inputs
+    #- wrf_rad    # WRF radiation inputs
+    #- icon       # ICON inputs
+    #- aladin     # Aladin inputs
+    #- aladin_rad # Aladin inputs
+    #- camx       # CAMx chemistry inputs
+    #- cams       # CAMS chemistry inputs
+    #- synthetic  # Profiles and other synthetic inputs
+    #- winddamp   # Postprocessor for wind damping near walls
+    #- plot       # Generates plots with time-series of vertical profiles
+
+# Debugging by sections for programmers
+debug:
+    all: false
+    snapshots: false

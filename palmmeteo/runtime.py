@@ -19,29 +19,74 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
+import sys
 import os
 import pickle
 
+from . import signature
 from .logging import die, warn, log, verbose
 from .config import cfg, parse_duration, ConfigObj
 
-class RuntimeObj(object):
+zstd = None
+
+def myopen(fpath, *args, **kwargs):
+    global zstd
+
+    if fpath.endswith('.zst'):
+        if zstd is None:
+            try:
+                from compression import zstd
+            except ImportError:
+                import pyzstd as zstd
+        return zstd.open(fpath, *args, **kwargs)
+    else:
+        return open(fpath, *args, **kwargs)
+
+class RuntimeObj:
     """An object for holding runtime-related values.
 
     May be nested.
     """
 
+    def _get_child(self, child_name):
+        try:
+            return self.__dict__[child_name]
+        except KeyError:
+            newchild = self.__class__()
+            self.__dict__[child_name] = newchild
+            return newchild
+
     def _save(self, fpath):
-        #for n,v in self.__dict__.items():
-        #    print(f'{n}:	{type(v)}')
-        #    pickle.dumps(v)
-        with open(fpath, 'wb') as f:
-            pickle.dump(self.__dict__, f,
-                        protocol=cfg.intermediate_files.pickle_protocol)
+        log('Saving snapshot to {}', fpath)
+        with myopen(fpath, 'wb') as f:
+            p = pickle.Pickler(f, protocol=cfg.intermediate_files.pickle_protocol,
+                    fix_imports=False)
+            p.dump(signature)
+            p.dump(self.__dict__)
+            if rt.debug.snapshots:
+                for k, v in self.__dict__.items():
+                    if hasattr(v, 'nbytes'):
+                        verbose('{}:\t{} bytes (np).', k, v.nbytes)
+                    else:
+                        try:
+                            l = len(v)
+                        except:
+                            verbose('{}:\t{} bytes (sys).', k, sys.getsizeof(v))
+                        else:
+                            verbose('{}:\tlength {}, {} bytes (sys).', k, l, sys.getsizeof(v))
+        verbose('Snapshot saved.')
 
     def _load(self, fpath):
-        with open(fpath, 'rb') as f:
-            loaded = pickle.load(f)
+        log('Loading snapshot from {}', fpath)
+        with myopen(fpath, 'rb') as f:
+            p = pickle.Unpickler(f, fix_imports=False)
+            sig_loaded = p.load()
+            loaded = p.load()
+        if sig_loaded == signature:
+            verbose('Loaded snapshot version: {}', sig_loaded)
+        else:
+            warn('Loaded snapshot version "{}" does not match current '
+                 'version "{}", errors may follow!', sig_loaded, signature)
         assert(isinstance(loaded, dict))
         self.__dict__.update(loaded)
 
@@ -49,9 +94,14 @@ def basic_init(rt):
     """Performs initializaiton of basic values from config."""
 
     # Times
-    rt.simulation = RuntimeObj()
-    rt.simulation.timestep = parse_duration(cfg.simulation, 'timestep')
-    rt.simulation.length = parse_duration(cfg.simulation, 'length')
+    simulation = rt._get_child('simulation')
+    simulation.timestep = parse_duration(cfg.simulation, 'timestep')
+    simulation.length = parse_duration(cfg.simulation, 'length')
+    if cfg.radiation.timestep == 'auto':
+        rt.timestep_rad = None
+    else:
+        rt.timestep_rad = parse_duration(cfg.radiation, 'timestep')
+    simulation.spinup_rad = parse_duration(cfg.radiation, 'spinup_length')
 
     # Paths
     rt.path_strings = {}
@@ -68,19 +118,25 @@ def basic_init(rt):
             raise
         rt.path_strings[key] = val
 
-    rt.paths = RuntimeObj()
-    rt.paths.base = cfg.paths.base.format(**rt.path_strings)
+    paths = rt._get_child('paths')
+    paths.base = cfg.paths.base.format(**rt.path_strings)
     for sect_name, sect_cfg in cfg.paths:
         if isinstance(sect_cfg, ConfigObj):
-            path_sect = RuntimeObj()
-            setattr(rt.paths, sect_name, path_sect)
+            path_sect = paths._get_child(sect_name)
             for key, val in sect_cfg:
                 if isinstance(val, str):
                     setattr(path_sect, key,
-                        os.path.join(rt.paths.base, val.format(**rt.path_strings)))
+                        os.path.join(paths.base, val.format(**rt.path_strings)))
 
     # Domain
     rt.nested_domain = (cfg.dnum > 1)
     rt.stretching = (cfg.domain.dz_stretch_factor != 1.0)
 
+    # Debugging
+    debug = rt._get_child('debug')
+    isall = cfg.debug.all
+    for dname, don in cfg.debug:
+        setattr(debug, dname, isall or don)
+
+# Global object
 rt = RuntimeObj()

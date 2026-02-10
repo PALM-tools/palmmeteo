@@ -21,17 +21,18 @@
 
 """Library functions for plugins"""
 
-import datetime
 import re
+import math
+import datetime
 import numpy as np
-from .logging import die, warn, log, verbose
-from .config import cfg
-from .runtime import rt
-from .utils import ax_, rad, SliceBoolExtender
-from scipy.spatial import Delaunay
+import netCDF4
 
-utc = datetime.timezone.utc
-utcdefault = lambda dt: dt.replace(tzinfo=utc) if dt.tzinfo is None else dt
+from .logging import die, warn, log, verbose
+from .config import cfg, parse_duration, ConfigError
+from .runtime import rt
+from .utils import (ax_, rad, SliceBoolExtender, midnight_of, NotWholeTimestep,
+                    ensure_dimension, utc, utcdefault)
+from scipy.spatial import Delaunay
 
 class PalmPhysics:
     """Physics calculations with defined constants
@@ -151,12 +152,7 @@ class QuantityCalculator:
         self.quantities = []
 
         for qname in quantities:
-            try:
-                vdef = var_defs[qname]
-            except KeyError:
-                die('Requested quantity {} not found in configured '
-                        'quantity definitions.', qname)
-
+            vdef = self._get_vdef(var_defs, qname)
             q = LoadedQuantity()
             q.name = qname
 
@@ -208,6 +204,20 @@ class QuantityCalculator:
                 die('Syntax error in definition of the quantity '
                         '{} formula: "{}".', qname, q.formula)
             self.quantities.append(q)
+
+    @staticmethod
+    def _get_vdef(var_defs, qname):
+        try:
+            return var_defs[qname]
+        except KeyError:
+            die('Requested quantity {} not found in configured '
+                    'quantity definitions.', qname)
+
+    @classmethod
+    def get_loaded_vars(cls, quantities, var_defs):
+        return set().union(*(
+            cls._get_vdef(var_defs, qname).loaded_vars
+            for qname in quantities))
 
     @staticmethod
     def new_timestep():
@@ -398,3 +408,237 @@ class LatLonRegularGrid:
         self.latlon_to_ji = lambda lat, lon: ((lat-lat_base)*lat_dstep, (lon-lon_base)*lon_dstep)
         self.ji_to_latlon = lambda j, i: (j*lat_step+lat_base, i*lon_step+lon_base)
 
+class AssimCycle:
+    """List of selected assimilation cycles based on configuration"""
+
+    def __init__(self, cfgsect):
+        cint = cfgsect.cycles_used
+        cref = cfgsect.reference_cycle
+
+        if cint == 'all':
+            self.cycle_int = False
+            if cref:
+                raise ConfigError('Reference cycle cannot be specified for '
+                        'cycles_used=all', cfgsect, 'reference_cycle')
+            self.is_selected = self._is_selected_all
+        else:
+            self.cycle_ref = cref
+            if not self.cycle_ref:
+                # Use 00:00 UTC of the first day of simulation
+                self.cycle_ref = midnight_of(rt.simulation.start_time)
+
+            if cint == 'single':
+                self.cycle_int = None
+                self.is_selected = self._is_selected_single
+                verbose('Using forecast/assimilaton cycle {}',
+                        self.cycle_ref)
+            else:
+                self.cycle_int = parse_duration(cfgsect, 'reference_cycle', cint)
+                self.is_selected = self._is_selected_interval
+                verbose('Using forecast/assimilation cycles every {} '
+                        '(with reference to {})', self.cycle_int, self.cycle_ref)
+
+    def _is_selected_interval(self, cycle_dt):
+        """Test whether the cycle is among the selected cycles"""
+        return not (cycle_dt - self.cycle_ref) % self.cycle_int # remainder is timedelta(0)
+
+    def _is_selected_single(self, cycle_dt):
+        """Test whether the cycle is among the selected cycles"""
+        return cycle_dt == self.cycle_ref
+
+    def _is_selected_all(self, cycle_dt):
+        """Test whether the cycle is among the selected cycles"""
+        return True
+
+class HorizonSelection:
+    """
+    Represents a continous selection of forecast horizons for
+    a given selection of cycles (AssimCycle)
+    """
+    def __init__(self, cycles, earliest_horizon, idx_start=None, idx_stop=None,
+                 tindex=None, idx_rad=False):
+        self.cycles = cycles
+        self.horiz_first = earliest_horizon
+        if not cycles.cycle_int:
+            self.horiz_last = datetime.timedelta(days=999999)
+        else:
+            self.horiz_last = earliest_horizon + cycles.cycle_int - rt.simulation.timestep
+
+        if idx_rad:
+            self.idx0 = (math.floor(-rt.simulation.spinup_rad / rt.timestep_rad)
+                         if idx_start is None else idx_start)
+            self.idx1 = (math.ceil((rt.simulation.end_time_rad - rt.simulation.start_time) / rt.timestep_rad) + 1
+                         if idx_stop is None else idx_stop)
+        else:
+            self.idx0 = 0 if idx_start is None else idx_start
+            self.idx1 = rt.nt if idx_stop is None else idx_stop
+        self.tindex = rt.tindex if tindex is None else tindex
+
+    @classmethod
+    def from_cfg(cls, cfgsect, idx_start=None, idx_stop=None, tindex=None, idx_rad=False):
+        cycles = AssimCycle(cfgsect)
+        hor0 = parse_duration(cfgsect, 'earliest_horizon')
+        return cls(cycles, hor0, idx_start=idx_start, idx_stop=idx_stop,
+                   tindex=tindex, idx_rad=idx_rad)
+
+    def get_idx(self, horizon, dt_idx):
+        if not self.idx0 <= dt_idx < self.idx1:
+            return False
+        if not self.horiz_first <= horizon <= self.horiz_last:
+            return False
+        return dt_idx - self.idx0
+
+    def locate(self, cycle, horizon=None, dt=None):
+        if not self.cycles.is_selected(cycle):
+            verbose('Cycle {} not included', cycle)
+            return False
+
+        try:
+            dt_idx = self.tindex(cycle+horizon if dt is None else dt)
+        except NotWholeTimestep:
+            return False
+
+        return self.get_idx(dt-cycle if horizon is None else horizon, dt_idx)
+
+    def dt_from_idx(self, idx):
+        dt = rt.simulation.start_time + rt.simulation.timestep*(idx+self.idx0)
+        horizon = (dt - self.cycles.cycle_ref - self.horiz_first) % self.cycles.cycle_int
+        horizon += self.horiz_first
+        cycle = dt - horizon
+        return cycle, horizon, dt
+
+class NCDates:
+    """
+    Represents dates found in an NetCDF file with CF conventions and their
+    match (intersection) with given HorizonSelection.
+    """
+    def __init__(self, ncvar):
+        ntimes, = ncvar.shape
+        mytimes = np.zeros((ntimes+1,), dtype=ncvar.dtype)
+        mytimes[1:] = ncvar[:]
+        dts = netCDF4.num2date(mytimes, ncvar.units, ncvar.calendar,
+                               only_use_cftime_datetimes=False,
+                               only_use_python_datetimes=True)
+        if dts[0].tzinfo is None:
+            dts = [dt.replace(tzinfo=utc) for dt in dts]
+        self.origin = dts[0]
+        self.times = dts[1:]
+
+    @classmethod
+    def from_origin(cls, dt_origin, units, times):
+        obj = cls.__new__(cls)
+        obj.origin = utcdefault(dt_origin)
+        obj.times = obj.origin + times * datetime.timedelta(**{units: 1})
+        return obj
+
+    def match_hselect(self, hselect):
+        """Find file time indices (if any) that match the given HorizonSelection"""
+
+        self.matching = m = []
+        for file_idx, dt in enumerate(self.times):
+            sel_idx = hselect.locate(self.origin, dt=dt)
+            if sel_idx is not False:
+                m.append((file_idx, sel_idx))
+        return m #can be truth-tested for non-emptiness
+
+class InputGatherer:
+    """
+    Helps gather input variables for the import step and check for
+    completeness. Also helps handle list of vertical levels if it is not known
+    in advance. Only works on identically-shaped data - use more than one
+    object if you have e.g. 2D + 3D variables.
+    """
+    def __init__(self, fout, varnames, nt, output_dims, dyn_levels=True,
+                 copy_attrs=[]):
+        self.fout = fout
+        self.nt = nt
+        self.varnames = varnames
+        self.nv = len(varnames)
+        self.idx_var = {k:i for i, k in enumerate(varnames)}
+        self.output_dims = output_dims
+        self.copy_attrs = copy_attrs
+        ensure_dimension(fout, output_dims[0], nt) #time dimension
+
+        self.dyn_levels = dyn_levels
+        if dyn_levels:
+            self.levels = []
+            self.idx_lev = {}
+            self.filled = []
+            self.level_dimname = self.output_dims[1]
+            fout.createDimension(self.level_dimname, None)
+            self.extra_dims = output_dims[2:]
+        else:
+            self.filled = np.zeros((self.nt, self.nv), dtype=bool)
+            self.extra_dims = output_dims[1:]
+
+    def _get_level(self, level):
+        nlev = len(self.levels)
+        il = self.idx_lev.setdefault(level, nlev)
+        if il == nlev:
+            self.levels.append(level)
+            self.filled.append(np.zeros((self.nt, self.nv), dtype=bool))
+        return il
+
+    def _get_var(self, varname, dt, shape, attrs):
+        try:
+            return self.fout.variables[varname]
+        except KeyError:
+            for dn, ds in zip(self.extra_dims, shape):
+                ensure_dimension(self.fout, dn, ds)
+            v = self.fout.createVariable(varname, dt, self.output_dims)
+            if self.copy_attrs:
+                if hasattr(attrs, 'getncattr'):
+                    v.setncatts({a: attrs.getncattr(a) for a in self.copy_attrs})
+                else:
+                    v.setncatts({a: attrs[a] for a in self.copy_attrs})
+            return v
+
+    def add_single_lev(self, varname, it, level, data, attrs={}):
+        assert self.dyn_levels
+
+        il = self._get_level(level)
+        var = self._get_var(varname, data.dtype, data.shape, attrs)
+        var[it,il] = data
+        self.filled[il][it,self.idx_var[varname]] = 1
+
+    def add_full(self, varname, it, data, attrs={}):
+        assert not self.dyn_levels
+
+        var = self._get_var(varname, data.dtype, data.shape, attrs)
+        var[it] = data
+        self.filled[:,it,self.idx_var[varname]] = 1
+
+    def _pprint_missing(self, data, axis, axname, keys=None):
+        n = data.shape[axis]
+        axes = list(range(len(data.shape)))
+        del axes[axis]
+        count = data.size // n
+        nfilled = data.sum(axis=axes)
+        pkeys = range(n) if keys is None else keys
+
+        return 'Per-{}:\n{}'.format(
+                axname,
+                '\n'.join(
+                    '{}: {}/{} ({}%)'.format(
+                        k, nfilled[i], count, nfilled*100//count)
+                    for i, k in enumerate(pkeys)))
+
+    def finalize(self):
+        if self.dyn_levels:
+            self.levels = np.array(self.levels)
+            self.filled = np.array(self.filled)
+            self.fout.createVariable(self.level_dimname, self.levels.dtype,
+                                     (self.level_dimname,))[:] = self.levels
+            verbose('Loaded levels: {}', self.levels)
+
+        if not self.filled.all():
+            pp = [self._pprint_missing(self.filled, 2, 'variable', self.varnames),
+                  self._pprint_missing(self.filled, 1, 'time')]
+            if self.dyn_levels:
+                pp = [self._pprint_missing(self.filled, 2, 'variable', self.varnames),
+                      self._pprint_missing(self.filled, 1, 'time'),
+                      self._pprint_missing(self.filled, 0, 'level', self.levels)]
+            else:
+                pp = [self._pprint_missing(self.filled, 1, 'variable', self.varnames),
+                      self._pprint_missing(self.filled, 0, 'time')]
+            die('Some input data is missing:\n\n{}', '\n\n'.join(pp))

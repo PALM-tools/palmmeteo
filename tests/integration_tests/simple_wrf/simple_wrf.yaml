@@ -4,11 +4,16 @@ tasks:
     - wrf
     - wrf_rad
 
+paths:
+    base: 'tests/integration_tests/{case}{scenario}'
+
+
+output:
+    overwrite: true
+    #check_mass_balance: true
+
 domain:
     nz: 25
-
-paths:
-    base: tests/integration_tests/simple_wrf
 
 simulation:
     origin_time: 2018-07-19 10:00:00
@@ -16,9 +21,5 @@ simulation:
 
 hinterp:
     #validate: true
-
-output:
-    overwrite: true
-    #check_mass_balance: true
 
 verbosity: 2

@@ -19,33 +19,36 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 import numpy as np
 import scipy.ndimage as ndimage
-from metpy.interpolate import interpolate_1d
 
 from palmmeteo.plugins import ImportPluginMixin, VInterpPluginMixin
 from palmmeteo.logging import die, warn, log, verbose, log_output
 from palmmeteo.config import cfg, ConfigError
 from palmmeteo.runtime import rt
-from palmmeteo.utils import ensure_dimension
-from palmmeteo.library import PalmPhysics, utcdefault
+from palmmeteo.utils import ensure_dimension, utcdefault, ax_
+from palmmeteo.library import PalmPhysics
+from palmmeteo.vinterp import get_vinterp
 
 barom_pres = PalmPhysics.barom_lapse0_pres
 barom_gp = PalmPhysics.barom_lapse0_gp
 g = PalmPhysics.g
 
-ax_ = np.newaxis
-
 def expand(var):
     """expand horizontal dimensions and pad at top and bottom"""
     v = np.zeros((var.shape[0]+2, rt.ny, rt.nx), dtype=var.dtype)
-    v[0,:,:] = var[0]
+    v[0,:,:] = var[0,ax_,ax_]
     v[1:-1,:,:] = var[:,ax_,ax_]
     v[-1,:,:] = var[-1,ax_,ax_]
     return v
 
 class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
+    def check_config(self, *args, **kwargs):
+        if cfg.output.geostrophic_wind:
+            raise ConfigError('The Synthetic plugin does not support geostrophic wind',
+                              cfg.output, 'geostrophic_wind')
+
     def import_data(self, fout, *args, **kwargs):
         log('Importing synthetic profiles')
         rt.times = rt.simulation.start_time + np.arange(rt.nt) * rt.simulation.timestep
@@ -94,7 +97,8 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             target_terrain = rt.terrain
 
         gp0 = rt.origin_z*g
-        gp_trans = (rt.origin_z + cfg.synthetic.transition_level) * g
+        z_trans = rt.origin_z + rt.z_levels_stag[rt.canopy_top] + cfg.vinterp.transition_level
+        gp_trans = z_trans * g
         gp_new_surf = target_terrain * g
 
         for it in range(rt.nt):
@@ -113,7 +117,7 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             # Calculate transition pressure level using horizontal
             # domain-wide pressure average
             p_trans = barom_pres(p_surf, gp_trans, gp0, t0)
-            verbose('Vertical stretching transition level: {} Pa', p_trans)
+            verbose('Vertical stretching transition level: {} m ASL = {} Pa', z_trans, p_trans)
 
             # Save 1-D hydrostatic pressure
             fout.variables['palm_hydrostatic_pressure'][it,:,] = PalmPhysics.barom_ptn_pres(p_surf, rt.z_levels, t0)
@@ -123,37 +127,43 @@ class SyntheticPlugin(ImportPluginMixin, VInterpPluginMixin):
             p_surf_new = barom_pres(p_surf, gp_new_surf, gp0, t0)
             terrain_ratio = (p_surf_new - p_trans) / (p_surf - p_trans)
 
-            z = stretch_heigts(prof.heights, gp_new_surf, gp0, t0, p_surf, p_trans)
-            fout.variables['init_atmosphere_pt'][it,:,:,:] = interpolate_1d(rt.z_levels, z, expand(pt))
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+
+            fout.variables['init_atmosphere_pt'][it,:,:,:], = vinterp(expand(pt))
             del pt
 
             prof = rt.synth_profiles['qv']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
-            fout.variables['init_atmosphere_qv'][it,:,:,:] = interpolate_1d(rt.z_levels, z, var)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+            fout.variables['init_atmosphere_qv'][it,:,:,:], = vinterp(var)
 
             prof = rt.synth_profiles['u']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
-            fout.variables['init_atmosphere_u'][it,:,:,:] = interpolate_1d(rt.z_levels, z, var)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+            fout.variables['init_atmosphere_u'][it,:,:,:], = vinterp(var)
 
             prof = rt.synth_profiles['v']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
-            fout.variables['init_atmosphere_v'][it,:,:,:] = interpolate_1d(rt.z_levels, z, var)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+            fout.variables['init_atmosphere_v'][it,:,:,:], = vinterp(var)
 
             prof = rt.synth_profiles['w']
             var = expand(prof.interp_next_time(rt.times[it]))
-            z = stretch_heigts(prof.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
-            fout.variables['init_atmosphere_w'][it,:,:,:] = interpolate_1d(rt.z_levels_stag, z, var)
+            vinterp = prof.get_vinterp(terrain_ratio, gp0, t0, p_surf, p_trans)
+            fout.variables['init_atmosphere_w'][it,:,:,:], = vinterp(var)
 
+            # Other vars w/o vinterp
             fout.variables['init_soil_t'][it,:,:,:] = (
                     rt.synth_profiles['soil_t'].interp_next_time(rt.times[it])[:,ax_,ax_])
 
             fout.variables['init_soil_m'][it,:,:,:] = (
                     rt.synth_profiles['soil_m'].interp_next_time(rt.times[it])[:,ax_,ax_])
 
-def stretch_heigts(heights, terrain_ratio, gp0, t0, p_surf, p_trans):
+        # Delete prepared interpolators
+        for prof in rt.synth_profiles.values():
+            prof.vinterpolator = None
+
+def stretch_heights(heights, terrain_ratio, gp0, t0, p_surf, p_trans):
     # Convert the geopotentials to pressure naively using barometric equation
     gp_prof = heights*g + gp0
     p_orig = barom_pres(p_surf, gp_prof, gp0, t0)[:,ax_,ax_]
@@ -219,6 +229,16 @@ class ProfileInterpolator:
 
         self.times = times
         self.prof = prof
+        self.is_wind = varname in ['u', 'v', 'w']
+        self.is_zstag = (varname == 'w')
+        self.vinterpolator = None
+
+    def get_vinterp(self, terrain_ratio, gp0, t0, p_surf, p_trans):
+        if self.vinterpolator is None:
+            ztarget = rt.z_levels_stag if self.is_zstag else rt.z_levels
+            z = stretch_heights(self.heights, terrain_ratio, gp0, t0, p_surf, p_trans)
+            self.vinterpolator, = get_vinterp(ztarget, z, not self.is_wind, self.is_wind)
+        return self.vinterpolator
 
     def interp_next_time(self, dt):
         if dt > self.next_dt:
