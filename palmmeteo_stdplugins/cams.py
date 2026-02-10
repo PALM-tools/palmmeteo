@@ -20,155 +20,153 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import re
-from datetime import datetime, timedelta, timezone
+import glob
+import datetime
 import numpy as np
 import netCDF4
 
-from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin
+from palmmeteo.plugins import (ImportPluginMixin, HInterpPluginMixin,
+                               VInterpPluginMixin)
 from palmmeteo.logging import die, warn, log, verbose
 from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
 from palmmeteo.utils import ensure_dimension
-from palmmeteo.library import QuantityCalculator, LatLonRegularGrid, verify_palm_hinterp
+from palmmeteo.library import (QuantityCalculator, LatLonRegularGrid,
+                               verify_palm_hinterp, NCDates, InputGatherer,
+                               HorizonSelection)
 from palmmeteo.vinterp import get_vinterp
-from .wrf_utils import BilinearRegridder, WrfPhysics
+from .wrf_utils import BilinearRegridder
 
 ax_ = np.newaxis
 re_num = re.compile(r'[0-9\.]+')
+re_lev = re.compile(r'^.* at ([\d\.]+) meters above the surface.*$')
+re_time_nonst = re.compile(r'^.* time from (\d{8})$')
 
 class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
     def import_data(self, fout, *args, **kwargs):
         log('Importing CAMS data...')
+        hselect = HorizonSelection.from_cfg(cfg.cams.assim_cycles)
+        lvars = QuantityCalculator.get_loaded_vars(cfg.chem_species,
+                                                   cfg.cams.output_var_defs)
+        ig = InputGatherer(fout, sorted(lvars), rt.nt,
+                           ('time', 'z_chem', 'y_chem', 'x_chem'),
+                           copy_attrs=['units'])
 
-        filled = [False] * rt.nt
-        timesteps = [QuantityCalculator.new_timestep() for t in rt.times]
-        zcoord = [None] * rt.nt
+        first = True
+        for fn in glob.glob(rt.paths.cams.file_mask):
+            verbose('Parsing CAMS file {}', fn)
+            with netCDF4.Dataset(fn, 'r') as fin:
+                # Decode times
+                vtime = fin.variables['time']
+                if vtime.units == 'hours':
+                    # CF non-compliant units
+                    m = re_time_nonst.match(vtime.long_name)
+                    if not m:
+                        die('Cannot decode CF non-compliant time units at {}', fn)
+                    origin_dt = datetime.datetime.strptime(m.group(1), '%Y%m%d')
+                    ncdates = NCDates.from_origin(origin_dt, vtime.units, vtime[:])
+                else:
+                    ncdates = NCDates(vtime)
 
-        # Process input files
-        verbose('Parsing CAMS file {}', rt.paths.cams.file)
-        with netCDF4.Dataset(rt.paths.cams.file, 'r') as fin:
-            # Decode time and locate timesteps
-            origin_time = fin.variables['time'].long_name.split(' ')[-1]
-            origin_time = datetime.strptime(origin_time, '%Y%m%d')
-            tflag = fin.variables['time'][:].data
-            times = [origin_time + timedelta(hours=float(h)) for h in tflag]
-
-            dts = []
-            for i in range(len(times)):
-                dt = times[i]
-                dt = dt.replace(tzinfo=timezone.utc)
-                ireq = rt.tindex(dt)
-                if not 0 <= ireq < rt.nt:
+                if not ncdates.match_hselect(hselect):
+                    verbose('No matching times, skipping file')
                     continue
-                dts.append((ireq, i))
 
-            if not dts:
-                verbose('Skipping CAMS file time: '.format(dt))
+                # Decode levels
+                try:
+                    vlev = fin.variables['level']
+                except KeyError:
+                    levs_in = None
+                else:
+                    levs_in = vlev[:]
 
-            # locate layer heights
-            height = fin.variables['level'][:]
+                for vn in ig.varnames:
+                    try:
+                        var = fin.variables[vn]
+                    except KeyError:
+                        continue
+                    verbose('Loading variable {}', vn)
 
-            # coordinate projection
-            verbose('Loading projection and preparing regridder')
-            lats = fin.variables['latitude'][:]
-            lons = fin.variables['longitude'][:]
-            transform = LatLonRegularGrid(lats, lons)
-            palm_in_cams_y, palm_in_cams_x = transform.latlon_to_ji(rt.palm_grid_lat, rt.palm_grid_lon)
-            rt.regrid_cams = BilinearRegridder(palm_in_cams_x, palm_in_cams_y, preloaded=True)
-            del palm_in_cams_y, palm_in_cams_x
+                    if levs_in is None:
+                        m = re_lev.match(var.source)
+                        if not m:
+                            die('Cannot autodetect level for variable {}', vn)
+                        lev = float(m.group(1))
 
-            if cfg.hinterp.validate:
-                verbose('Validating horizontal inteprolation.')
-                llats, llons = np.broadcast_arrays(lats[:,ax_], lons[ax_,:])
-                verify_palm_hinterp(rt.regrid_cams,
-                                    rt.regrid_cams.loader(llats)[...],
-                                    rt.regrid_cams.loader(llons)[...])
-                del llats, llons
+                    if first:
+                        # We only setup projection etc. after we know for sure
+                        # that we will be loading something from the file
 
-            convertor = QuantityCalculator(cfg.chem_species,
-                                      cfg.cams.output_var_defs, cfg.cams.preprocessors,
-                                      rt.regrid_cams)
+                        verbose('Loading projection and preparing regridder')
+                        lats = fin.variables[cfg.cams.varnames.latitude][:]
+                        lons = fin.variables[cfg.cams.varnames.longitude][:]
+                        transform = LatLonRegularGrid(lats, lons)
+                        palm_in_cams_y, palm_in_cams_x = transform.latlon_to_ji(rt.palm_grid_lat, rt.palm_grid_lon)
+                        rt.regrid_cams = BilinearRegridder(palm_in_cams_x, palm_in_cams_y, preloaded=True)
+                        del palm_in_cams_y, palm_in_cams_x
 
-            # dimensions
-            ensure_dimension(fout, 'time', rt.nt)
-            ensure_dimension(fout, 'z_chem', height.size)
-            ensure_dimension(fout, 'y_chem', rt.regrid_cams.ylen)
-            ensure_dimension(fout, 'x_chem', rt.regrid_cams.xlen)
-            chem_dims = ('time', 'z_chem', 'y_chem', 'x_chem')
+                        if cfg.hinterp.validate:
+                            verbose('Validating horizontal inteprolation.')
+                            llats, llons = np.broadcast_arrays(lats[:,ax_], lons[ax_,:])
+                            verify_palm_hinterp(rt.regrid_cams,
+                                                rt.regrid_cams.loader(llats)[...],
+                                                rt.regrid_cams.loader(llons)[...])
+                            del llats, llons
 
-            vz_out = fout.createVariable('height_chem', 'f4', chem_dims)
-            vz_out.units = 'm'
+                        first = False
 
-            for itout, itf in dts:
-                verbose('Importing timestep {} -> {}', itf, itout)
-                verbose('\tProcessing CAMS time {0}.'.format(dts[itout]))
-                zcoord[itout] = np.tile(height[:, ax_, ax_], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
+                    for it_file, it_sel in ncdates.matching:
+                        if levs_in is None:
+                            ig.add_single_lev(vn, it_sel, lev, var[it_file], var)
+                        else:
+                            for il, lev in enumerate(levs_in):
+                                ig.add_single_lev(vn, it_sel, lev, var[it_file,il], var)
 
-                filled[itout] = convertor.load_timestep_vars(fin, itf,
-                                                             timesteps[itout])
-
-                vz_out[itout,:,:,:] = np.tile(height[:, ax_, ax_], (1, rt.regrid_cams.ylen, rt.regrid_cams.xlen))
-
-            if not all(filled):
-                die('Could not find all CAMS variables for all times.\n'
-                    'Missing variables in times:\n{}',
-                    '\n'.join('{}: {}'.format(dt, ', '.join(vn
-                                                            for vn in (convertor.loaded_vars - tsdata)))
-                              for dt, fil, tsdata in zip(rt.times, filled, timesteps)
-                              if not fil))
-
-            for i, tsdata in enumerate(timesteps):
-                # Save heights
-                vz_out[i, :, :, :] = zcoord[i]
-
-                # Save computed variables
-                convertor.validate_timestep(tsdata)
-                for sn, v, unit, attrs in convertor.calc_timestep_species(tsdata):
-                    v_out = (fout.variables[sn] if i
-                             else fout.createVariable(sn, 'f4', chem_dims))
-                    v_out.units = unit
-                    if attrs:
-                        v_out.setncatts(attrs)
-                    v_out[i, :, :, :] = v
+        ig.finalize()
 
     def interpolate_horiz(self, fout, *args, **kwargs):
-        log('Performing CAMS horizontal interpolation')
-        hvars = ['height_chem'] + cfg.chem_species
+        log('Performing CAMS conversion and horizontal interpolation')
+        qc = QuantityCalculator(cfg.chem_species, cfg.cams.output_var_defs,
+                                cfg.cams.preprocessors, rt.regrid_cams)
+        outdims = ['time', 'z_chem', 'y', 'x']
 
         with netCDF4.Dataset(rt.paths.intermediate.import_data) as fin:
+            levs = fin.variables['z_chem'][:]
+            lev_order = np.argsort(levs)
+
             verbose('Preparing output file')
             # Create dimensions
             for d in ['time', 'z_chem']:
                 ensure_dimension(fout, d, len(fin.dimensions[d]))
             ensure_dimension(fout, 'x', rt.nx)
             ensure_dimension(fout, 'y', rt.ny)
+            fout.createVariable('z_chem', levs.dtype, ('z_chem',))[:] = levs[lev_order]
 
-            # Create variables
-            for varname in hvars:
-                v_in = fin.variables[varname]
-                if v_in.dimensions[-2:] != ('y_chem', 'x_chem'):
-                    raise RuntimeError('Unexpected dimensions for '
-                            'variable {}: {}!'.format(varname,
-                                v_in.dimensions))
-                v_out = fout.createVariable(varname, 'f4', v_in.dimensions[:-2]
-                        + ('y', 'x'))
-                v_out.setncatts({a: v_in.getncattr(a) for a in v_in.ncattrs()})
             for it in range(rt.nt):
                 verbose('Processing timestep {}', it)
 
-                # regular vars
-                for varname in hvars:
-                    v_in = fin.variables[varname]
-                    v_out = fout.variables[varname]
-                    v_out[it] = rt.regrid_cams.regrid(v_in[it])
+                # Load, validate and convert here instead of on import so that
+                # we can reorder levels that were loaded sequentially on import
+                ts = QuantityCalculator.new_timestep()
+                qc.load_timestep_vars(fin, it, ts)
+                qc.validate_timestep(ts)
+
+                for sn, v, unit, attrs in qc.calc_timestep_species(ts):
+                    if it:
+                        v_out = fout.variables[sn]
+                    else:
+                        v_out = fout.createVariable(sn, v.dtype, outdims)
+                        v_out.units = unit
+                        if attrs:
+                            v_out.setncatts(attrs)
+
+                    v_out[it,:,:,:] = rt.regrid_cams.regrid(v[lev_order,:,:])
 
     def interpolate_vert(self, fout, *args, **kwargs):
         log('Performing CAMS vertical interpolation')
-        terrain = rt.terrain[ax_,:,:]
 
         with netCDF4.Dataset(rt.paths.intermediate.hinterp) as fin:
-            agl_chem = fin.variables['height_chem']
-            chem_heights = np.zeros((agl_chem.shape[1]+1,) + agl_chem.shape[2:], dtype=agl_chem.dtype)
+            chem_heights = rt.terrain[ax_,:,:] + fin.variables['z_chem'][:][:,ax_,ax_]
 
             verbose('Preparing output file')
             for dimname in ['time', 'y', 'x']:
@@ -183,15 +181,8 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
             for it in range(rt.nt):
                 verbose('Processing timestep {}', it)
 
-                # Calc CAMS layer heights
-                chem_heights[1:,:,:] = agl_chem[it] + terrain
-
                 # Load all variables for the timestep
-                vardata = []
-                for vn in cfg.chem_species:
-                    data = fin.variables[vn][it]
-                    data = np.r_[data[0:1], data]
-                    vardata.append(data)
+                vardata = [fin.variables[vn][it] for vn in cfg.chem_species]
 
                 # Perform vertical interpolation on all currently loaded vars at once
                 vinterpolator, = get_vinterp(rt.z_levels_msl, chem_heights, True, False)

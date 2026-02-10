@@ -41,7 +41,7 @@ paths:
         soil_depth:     'ALADIN/aladin_soil_depth.grb'
 
     cams:
-        file:           'CAMS'
+        file_mask:      'CAMS/**/*.nc'
 
     plot:
         output_dir:     'METEO'
@@ -538,6 +538,29 @@ icon:
     vars_soil: [T_SO, QSOIL]
 
 cams:
+    # Compose continuous timeseries for the simululation using one or more
+    # forecast/assimilation cycles from the set of input files
+    assim_cycles:
+        # Interval between assimilation cycles to be used (a larger time
+        # interval can be specified in order to use every nth cycle).
+        #cycles_used: 3 h    # time interval
+        #cycles_used: single # use one specified cycle
+        cycles_used: all    # default: use all files, assume they are continuous
+
+        # Datetime for the reference cycle from which the selected cycle
+        # intervals are counted, or the selected cycle if cycles_used=single.
+        # Default: 00:00 UTC from the first day of simulation.
+        reference_cycle:
+
+        # Earliest horizon (time since cycle time) to be used in the
+        # simulation. If set to higher than 0, the 0th file of each cycle must
+        # still be available to load the level heights (HHL).
+        earliest_horizon: 0 h
+
+    varnames:
+        latitude: latitude
+        longitude: longitude
+
     validations: [ ]
     
     loaded_vars: [ ]
@@ -550,35 +573,18 @@ cams:
         'NO': #NO without quotes means False in yaml!
             molar_mass: 30.01 #g/mol
             loaded_vars: [no_conc]
-            validations:
-                - '_units.no_conc == "µg/m3"'
         NO2:
             molar_mass: 46.01 #g/mol
             loaded_vars: [no2_conc]
-            validations:
-                - '_units.no2_conc == "µg/m3"'
-        # NOX: #currently unsupported - needs conversion to ppmv _before_ summing 
-        #     formula: 'no_conc+no2_conc'
-        #     unit: 'µg/m3'
-        #     loaded_vars: [no_conc, no2_conc]
-        #     validations:
-        #         - '_units.no_conc == "µg/m3"'
-        #         - '_units.no2_conc == "µg/m3"'
         O3:
             molar_mass: 48.00 #g/mol
             loaded_vars: [o3_conc]
-            validations:
-                - '_units.o3_conc == "µg/m3"'
         PM10:
             flags: [non_gasphase]
             loaded_vars: [pm10_conc]
-            validations:
-                - '_units.pm10_conc == "µg/m3"'
         PM25:
             flags: [non_gasphase]
             loaded_vars: [pm2p5_conc]
-            validations:
-                - '_units.pm2p5_conc == "µg/m3"'
 
 winddamp:
     # Distance in number of grid cells from the wall which have some wind
@@ -610,6 +616,16 @@ plot:
               - temp    #air temperature (plotted as potential + absolute)
               # All other named variables from IBC:
               - qv      #water vapor mixing ratio
+
+    # Fully qualified names of colormaps used for the plots by type. Defaults
+    # require only standard matplotlib, recommended are from colorcet.
+    colormaps:
+        default: matplotlib.cm.viridis #Default from matplotlib
+        #default: colorcet.m_bmy        #Better
+        zero_based: matplotlib.cm.inferno #Default from matplotlib
+        #zero_based: colorcet.m_fire       #Better
+        wind_direction: matplotlib.cm.twilight #Default from matplotlib
+        #wind_direction: colorcet.m_colorwheel  #Better
 
     format: png #default
     #format: pdf

@@ -53,7 +53,11 @@ $(DOCS_INDEX): $(DOXYCONFIG) $(SOURCES) README.md $(DOCS_PAGES) $(EXAMPLES)
 	rm -rf docs/html/*
 	$(DOXYGEN) $(DOXYCONFIG)
 	touch $(DOCS_ROOT)/.nojekyll
-	cd docs/html && [ gh-pages = "`git branch --show-current`" ] && git add -A && git commit -m "Update github pages"
+
+docs_commit: docs/.commited
+
+docs/.commited: $(DOCS_INDEX)
+	cd docs/html && [ gh-pages = "`git branch --show-current`" ] && git add -A && git commit -m "Update github pages" && touch ../.commited
 
 $(CMDLINE_DOC): $(SOURCES_MAIN)
 	$(RUNNER) -h > $@
@@ -61,7 +65,7 @@ $(CMDLINE_DOC): $(SOURCES_MAIN)
 show: $(DOCS_INDEX)
 	$(BROWSER) $(DOCS_INDEX)
 
-docs_publish: $(DOCS_INDEX)
+docs_publish: docs/.commited
 	git push github gh-pages
 
 all: build upload

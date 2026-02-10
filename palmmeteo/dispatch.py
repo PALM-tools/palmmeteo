@@ -73,6 +73,12 @@ def execute_event(event, from_plugins):
             f = netCDF4.Dataset(fn_out, 'w', format='NETCDF4')
             f.creator = signature
             f.creation_date = datetime.now().isoformat()
+            f.palmmeteo_case = '{}, {}domain {}'.format(
+                    cfg.case,
+                    'scenario {}, '.format(cfg.scenario) if cfg.scenario else '',
+                    cfg.dnum)
+            f.palmmeteo_tasks = ', '.join(cfg.tasks)
+            f.palmmeteo_plugins = ', '.join(cfg.plugins)
             common_files.append(f)
             kwargs['fout'] = f
 
@@ -122,8 +128,6 @@ def run(argv):
     log('Initializing runtime')
     if cfg.compute.nthreads > 1:
         threading.excepthook = threading_excepthook
-
-    # Runtime data
     basic_init(rt)
 
     # Load plugins as configured
@@ -137,6 +141,10 @@ def run(argv):
         else:
             # Workflow not from start - load snapshot
             rt._load(fn_snapshot)
+
+            # Re-update runtime data from cfg (e.g. paths may have changed
+            # since snapshot)
+            basic_init(rt)
 
     # Execute all stages in the workflow
     for event in workflow:
