@@ -114,7 +114,7 @@ Method 2: Full in-place installation with a virtual environment</h2>
 <p >This is the recommended method for most users.</p>
 <ol type="1">
 <li>Make sure that you have python3, pip, and python-venv installed and available. This is operating system dependent.</li>
-<li>Download and extract PALM-meteo into a directory of your choice. If you have already installed the PALM model system, then PALM-meteo is already extracted under <code>packages/dynamic_driver/palm_meteo</code>, albeit probably not in the newest version. Or you can download PALM-meteo from the <a href="https://gitlab.palm-model.org/dynamic_driver/palm_meteo">PALM gitlab server</a> or from <a href="https://github.com/PALM-tools/palmmeteo/releases">GitHub</a>.</li>
+<li>Download and extract PALM-meteo into a directory of your choice. If you have already installed the PALM model system, then PALM-meteo is already extracted under <code>packages/dynamic_driver/palm_meteo</code>, albeit probably not in the newest version. Or you can download PALM-meteo from the <a href="https://gitlab.palm-model.org/dynamic_driver/palm_meteo">PALM gitlab server</a> or from <a href="https://github.com/PALM-tools/palmmeteo/releases">GitHub</a> (use the file <code>palmmeteo-X.Y.Z.tar.gz</code>).</li>
 <li>From within the PALM-meteo install directory, run <code>./setup</code>. This will create a new virtual environment, install PALM-meteo with all dependencies and create a symlink to the <code>pmeteo</code> command (which enables the virtual environment automatically).</li>
 </ol>
 <h2><a class="anchor" id="autotoc_md6"></a>
@@ -122,7 +122,7 @@ Method 3: Advanced installation for developers</h2>
 <ol type="1">
 <li>Clone the PALM-meteo git repository.</li>
 <li>Create and enable your own virtual environment if you prefer.</li>
-<li>From within the PALM-meteo install directory, run <code>./setup_novenv</code>. This will install PALM-meteo dependencies and create a simple <code>pmeteo</code> running script.</li>
+<li>From within the repository directory, run <code>./setup_novenv</code>. This will install PALM-meteo dependencies and create a simple <code>pmeteo</code> running script.</li>
 </ol>
 <h2><a class="anchor" id="autotoc_md7"></a>
 Testing</h2>
