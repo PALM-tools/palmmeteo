@@ -26,7 +26,7 @@ if [ -e .venv ]; then
     echo "Virtual environment directory already present, skipping creation."
 else
     echo "Creating virtual environment."
-    python3 -m venv --without-pip --system-site-packages --prompt pmeteo .venv
+    python3 -m venv --prompt pmeteo .venv
 fi
 
 echo "Activating virtual environment."

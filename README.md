@@ -101,7 +101,8 @@ This is the recommended method for most users.
    the newest version. Or you can download PALM-meteo from the
    [PALM gitlab server](https://gitlab.palm-model.org/dynamic_driver/palm_meteo)
    or from
-   [GitHub](https://github.com/PALM-tools/palmmeteo/releases).
+   [GitHub](https://github.com/PALM-tools/palmmeteo/releases)
+   (use the file `palmmeteo-X.Y.Z.tar.gz`).
 3. From within the PALM-meteo install directory, run `./setup`. This will
    create a new virtual environment, install PALM-meteo with all dependencies
    and create a symlink to the `pmeteo` command (which enables the virtual
@@ -111,7 +112,7 @@ This is the recommended method for most users.
 
 1. Clone the PALM-meteo git repository.
 2. Create and enable your own virtual environment if you prefer.
-3. From within the PALM-meteo install directory, run `./setup_novenv`. This will
+3. From within the repository directory, run `./setup_novenv`. This will
    install PALM-meteo dependencies and create a simple `pmeteo` running script.
 
 ### Testing
