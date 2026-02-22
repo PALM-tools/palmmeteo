@@ -193,8 +193,10 @@ Configuration options</h1>
 <div class="line">    #timestep: 1 h</div>
 <div class="line">    #length: 1 d</div>
 <div class="line"> </div>
-<div class="line">    #timestep_rad: auto # default: detect from input files (if possible)</div>
-<div class="line">    #timestep_rad: 10 m # explicit</div>
+<div class="line">    # Approximation used in PALM. This must match PALM&#39;s setting, otherwise</div>
+<div class="line">    # mass balancing will be off!</div>
+<div class="line">    #approximation: boussinesq #default in pmeteo as well as in PALM</div>
+<div class="line">    #approximation: anelastic</div>
 <div class="line"> </div>
 <div class="line">radiation:</div>
 <div class="line">    #enabled: false #off by default, switched on by tasks or manually</div>

@@ -95,6 +95,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:af4293ed5ea911b2af6f842c03c36645e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab7a12647f68e1cd8353a9293b939d293"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1library_1_1PalmPhysics.html#ab7a12647f68e1cd8353a9293b939d293">exner_inv</a> (cls, p)</td></tr>
 <tr class="separator:ab7a12647f68e1cd8353a9293b939d293"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4840d9cfc5457ccc69c5e057e0c1941b"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpalmmeteo_1_1library_1_1PalmPhysics.html#a4840d9cfc5457ccc69c5e057e0c1941b">rho_air_ideal_gas</a> (cls, p, pt)</td></tr>
+<tr class="separator:a4840d9cfc5457ccc69c5e057e0c1941b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -258,7 +260,7 @@ constants defined otherwise.
         </tr>
       </table>
 </div><div class="memdoc">
-<pre class="fragment">Compute the barometric formula for 1-D array arguments.
+<pre class="fragment">PALM's barometric_formula( z, t_0, p_0 )
 
 The calculation is based on the assumption of a polytropic atmosphere
 and neutral stratification, where the temperature lapse rate is g/cp.
@@ -319,6 +321,42 @@ and neutral stratification, where the temperature lapse rate is g/cp.
       </table>
 </div><div class="memdoc">
 <pre class="fragment">Reciprocal of the Exner function</pre> 
+</div>
+</div>
+<a id="a4840d9cfc5457ccc69c5e057e0c1941b" name="a4840d9cfc5457ccc69c5e057e0c1941b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4840d9cfc5457ccc69c5e057e0c1941b">&#9670;&nbsp;</a></span>rho_air_ideal_gas()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">def palmmeteo.library.PalmPhysics.rho_air_ideal_gas </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>cls</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>p</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>pt</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<pre class="fragment">Air density according to ideal gas law from PALM's function
+ideal_gas_law_rho_pt( p, t )
+</pre> 
 </div>
 </div>
 <h2 class="groupheader">Member Data Documentation</h2>
