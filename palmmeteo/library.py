@@ -623,7 +623,7 @@ class InputGatherer:
 
         var = self._get_var(varname, data.dtype, data.shape, attrs)
         var[it] = data
-        self.filled[:,it,self.idx_var[varname]] = 1
+        self.filled[it,self.idx_var[varname]] = 1
 
     def _pprint_missing(self, data, axis, axname, keys=None):
         n = data.shape[axis]
@@ -642,6 +642,9 @@ class InputGatherer:
 
     def finalize(self):
         if self.dyn_levels:
+            if not self.levels:
+                die('Did not find any inputs.\nRequested {} times and '
+                    'these variables: {}.', self.nt, ', '.join(self.varnames))
             self.levels = np.array(self.levels)
             self.filled = np.array(self.filled)
             self.fout.createVariable(self.level_dimname, self.levels.dtype,
@@ -649,8 +652,6 @@ class InputGatherer:
             verbose('Loaded levels: {}', self.levels)
 
         if not self.filled.all():
-            pp = [self._pprint_missing(self.filled, 2, 'variable', self.varnames),
-                  self._pprint_missing(self.filled, 1, 'time')]
             if self.dyn_levels:
                 pp = [self._pprint_missing(self.filled, 2, 'variable', self.varnames),
                       self._pprint_missing(self.filled, 1, 'time'),
