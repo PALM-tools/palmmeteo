@@ -101,7 +101,7 @@ class PlotPlugin(WritePluginMixin):
                         u = fiv['init_atmosphere_u'][:,:,ypos,xpos]
                         v = fiv['init_atmosphere_v'][:,:,ypos,xpos]
                         wspd = np.hypot(u, v).T
-                        wdir = ((np.degrees(np.arctan2(u, v)) + 180.) % 360).T
+                        wdir = (np.arctan2(u, v) + np.pi).T
                         del u, v
                     elif vn=='temp':
                         val = fiv['init_atmosphere_pt'][:,:,ypos,xpos] - 273.15
@@ -122,20 +122,21 @@ class PlotPlugin(WritePluginMixin):
                         plt.colorbar(m, cax=ax1c, label='Wind speed (m/s)')
                         ax1.set_ylabel(hstr)
 
+                        wdnorm = colors.Normalize(0., 2.*np.pi)
                         ax2.grid(False)
                         m = ax2.pcolormesh(rt.times, rt.z_levels, wdir,
                                 #alpha=np.minimum(1., wspd),
-                                cmap=self.cm_wdir)
+                                norm=wdnorm, cmap=self.cm_wdir)
                         ax2.tick_params('x', rotation=45)
                         ax2.set_ylabel(hstr)
 
                         ax2c = ax2.inset_axes([1.08, 0, 0.20, 1],
                             projection='polar',theta_offset=np.pi/2.,theta_direction=-1.)
-                        cb_azimuths = np.arange(0, 361, 1)
+                        cb_azimuths = np.linspace(0., 2.*np.pi, 101)
                         cb_zeniths = np.arange(3, 5, 1)
-                        cb_values = np.broadcast_to(cb_azimuths[np.newaxis,:], [2,361])
+                        cb_values = np.broadcast_to(cb_azimuths[np.newaxis,:], [2,101])
                         ax2c.grid(False)
-                        ax2c.pcolormesh(cb_azimuths*(np.pi/180.), cb_zeniths, cb_values, cmap=self.cm_wdir)
+                        ax2c.pcolormesh(cb_azimuths, cb_zeniths, cb_values, norm=wdnorm, cmap=self.cm_wdir)
                         ax2c.set_ylim(0,4)
                         ax2c.set_yticks([])
                         ax2c.set_xlabel('Wind direction')
