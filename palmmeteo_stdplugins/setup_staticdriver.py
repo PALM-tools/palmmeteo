@@ -137,7 +137,7 @@ class StaticDriverPlugin(SetupPluginMixin):
         terrain_mask = np.arange(rt.nz)[:,ax_,ax_] < rt.th[ax_,:,:]
 
         # Detect individual buildings
-        if 'building_id' in ncs.variables:
+        if 'building_id' in ncs.variables and not cfg.domain.ignore_buildings:
             building_ids = []
             bids = ncs.variables['building_id'][:]
             building_ids = [Building(bid, bids) for bid
