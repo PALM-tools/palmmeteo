@@ -261,6 +261,14 @@ def load_config(argv):
             cfg._ingest_dict(task_set.extend._settings, overwrite=False, extend=True)
 
     # load extra settings from commandline
+    if argv.case is not None:
+        cfg._settings['case'] = argv.case
+    if argv.scenario is not None:
+        cfg._settings['scenario'] = argv.scenario
+    if argv.dnum is not None:
+        cfg._settings['dnum'] = argv.dnum
+    if argv.origin_time is not None:
+        cfg.simulation._settings['origin_time'] = argv.origin_time
     if argv.verbosity_arg is not None:
         cfg._settings['verbosity'] = argv.verbosity_arg
 

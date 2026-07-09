@@ -166,16 +166,24 @@ def run(argv):
 
 def main():
     argp = ArgumentParser(prog='pmeteo', description=__doc__)
-    argp.add_argument('-c', '--config', nargs='+', help='configuration file(s)', required=True)
+    argp.add_argument('-c', '--config', nargs='+', help='configuration file(s)',
+                      required=True, metavar='CONFIG.yaml')
     argp.add_argument('-f', '--workflow-from', help='start workflow at STAGE', metavar='STAGE')
     argp.add_argument('-t', '--workflow-to', help='stop workflow at STAGE', metavar='STAGE')
     argp.add_argument('-w', '--workflow', nargs='+', help='execute listed stages', metavar='STAGE')
-    argp.add_argument('--version', action='version', version=signature)
+    argp.add_argument('-C', '--case', help='case name')
+    argp.add_argument('-S', '--scenario', help='scenario identification', metavar='SCEN')
+    argp.add_argument('-D', '--dnum', type=int, help='domain number', metavar='N')
+    argp.add_argument('-O', '--origin-time', type=datetime.fromisoformat,
+                      help='simulation origin time (as ISO 8601)', metavar='YY-MM-DDTHH:MM:SS')
+
     verbosity = argp.add_mutually_exclusive_group()
     verbosity.add_argument('-v', '--verbose', action='store_const',
             dest='verbosity_arg', const=2, help='increase verbosity')
     verbosity.add_argument('-s', '--silent', action='store_const',
             dest='verbosity_arg', const=0, help='print only errors')
+
+    argp.add_argument('-V', '--version', action='version', version=signature)
 
     if len(sys.argv) <= 1:
         argp.print_help()
