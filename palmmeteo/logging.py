@@ -24,7 +24,7 @@ import io
 import signal
 from time import strftime
 
-__all__ = ['die', 'warn', 'log', 'verbose', 'configure_log']
+__all__ = ['die', 'warn', 'log', 'verbose', 'configure_log', 'finalize_log']
 
 dtf = '%Y-%m-%d %H:%M:%S '
 
@@ -35,8 +35,11 @@ schedule_flushing = True
 def timed_flush(signum, frame):
     global schedule_flushing
 
-    for fl in flushers:
-        fl()
+    try:
+        for fl in flushers:
+            fl()
+    except:
+        pass
     schedule_flushing = True
 
 class LoggingOutput:
@@ -67,6 +70,14 @@ class LoggingOutput:
         if schedule_flushing:
             signal.alarm(flush_timeout)
             schedule_flushing = False
+
+    @staticmethod
+    def deregister_all():
+        global schedule_flushing
+
+        signal.alarm(0)
+        schedule_flushing = False
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
 log_output = error_output = LoggingOutput(sys.stdout).write
 
@@ -118,3 +129,6 @@ verbose = LoggingLevel(False)
 def configure_log(verbosity, log_datetime=False):
     log.__init__(verbosity >= 1, log_datetime)
     verbose.__init__(verbosity >= 2, log_datetime)
+
+def finalize_log():
+    LoggingOutput.deregister_all()

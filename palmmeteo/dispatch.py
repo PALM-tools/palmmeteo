@@ -29,7 +29,7 @@ import netCDF4
 
 from . import __doc__, __version__, signature
 from . import plugins as plg
-from .logging import die, warn, log, verbose, configure_log
+from .logging import die, warn, log, verbose, configure_log, finalize_log
 from .config import load_config, cfg
 from .runtime import rt, basic_init
 from .utils import find_free_fname, assert_dir
@@ -162,6 +162,7 @@ def run(argv):
         execute_event(event, plugins)
 
     log('Finished all stages in the workflow.')
+    finalize_log()
 
 def main():
     argp = ArgumentParser(prog='pmeteo', description=__doc__)
