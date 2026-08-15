@@ -20,13 +20,66 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import sys
+import io
+import signal
 from time import strftime
 
-__all__ = ['die', 'warn', 'log', 'verbose', 'configure_log']
+__all__ = ['die', 'warn', 'log', 'verbose', 'configure_log', 'finalize_log']
 
 dtf = '%Y-%m-%d %H:%M:%S '
-log_output = sys.stdout.write
-error_output = sys.stderr.write
+
+flush_timeout = 1 #s
+flushers = set()
+schedule_flushing = True
+
+def timed_flush(signum, frame):
+    global schedule_flushing
+
+    try:
+        for fl in flushers:
+            fl()
+    except:
+        pass
+    schedule_flushing = True
+
+class LoggingOutput:
+    """Processor for logging output which includes flushing after timeout"""
+
+    def __init__(self, out, flushing=None):
+        self.writer = self.write = out.write
+
+        if (isinstance(sys.stdout.buffer, io.BufferedIOBase)
+                       if flushing is None else flushing):
+            self._register_signal(out.flush)
+
+    def _register_signal(self, flush):
+        prev_handler = signal.getsignal(signal.SIGALRM)
+        if prev_handler is signal.SIG_DFL:
+            signal.signal(signal.SIGALRM, timed_flush)
+        elif prev_handler is not timed_flush:
+            sys.stderr.write('Cannot register signal for log flushing!')
+            return
+
+        flushers.add(flush)
+        self.write = self.flushing_writer
+
+    def flushing_writer(self, s):
+        global schedule_flushing
+
+        self.writer(s)
+        if schedule_flushing:
+            signal.alarm(flush_timeout)
+            schedule_flushing = False
+
+    @staticmethod
+    def deregister_all():
+        global schedule_flushing
+
+        signal.alarm(0)
+        schedule_flushing = False
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+
+log_output = error_output = LoggingOutput(sys.stdout).write
 
 def die(s, *args, **kwargs):
     """Write message to error output and exit with status 1."""
@@ -76,3 +129,6 @@ verbose = LoggingLevel(False)
 def configure_log(verbosity, log_datetime=False):
     log.__init__(verbosity >= 1, log_datetime)
     verbose.__init__(verbosity >= 2, log_datetime)
+
+def finalize_log():
+    LoggingOutput.deregister_all()
