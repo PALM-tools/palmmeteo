@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import glob
 import numpy as np
 import scipy.ndimage as ndimage
 import netCDF4
@@ -29,7 +28,7 @@ from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPlug
 from palmmeteo.logging import die, warn, log, verbose, log_output
 from palmmeteo.config import cfg, ConfigError, parse_duration
 from palmmeteo.runtime import rt
-from palmmeteo.utils import ensure_dimension, ax_, rad, NotWholeTimestep, utcdefault
+from palmmeteo.utils import ensure_dimension, ax_, rad, NotWholeTimestep, utcdefault, check_glob
 from palmmeteo.library import PalmPhysics, TriRegridder, verify_palm_hinterp, AssimCycle, HorizonSelection
 from palmmeteo.vinterp import get_vinterp
 
@@ -127,7 +126,7 @@ class IconPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         # Process input files
         verbose('Parsing ICON files from {}', rt.paths.icon.file_mask)
         first = True
-        for fn in sorted(glob.glob(rt.paths.icon.file_mask)):
+        for fn in check_glob(rt.paths.icon.file_mask):
             verbose('Parsing ICON file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep

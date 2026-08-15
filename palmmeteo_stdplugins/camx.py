@@ -20,7 +20,6 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import re
-import glob
 from datetime import datetime
 import numpy as np
 import netCDF4
@@ -29,7 +28,7 @@ from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPlug
 from palmmeteo.logging import die, warn, log, verbose, log_output
 from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
-from palmmeteo.utils import ensure_dimension, ax_
+from palmmeteo.utils import ensure_dimension, ax_, check_glob
 from palmmeteo.library import QuantityCalculator, TriRegridder, verify_palm_hinterp
 from palmmeteo.vinterp import get_vinterp
 from .wrf_utils import CAMxCoordTransform, BilinearRegridder
@@ -48,7 +47,7 @@ class CAMxPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         # Process input files
         verbose('Parsing CAMx files from {}', rt.paths.camx.file_mask)
         first = True
-        for fn in glob.glob(rt.paths.camx.file_mask):
+        for fn in check_glob(rt.paths.camx.file_mask):
             verbose('Parsing CAMx file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timesteps

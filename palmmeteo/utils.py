@@ -29,6 +29,7 @@ runtime.
 import os
 import re
 import datetime
+from glob import glob
 from dataclasses import dataclass
 import numpy as np
 
@@ -236,6 +237,12 @@ def assert_dir(filepath):
     dn = os.path.dirname(filepath)
     if not os.path.isdir(dn):
         os.makedirs(dn)
+
+def check_glob(path):
+    files = glob(path)
+    if not files:
+        die('No files found for mask {}', path)
+    return sorted(files)
 
 @dataclass
 class DTIndexer:

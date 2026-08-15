@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License along with
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
-import glob
 from datetime import datetime, timezone
 import math
 import numpy as np
@@ -31,7 +30,7 @@ from palmmeteo.plugins import ImportPluginMixin, HInterpPluginMixin, VInterpPlug
 from palmmeteo.logging import die, warn, log, verbose, log_output
 from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
-from palmmeteo.utils import ensure_dimension
+from palmmeteo.utils import ensure_dimension, check_glob
 from palmmeteo.vinterp import get_vinterp
 from .wrf_utils import WRFCoordTransform, BilinearRegridder, calc_ph_hybrid, \
     calc_ph_sigma, wrf_t, palm_wrf_gw, WrfPhysics
@@ -80,7 +79,7 @@ class WRFPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
         verbose('Parsing WRF files from {}', rt.paths.wrf.file_mask)
         rt.times = [None] * rt.nt
         first = True
-        for fn in glob.glob(rt.paths.wrf.file_mask):
+        for fn in check_glob(rt.paths.wrf.file_mask):
             verbose('Parsing WRF file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time and locate timestep
@@ -449,7 +448,7 @@ class WRFRadPlugin(ImportPluginMixin):
             rad_data = [None] * rt.nt_rad
 
         first = True
-        for fn in glob.glob(rt.paths.wrf.rad_file_mask):
+        for fn in check_glob(rt.paths.wrf.rad_file_mask):
             verbose('Parsing WRF radiation file {}', fn)
             with netCDF4.Dataset(fn) as fin:
                 # Decode time

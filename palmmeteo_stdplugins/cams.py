@@ -20,7 +20,6 @@
 # PALM-METEO. If not, see <https://www.gnu.org/licenses/>.
 
 import re
-import glob
 import datetime
 import numpy as np
 import netCDF4
@@ -30,7 +29,7 @@ from palmmeteo.plugins import (ImportPluginMixin, HInterpPluginMixin,
 from palmmeteo.logging import die, warn, log, verbose
 from palmmeteo.config import cfg
 from palmmeteo.runtime import rt
-from palmmeteo.utils import ensure_dimension
+from palmmeteo.utils import ensure_dimension, check_glob
 from palmmeteo.library import (QuantityCalculator, LatLonRegularGrid,
                                verify_palm_hinterp, NCDates, InputGatherer,
                                HorizonSelection)
@@ -53,7 +52,7 @@ class CAMSPlugin(ImportPluginMixin, HInterpPluginMixin, VInterpPluginMixin):
                            copy_attrs=['units'])
 
         first = True
-        for fn in glob.glob(rt.paths.cams.file_mask):
+        for fn in check_glob(rt.paths.cams.file_mask):
             verbose('Parsing CAMS file {}', fn)
             with netCDF4.Dataset(fn, 'r') as fin:
                 # Decode times
