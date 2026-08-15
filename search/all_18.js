@@ -1,7 +1,11 @@
 var searchData=
 [
-  ['x0_0',['x0',['../classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html#a4930e66e51f72aecc2d9225d038d7233',1,'palmmeteo_stdplugins.aladin.BilinearRegridder.x0()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html#a87636fc754c66bb14d020dfe67fc0b5b',1,'palmmeteo_stdplugins.wrf_utils.BilinearRegridder.x0()']]],
-  ['x1_1',['x1',['../classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html#a910072e784838bdb8e72d722441de2c5',1,'palmmeteo_stdplugins.aladin.BilinearRegridder.x1()'],['../classpalmmeteo__stdplugins_1_1setup__staticdriver_1_1Building.html#a52d0293eac4018942eb994fdcf77de08',1,'palmmeteo_stdplugins.setup_staticdriver.Building.x1()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html#a530efc6b63f6b097026887c78309cad4',1,'palmmeteo_stdplugins.wrf_utils.BilinearRegridder.x1()']]],
-  ['xlen_2',['xlen',['../classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html#af93ff9064b496c8791b7d5a9fb3ed472',1,'palmmeteo_stdplugins.aladin.BilinearRegridder.xlen()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html#a672019475a6bb18f0176ba540d7f1386',1,'palmmeteo_stdplugins.wrf_utils.BilinearRegridder.xlen()']]],
-  ['xs_3',['xs',['../classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html#ad2ef57f554965a90f0158e3e22fd93ca',1,'palmmeteo_stdplugins.aladin.BilinearRegridder.xs()'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html#aa4b2e2b9de94ae546c1828f28e55e30d',1,'palmmeteo_stdplugins.wrf_utils.BilinearRegridder.xs()']]]
+  ['unitconverter_0',['UnitConverter',['../classpalmmeteo_1_1library_1_1UnitConverter.html',1,'palmmeteo::library']]],
+  ['usage_1',['Usage',['../index.html#autotoc_md9',1,'']]],
+  ['use_5fdt_2',['use_dt',['../classpalmmeteo_1_1logging_1_1LoggingLevel.html#a1b3b2644989fc15e8210aa9bcd24c02b',1,'palmmeteo::logging::LoggingLevel']]],
+  ['using_20pip_3',['Method 1: Simple minimal installation using PIP',['../index.html#autotoc_md5',1,'']]],
+  ['using_20the_20palm_20meteo_20library_4',['Using the PALM-meteo library',['../md_docs_2pages_2extending.html#autotoc_md27',1,'']]],
+  ['utc_5',['utc',['../namespacepalmmeteo_1_1utils.html#a699bd0a042aebd023517a5bdb7cc0c18',1,'palmmeteo::utils']]],
+  ['utcdefault_6',['utcdefault',['../namespacepalmmeteo_1_1utils.html#a7a4850d6a5e12662a4188a8d0e0caae2',1,'palmmeteo::utils']]],
+  ['utils_2epy_7',['utils.py',['../utils_8py.html',1,'']]]
 ];

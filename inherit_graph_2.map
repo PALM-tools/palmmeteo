@@ -1,9 +1,15 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="node1" title=" " alt="" coords="5,129,68,156"/>
-<area shape="rect" id="node2" href="$classpalmmeteo_1_1config_1_1ConfigObj.html" title=" " alt="" coords="122,5,329,32"/>
-<area shape="rect" id="node3" href="$classpalmmeteo__stdplugins_1_1aladin_1_1AladinCoordTransform.html" title=" " alt="" coords="116,57,335,98"/>
-<area shape="rect" id="node4" href="$classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html" title=" " alt="" coords="116,122,335,163"/>
-<area shape="rect" id="node5" href="$classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html" title=" " alt="" coords="127,187,323,229"/>
-<area shape="rect" id="node6" href="$classpalmmeteo__stdplugins_1_1wrf__utils_1_1WRFCoordTransform.html" title=" " alt="" coords="127,253,323,294"/>
-<area shape="rect" id="node7" href="$classpalmmeteo__stdplugins_1_1wrf__utils_1_1CAMxCoordTransform.html" title=" " alt="" coords="383,253,585,294"/>
+<area shape="rect" id="Node000000" title=" " alt="" coords="5,127,63,152"/>
+<area shape="rect" id="Node000001" href="$classpalmmeteo_1_1config_1_1ConfigObj.html" title=" " alt="" coords="115,5,301,31"/>
+<area shape="poly" id="edge38_Node000000_Node000001" title=" " alt="" coords="46,113,72,76,89,57,109,41,136,28,138,33,112,46,93,61,76,79,51,116"/>
+<area shape="rect" id="Node000002" href="$classpalmmeteo__stdplugins_1_1aladin_1_1AladinCoordTransform.html" title=" " alt="" coords="111,55,305,95"/>
+<area shape="poly" id="edge39_Node000000_Node000002" title=" " alt="" coords="74,119,110,105,143,93,145,98,112,110,76,124"/>
+<area shape="rect" id="Node000003" href="$classpalmmeteo__stdplugins_1_1aladin_1_1BilinearRegridder.html" title=" " alt="" coords="111,119,305,159"/>
+<area shape="poly" id="edge40_Node000000_Node000003" title=" " alt="" coords="76,137,111,137,111,142,76,142"/>
+<area shape="rect" id="Node000004" href="$classpalmmeteo__stdplugins_1_1wrf__utils_1_1BilinearRegridder.html" title=" " alt="" coords="121,183,295,223"/>
+<area shape="poly" id="edge41_Node000000_Node000004" title=" " alt="" coords="76,154,112,169,145,181,143,186,110,174,74,159"/>
+<area shape="rect" id="Node000005" href="$classpalmmeteo__stdplugins_1_1wrf__utils_1_1WRFCoordTransform.html" title=" " alt="" coords="119,247,297,287"/>
+<area shape="poly" id="edge42_Node000000_Node000005" title=" " alt="" coords="51,163,77,199,112,233,133,245,130,250,109,237,73,203,47,166"/>
+<area shape="rect" id="Node000006" href="$classpalmmeteo__stdplugins_1_1wrf__utils_1_1CAMxCoordTransform.html" title=" " alt="" coords="353,247,540,287"/>
+<area shape="poly" id="edge43_Node000005_Node000006" title=" " alt="" coords="311,265,353,265,353,270,311,270"/>
 </map>

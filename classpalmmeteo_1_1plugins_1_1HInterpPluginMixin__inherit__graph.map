@@ -1,12 +1,21 @@
 <map id="palmmeteo.plugins.HInterpPluginMixin" name="palmmeteo.plugins.HInterpPluginMixin">
-<area shape="rect" id="node1" title=" " alt="" coords="649,136,849,177"/>
-<area shape="rect" id="node6" href="$classpalmmeteo__stdplugins_1_1aladin_1_1AladinPlugin.html" title=" " alt="" coords="897,5,1116,47"/>
-<area shape="rect" id="node7" href="$classpalmmeteo__stdplugins_1_1cams_1_1CAMSPlugin.html" title=" " alt="" coords="899,71,1114,112"/>
-<area shape="rect" id="node8" href="$classpalmmeteo__stdplugins_1_1camx_1_1CAMxPlugin.html" title=" " alt="" coords="899,136,1114,177"/>
-<area shape="rect" id="node9" href="$classpalmmeteo__stdplugins_1_1icon_1_1IconPlugin.html" title=" " alt="" coords="903,201,1110,243"/>
-<area shape="rect" id="node10" href="$classpalmmeteo__stdplugins_1_1wrf_1_1WRFPlugin.html" title=" " alt="" coords="907,267,1106,308"/>
-<area shape="rect" id="node2" href="$classpalmmeteo_1_1plugins_1_1Plugin.html" title=" " alt="" coords="409,143,601,170"/>
-<area shape="rect" id="node3" title=" " alt="" coords="204,118,293,145"/>
-<area shape="rect" id="node4" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="136,169,361,195"/>
-<area shape="rect" id="node5" title=" " alt="" coords="5,169,88,195"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="599,133,777,173"/>
+<area shape="rect" id="Node000006" href="$classpalmmeteo__stdplugins_1_1aladin_1_1AladinPlugin.html" title=" " alt="" coords="825,5,1020,45"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="723,122,769,88,824,55,852,43,854,48,827,60,772,92,726,127"/>
+<area shape="rect" id="Node000007" href="$classpalmmeteo__stdplugins_1_1cams_1_1CAMSPlugin.html" title=" " alt="" coords="827,69,1019,109"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="774,127,848,107,850,112,776,132"/>
+<area shape="rect" id="Node000008" href="$classpalmmeteo__stdplugins_1_1camx_1_1CAMxPlugin.html" title=" " alt="" coords="827,133,1018,173"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="791,151,827,151,827,156,791,156"/>
+<area shape="rect" id="Node000009" href="$classpalmmeteo__stdplugins_1_1icon_1_1IconPlugin.html" title=" " alt="" coords="831,197,1015,237"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="776,174,850,195,848,200,774,180"/>
+<area shape="rect" id="Node000010" href="$classpalmmeteo__stdplugins_1_1wrf_1_1WRFPlugin.html" title=" " alt="" coords="833,261,1012,301"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="726,180,772,214,827,247,854,259,852,264,824,252,769,219,723,184"/>
+<area shape="rect" id="Node000002" href="$classpalmmeteo_1_1plugins_1_1Plugin.html" title=" " alt="" coords="380,141,551,166"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="565,151,598,151,598,156,565,156"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="191,115,273,141"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="287,131,380,141,380,147,287,137"/>
+<area shape="rect" id="Node000004" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="132,165,332,190"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="345,163,380,159,380,165,346,168"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="5,165,84,190"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="98,175,132,175,132,180,98,180"/>
 </map>

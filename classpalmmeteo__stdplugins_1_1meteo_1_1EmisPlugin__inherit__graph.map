@@ -1,9 +1,16 @@
 <map id="palmmeteo_stdplugins.meteo.EmisPlugin" name="palmmeteo_stdplugins.meteo.EmisPlugin">
-<area shape="rect" id="node1" title=" " alt="" coords="919,39,1140,80"/>
-<area shape="rect" id="node2" href="$classpalmmeteo__stdplugins_1_1meteo_1_1RequiresMeteoPluginMixin.html" title=" " alt="" coords="649,5,871,47"/>
-<area shape="rect" id="node3" href="$classpalmmeteo_1_1plugins_1_1Plugin.html" title=" " alt="" coords="409,46,601,73"/>
-<area shape="rect" id="node7" href="$classpalmmeteo_1_1plugins_1_1ImportPluginMixin.html" title=" " alt="" coords="663,71,857,112"/>
-<area shape="rect" id="node4" title=" " alt="" coords="204,21,293,47"/>
-<area shape="rect" id="node5" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="136,71,361,98"/>
-<area shape="rect" id="node6" title=" " alt="" coords="5,71,88,98"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="843,37,1039,77"/>
+<area shape="rect" id="Node000002" href="$classpalmmeteo__stdplugins_1_1meteo_1_1RequiresMeteoPluginMixin.html" title=" " alt="" coords="599,5,795,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="809,37,843,42,842,47,808,43"/>
+<area shape="rect" id="Node000003" href="$classpalmmeteo_1_1plugins_1_1Plugin.html" title=" " alt="" coords="380,45,551,70"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="564,41,598,36,599,42,565,46"/>
+<area shape="rect" id="Node000007" href="$classpalmmeteo_1_1plugins_1_1ImportPluginMixin.html" title=" " alt="" coords="610,69,783,109"/>
+<area shape="poly" id="edge7_Node000007_Node000003" title=" " alt="" coords="565,68,610,75,609,80,564,74"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="191,19,273,45"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="287,35,380,45,380,51,287,41"/>
+<area shape="rect" id="Node000005" href="$classpalmmeteo_1_1plugins_1_1PluginMeta.html" title=" " alt="" coords="132,69,332,94"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="345,67,380,63,380,69,346,72"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="5,69,84,94"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="98,79,132,79,132,84,98,84"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="797,74,842,68,843,73,797,79"/>
 </map>

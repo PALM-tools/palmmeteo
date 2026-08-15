@@ -1,5 +1,15 @@
 var searchData=
 [
-  ['quantities_0',['quantities',['../classpalmmeteo_1_1library_1_1QuantityCalculator.html#a13af628fcd0721f01cfdf9b2cfc2e205',1,'palmmeteo::library::QuantityCalculator']]],
-  ['quantitycalculator_1',['QuantityCalculator',['../classpalmmeteo_1_1library_1_1QuantityCalculator.html',1,'palmmeteo::library']]]
+  ['ncdates_0',['NCDates',['../classpalmmeteo_1_1library_1_1NCDates.html',1,'palmmeteo::library']]],
+  ['ndim_1',['ndim',['../classpalmmeteo_1_1library_1_1TriRegridder.html#a359695ba52fd8c5617b19e35bfab0908',1,'palmmeteo::library::TriRegridder']]],
+  ['nearest_5fgridpt_2',['nearest_gridpt',['../namespacepalmmeteo_1_1utils.html#acc2bf58fb0b7cc68ad33f886f90c3d26',1,'palmmeteo::utils']]],
+  ['new_20plugins_3',['Creating new plugins',['../md_docs_2pages_2extending.html#autotoc_md20',1,'']]],
+  ['new_5ftimestep_4',['new_timestep',['../classpalmmeteo_1_1library_1_1QuantityCalculator.html#a6be18aa80d8c804f07618e518f06ddc3',1,'palmmeteo::library::QuantityCalculator']]],
+  ['next_5fdt_5',['next_dt',['../classpalmmeteo__stdplugins_1_1synthetic_1_1ProfileInterpolator.html#aed9a8d21773d74a24fd4a8ec634ae177',1,'palmmeteo_stdplugins::synthetic::ProfileInterpolator']]],
+  ['notwholetimestep_6',['NotWholeTimestep',['../classpalmmeteo_1_1utils_1_1NotWholeTimestep.html',1,'palmmeteo::utils']]],
+  ['npt_7',['npt',['../classpalmmeteo_1_1library_1_1TriRegridder.html#ac0c4c34cc431d4726f2f844c5c3d8451',1,'palmmeteo::library::TriRegridder']]],
+  ['nt_8',['nt',['../classpalmmeteo_1_1library_1_1InputGatherer.html#a69a9f7b8a57482f71d6fc6ca41c39c0b',1,'palmmeteo::library::InputGatherer']]],
+  ['nv_9',['nv',['../classpalmmeteo_1_1library_1_1InputGatherer.html#a7efb6aecf75beae00b9532e385d92335',1,'palmmeteo::library::InputGatherer']]],
+  ['nx_10',['nx',['../classpalmmeteo__stdplugins_1_1aladin_1_1AladinCoordTransform.html#ac56e7d2a77d9217761cbb174142c59b5',1,'palmmeteo_stdplugins.aladin.AladinCoordTransform.nx'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1WRFCoordTransform.html#a2f2f4351b26bca27b91903a4c8931702',1,'palmmeteo_stdplugins.wrf_utils.WRFCoordTransform.nx'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1CAMxCoordTransform.html#ac8f46f67e989bec44f65a5768b36754b',1,'palmmeteo_stdplugins.wrf_utils.CAMxCoordTransform.nx']]],
+  ['ny_11',['ny',['../classpalmmeteo__stdplugins_1_1aladin_1_1AladinCoordTransform.html#aa5937d4ba6b9db9b5f27be217b09f0f9',1,'palmmeteo_stdplugins.aladin.AladinCoordTransform.ny'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1WRFCoordTransform.html#aa21783b9ea40bcabc6fcb5dd4fdd7ec9',1,'palmmeteo_stdplugins.wrf_utils.WRFCoordTransform.ny'],['../classpalmmeteo__stdplugins_1_1wrf__utils_1_1CAMxCoordTransform.html#af43182da950167c59e940845c589fd6a',1,'palmmeteo_stdplugins.wrf_utils.CAMxCoordTransform.ny']]]
 ];
