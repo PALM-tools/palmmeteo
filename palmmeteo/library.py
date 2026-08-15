@@ -384,16 +384,52 @@ def verify_palm_hinterp(regridder, lats, lons):
 
     verbose('NOTE: 1 metre =~ 0.9e-5 degrees of latitudes.')
 
-def parse_linspace(space, name, maxerr):
-    """Verifies that a vector is evenly-spaced and returns the parameters
-    of such spacing.
+def parse_linspace(space, name, maxerr, modulo=None):
+    """
+    Verifies that a vector is evenly-spaced and returns the parameters
+    of such spacing. Supports real domain and modulo domain.
     """
     n = len(space)
-    base = space[0]
-    step = (space[-1] - base) / (n-1)
-    dstep = 1. / step
-    max_error = np.abs((space - base) * dstep  -
-                       np.arange(n, dtype=space.dtype)).max()
+    if modulo is not None:
+        base = space[0] % modulo
+        modulo_half = modulo / 2
+        modulo_diff = lambda delta: np.abs((delta + modulo_half) % modulo - modulo_half)
+
+        # We need to decide whether the series is increasing (in modulo) or
+        # decreasing (in modulo) without assumptions on e.g. whether the first
+        # step does not flip around zero. We can assume that the series never flips
+        # more than once around zero, so there are just the two cases.
+        length_if_inc = (space[-1] - base) % modulo
+        length_if_dec = length_if_inc - modulo
+        step_if_inc = length_if_inc / (n-1)
+        step_if_dec = length_if_dec / (n-1)
+        error_if_inc = modulo_diff(base + step_if_inc - space[1])
+        error_if_dec = modulo_diff(base + step_if_dec - space[1])
+        if error_if_dec < error_if_inc:
+            length = length_if_dec
+            step = step_if_dec
+            lbuffer = (modulo + length) / 2
+        else:
+            length = length_if_inc
+            step = step_if_inc
+            lbuffer = (modulo - length) / 2
+        verbose('For {} detected start at {}, step {}, buffer length {}.',
+                name, base, step, lbuffer)
+
+        dstep = 1. / step
+        max_error = modulo_diff(space - base
+                                - np.arange(n, dtype=space.dtype) * step
+                                ).max() * dstep
+    else:
+        base = space[0]
+        length = space[-1] - base
+        step = length / (n-1)
+        verbose('For {} detected start at {}, step {}.', name, base, step)
+
+        dstep = 1. / step
+        max_error = np.abs((space - base) * dstep
+                           - np.arange(n, dtype=space.dtype)).max()
+        lbuffer = None
 
     if max_error > maxerr:
         die('Error: Maximum error in {} = {} times grid '
@@ -402,19 +438,28 @@ def parse_linspace(space, name, maxerr):
         verbose('Maximum error in {} = {} times grid '
                 'spacing - OK.', name, max_error)
 
-    return base, step, dstep
+    return base, step, dstep, lbuffer
 
 class LatLonRegularGrid:
     """Coordinate transformer for simple regular lat-lon grids"""
 
     def __init__(self, lats, lons):
-        lat_base, lat_step, lat_dstep = parse_linspace(lats,
+        lat_base, lat_step, lat_dstep, _ = parse_linspace(lats,
                 'input grid latitudes', cfg.hinterp.max_input_grid_error)
-        lon_base, lon_step, lon_dstep = parse_linspace(lons,
-                'input grid longitudes', cfg.hinterp.max_input_grid_error)
+        lon_base, lon_step, lon_dstep, lon_buf = parse_linspace(lons,
+                'input grid longitudes', cfg.hinterp.max_input_grid_error,
+                modulo=360.)
 
-        self.latlon_to_ji = lambda lat, lon: ((lat-lat_base)*lat_dstep, (lon-lon_base)*lon_dstep)
-        self.ji_to_latlon = lambda j, i: (j*lat_step+lat_base, i*lon_step+lon_base)
+        self.ji_to_latlon = lambda j, i: ( j * lat_step + lat_base,
+                                          (i * lon_step + lon_base) % 360.)
+
+        if lon_step < 0:
+            lon_dstep_n = -lon_dstep
+            self.latlon_to_ji = lambda lat, lon: ( (lat - lat_base)                             * lat_dstep,
+                                                  ((lon_base - lon + lon_buf) % 360. - lon_buf) * lon_dstep_n)
+        else:
+            self.latlon_to_ji = lambda lat, lon: ( (lat - lat_base)                             * lat_dstep,
+                                                  ((lon - lon_base + lon_buf) % 360. - lon_buf) * lon_dstep)
 
 class AssimCycle:
     """List of selected assimilation cycles based on configuration"""
